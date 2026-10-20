@@ -1,0 +1,15 @@
+node_modules/
+.gradle/
+build/
+*.apk
+
+# Android build outputs & local config
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/.navigation/
+android/captures/
