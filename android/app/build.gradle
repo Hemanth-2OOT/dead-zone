@@ -16,8 +16,25 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file('release.keystore')
+            storePassword 'deadzone2026'
+            keyAlias 'deadzone'
+            keyPassword 'deadzone2026'
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/*.version', 'META-INF/services/kotlinx.coroutines.*', 'META-INF/com/android/build/gradle/app-metadata.properties']
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
