@@ -85,7 +85,7 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <canvas id="c"></canvas>
 <div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">ACCOUNT RANK</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
 <div id="pn">
-<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.6.2</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
+<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.6.3</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
 <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
 <div class="pp" id="pc"><div id="cls" class="grid"></div></div><div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div><div class="pp" id="p2"><div id="upg" class="grid"></div></div>
 <div class="pp" id="pa"><p id="rcnt" style="font-weight:700;color:#8fae4a"></p><div id="art" class="grid"></div></div>
@@ -128,6 +128,16 @@ if(typeof CanvasRenderingContext2D!=='undefined'){
     this.arc(0,0,1,sa||0,ea!=null?ea:6.28318,!!acw);
     this.restore();
     return this;
+  };
+  const _origFillRect=CanvasRenderingContext2D.prototype.fillRect;
+  CanvasRenderingContext2D.prototype.fillRect=function(x,y,w,h){
+    if(w===undefined)w=0;if(h===undefined)h=w;
+    return _origFillRect.call(this,x||0,y||0,w||0,h||0);
+  };
+  const _origStrokeRect=CanvasRenderingContext2D.prototype.strokeRect;
+  CanvasRenderingContext2D.prototype.strokeRect=function(x,y,w,h){
+    if(w===undefined)w=0;if(h===undefined)h=w;
+    return _origStrokeRect.call(this,x||0,y||0,w||0,h||0);
   };
 }
 const C=document.getElementById('c');let X=C.getContext('2d'),X0=X,W,H,DPR;
@@ -1589,7 +1599,7 @@ function draw(){
       const bkS=Math.min(10,Math.min(o.w,o.h)*.35);
       X.fillStyle='#22281e';
       X.fillRect(o.x,o.y,bkS,bkS);X.fillRect(o.x+o.w-bkS,o.y,bkS,bkS);
-      X.fillRect(o.x,o.y+o.h-bkS,bkS,bkS);X.fillRect(o.x+o.w-bkS,o.y+o.h-bkS,bkS);
+      X.fillRect(o.x,o.y+o.h-bkS,bkS,bkS);X.fillRect(o.x+o.w-bkS,o.y+o.h-bkS,bkS,bkS);
       X.fillStyle='#8f9a88';
       X.fillRect(o.x+2,o.y+2,2,2);X.fillRect(o.x+o.w-4,o.y+2,2,2);
       X.fillRect(o.x+2,o.y+o.h-4,2,2);X.fillRect(o.x+o.w-4,o.y+o.h-4,2,2);
