@@ -85,7 +85,7 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <canvas id="c"></canvas>
 <div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">ACCOUNT RANK</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
 <div id="pn">
-<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.6.1</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
+<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.6.2</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
 <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
 <div class="pp" id="pc"><div id="cls" class="grid"></div></div><div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div><div class="pp" id="p2"><div id="upg" class="grid"></div></div>
 <div class="pp" id="pa"><p id="rcnt" style="font-weight:700;color:#8fae4a"></p><div id="art" class="grid"></div></div>
@@ -97,6 +97,39 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <div class="ov" id="perk"><h2>LEVEL UP</h2><p>Choose a power</p><div style="display:flex;gap:8px;justify-content:center;margin:3px 0"><button id="quickpick" class="go" style="padding:6px 18px;min-height:36px;font-size:13px;letter-spacing:1px">⚡ QUICK PICK</button></div><div id="pcards" class="grid"></div></div>
 <div class="ov" id="pause"><h2>Paused</h2><p id='pw' style='font-size:13px'></p><div class="ov-btns"><button class="go" id="resume">Resume</button><button id="quit">Quit to lobby</button></div></div>
 <script>
+if(typeof CanvasRenderingContext2D!=='undefined'){
+  if(!CanvasRenderingContext2D.prototype.roundRect){
+    CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,radii){
+      if(!radii)radii=0;
+      let r=typeof radii==='number'?radii:(Array.isArray(radii)?(radii[0]||0):0);
+      r=Math.min(Math.max(0,r),Math.abs(w)/2,Math.abs(h)/2);
+      this.moveTo(x+r,y);
+      this.arcTo(x+w,y,x+w,y+h,r);
+      this.arcTo(x+w,y+h,x,y+h,r);
+      this.arcTo(x,y+h,x,y,r);
+      this.arcTo(x,y,x+w,y,r);
+      this.closePath();
+      return this;
+    };
+  }
+  const _origEllipse=CanvasRenderingContext2D.prototype.ellipse;
+  CanvasRenderingContext2D.prototype.ellipse=function(x,y,rx,ry,rot,sa,ea,acw){
+    rx=Math.max(0.1,Math.abs(rx||0));
+    ry=Math.max(0.1,Math.abs(ry||0));
+    if(_origEllipse){
+      try{
+        return _origEllipse.call(this,x,y,rx,ry,rot||0,sa||0,ea!=null?ea:6.28318,!!acw);
+      }catch(e){}
+    }
+    this.save();
+    this.translate(x,y);
+    this.rotate(rot||0);
+    this.scale(rx,ry);
+    this.arc(0,0,1,sa||0,ea!=null?ea:6.28318,!!acw);
+    this.restore();
+    return this;
+  };
+}
 const C=document.getElementById('c');let X=C.getContext('2d'),X0=X,W,H,DPR;
 function rs(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;C.width=W*DPR;C.height=H*DPR;X.setTransform(DPR,0,0,DPR,0,0)}rs();addEventListener('resize',rs);
 const WS=2400,$=id=>document.getElementById(id);
@@ -1210,7 +1243,7 @@ function drawTelegraph(z){
   }
 }
 function drawZombie(z){
-  const T=ZT[z.t]||ZT.walk,sc=Math.min(1,(z.age||0)*3)*(1+Math.sin(z.ph||0)*.06);
+  const T=ZT[z.t]||ZT.walk,sc=Math.max(0.01,Math.min(1,(z.age||0)*3)*(1+Math.sin(z.ph||0)*.06)||0.01);
   const a=Math.atan2(P.y-z.y,P.x-z.x),sw=Math.sin(z.ph||0),isHit=z.hit>0;
   if(z.t=='stalker'&&Math.hypot(P.x-z.x,P.y-z.y)>180)X.globalAlpha=0.22;else X.globalAlpha=1;
   X.fillStyle='#00000066';X.beginPath();X.ellipse(z.x+3,z.y+4,T.r*sc*1.1,T.r*sc*.75,a,0,6.28);X.fill();
@@ -1408,7 +1441,7 @@ function draw(){
   if(!isFinite(cx))cx=0;if(!isFinite(cy))cy=0;
   CX=cx;CY=cy;
   X.fillStyle='#0c0e08';X.fillRect(0,0,W,H);
-  const sm=SV.map||0,mp=MP[sm];X.save();X.translate(-cx,-cy);
+  const sm=Math.max(0,Math.min(MP.length-1,SV.map||0)),mp=MP[sm]||MP[0];X.save();X.translate(-cx,-cy);
   const x0=Math.max(0,Math.floor(cx/100)),y0=Math.max(0,Math.floor(cy/100));
   for(let i=x0;i<Math.min(WS/100,x0+Math.ceil(W/100)+2);i++)for(let j=y0;j<Math.min(WS/100,y0+Math.ceil(H/100)+2);j++){
     const tx=i*100,ty=j*100;
@@ -1859,8 +1892,10 @@ const DIAG={
   upErr:0,
   drErr:0,
   totErr:0,
+  lastMsg:'',
   log(op,err){
     this.totErr++;
+    this.lastMsg=(err&&err.message)?err.message:String(err);
     const now=Date.now();
     if(now-this.lastLog>1000){
       this.lastLog=now;
@@ -1895,11 +1930,14 @@ function loop(t){
       if(DIAG.drErr>=5){
         X.fillStyle='rgba(16,18,11,0.92)';X.fillRect(0,0,W,H);
         X.fillStyle='#ff5a3a';X.font='bold 14px sans-serif';X.textAlign='center';
-        X.fillText('Rendering issue detected. Diagnostics logged to console.',W/2,H/2);
+        X.fillText('Rendering issue detected: '+(DIAG.lastMsg||'Unknown'),W/2,H/2);
+        X.fillStyle='#ece7d5';X.font='11px sans-serif';
+        X.fillText('Tap screen to retry',W/2,H/2+24);
       }
     }
   }
 }
+addEventListener('pointerdown',()=>{if(DIAG.drErr>=5)DIAG.drErr=0});
 function openShop(){commitXP();if(S.wave>0)SV.best=Math.max(SV.best,S.wave);sv();$('st').textContent='Wave '+S.wave+' cleared';P.hp=Math.min(P.mx,P.hp+20);rebuild();$('shopov').classList.add('on')}
 function rebuild(){
   $('cash').textContent='Cash: $'+S.cash;const s=$('shop');s.innerHTML='';
