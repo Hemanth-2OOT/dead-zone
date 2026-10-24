@@ -85,7 +85,7 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <canvas id="c"></canvas>
 <div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">ACCOUNT RANK</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
 <div id="pn">
-<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.7.0</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
+<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.8.0</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
 <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
 <div class="pp" id="pc"><div id="cls" class="grid"></div></div><div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div><div class="pp" id="p2"><div id="upg" class="grid"></div></div>
 <div class="pp" id="pa"><p id="rcnt" style="font-weight:700;color:#8fae4a"></p><div id="art" class="grid"></div></div>
@@ -152,31 +152,31 @@ const C=document.getElementById('c');let X=C.getContext('2d'),X0=X,W,H,DPR;
 function rs(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;C.width=W*DPR;C.height=H*DPR;X.setTransform(DPR,0,0,DPR,0,0)}rs();addEventListener('resize',rs);
 const WS=2400,$=id=>document.getElementById(id);
 const WEAP=[
-  {n:'Pistol',d:17,r:.35,sp:.025,p:1,c:0,kb:.8},
-  {n:'SMG',d:8.5,r:.105,sp:.12,p:1,c:300,kb:.4},
-  {n:'Shotgun',d:10,r:.68,sp:.26,p:6,c:500,kb:.5},
-  {n:'Rifle',d:26,r:.22,sp:.025,p:1,c:700,kb:.9},
-  {n:'Minigun',d:7,r:.065,sp:.18,p:1,c:1500,kb:.18},
-  {n:'Revolver',d:58,r:.58,sp:.01,p:1,c:400,kb:1.5},
-  {n:'Assault',d:14,r:.10,sp:.055,p:1,c:900,kb:.65},
-  {n:'Sniper',d:155,r:1.15,sp:0,p:1,c:1200,pr:3,rg:1.1,kb:2.0},
-  {n:'Plasma',d:28,r:.15,sp:.03,p:1,c:2500,pr:2,kb:.8},
-  {n:'Rocket',d:50,r:.95,sp:.01,p:1,c:3000,ex:105,kb:2.2},
-  {n:'Flamer',d:5.5,r:.06,sp:.20,p:2,c:1800,rg:.40,flm:1,kb:.15},
-  {n:'Tesla',d:48,r:.38,sp:0,p:1,c:3500,pr:3,cl:2,kb:.7},
-  {n:'GL-40',d:85,r:1.05,sp:.035,p:1,c:2800,ex:90,kb:1.8},
-  {n:'Cryo Blaster',d:22,r:.14,sp:.03,p:1,c:3400,fz:1,kb:.7},
-  {n:'Railgun',d:270,r:1.55,sp:0,p:1,c:4200,pr:10,rg:1.3,kb:2.8}
+  {n:'Pistol',d:20,r:.32,sp:.02,p:1,c:0,kb:.85},
+  {n:'SMG',d:9.5,r:.10,sp:.11,p:1,c:300,kb:.45},
+  {n:'Shotgun',d:11,r:.62,sp:.24,p:8,c:500,kb:.6},
+  {n:'Rifle',d:30,r:.20,sp:.02,p:1,c:700,kb:.95},
+  {n:'Minigun',d:8.5,r:.075,sp:.16,p:1,c:1500,kb:.2},
+  {n:'Revolver',d:68,r:.52,sp:.01,p:1,c:400,kb:1.6},
+  {n:'Assault',d:16,r:.095,sp:.05,p:1,c:900,kb:.7},
+  {n:'Sniper',d:195,r:1.05,sp:0,p:1,c:1200,pr:3,rg:1.15,kb:2.2},
+  {n:'Plasma',d:34,r:.14,sp:.025,p:1,c:2500,pr:2,kb:.85},
+  {n:'Rocket',d:175,r:.95,sp:.01,p:1,c:3000,ex:115,kb:2.5},
+  {n:'Flamer',d:6.5,r:.065,sp:.20,p:2,c:1800,rg:.40,flm:1,kb:.15},
+  {n:'Tesla',d:62,r:.30,sp:0,p:1,c:3500,pr:3,cl:3,kb:.75},
+  {n:'GL-40',d:115,r:.90,sp:.03,p:1,c:2800,ex:95,kb:1.9},
+  {n:'Cryo Blaster',d:24,r:.13,sp:.025,p:1,c:3400,fz:1,kb:.7},
+  {n:'Railgun',d:340,r:1.40,sp:0,p:1,c:4200,pr:10,rg:1.35,kb:2.8}
 ];
 const ZT={
-  walk:{hp:30,s:55,r:13,col:'#6f8f4a',dm:8,cash:10,kb:1.0},
-  run:{hp:18,s:120,r:11,col:'#a8a04a',dm:6,cash:15,kb:1.05},
-  tank:{hp:180,s:38,r:22,col:'#7a4a4a',dm:20,cash:50,kb:0.2},
-  exp:{hp:25,s:95,r:12,col:'#d0702a',dm:0,cash:25,kb:1.0},
-  spit:{hp:42,s:60,r:12,col:'#4fb04a',dm:6,cash:30,kb:0.95},
-  stalker:{hp:38,s:85,r:12,col:'#3e5f52',dm:12,cash:22,stk:1,kb:0.85},
-  charger:{hp:110,s:45,r:18,col:'#8a4828',dm:18,cash:35,chg:1,kb:0.35},
-  boss:{hp:1100,s:50,r:34,col:'#8a2f2f',dm:35,cash:300,kb:0.08}
+  walk:{hp:32,s:55,r:13,col:'#6f8f4a',dm:8,cash:10,kb:1.0},
+  run:{hp:18,s:115,r:11,col:'#a8a04a',dm:6,cash:14,kb:1.1},
+  tank:{hp:190,s:38,r:22,col:'#7a4a4a',dm:18,cash:55,kb:0.25},
+  exp:{hp:24,s:90,r:12,col:'#d0702a',dm:0,cash:22,kb:1.0},
+  spit:{hp:40,s:58,r:12,col:'#4fb04a',dm:6,cash:30,kb:0.95},
+  stalker:{hp:42,s:82,r:12,col:'#3e5f52',dm:12,cash:25,stk:1,kb:0.85},
+  charger:{hp:115,s:45,r:18,col:'#8a4828',dm:16,cash:35,chg:1,kb:0.35},
+  boss:{hp:1150,s:48,r:34,col:'#8a2f2f',dm:32,cash:350,kb:0.08}
 };
 let S,P,B,Z,D,F,K={},M={x:0,y:0,down:0},J={l:null,r:null},last=0,run=0,O=[],G=[],T=[],RG=[],GH=[],AB=[],TR=[],NS=[],TX=[],CS=[],TCH=0,CX=0,CY=0,SH=0,SK,PC='#d8c9a0';
 const ML=[36,46,60,64,60,39,62,84,56,78,60,70,54,62,86];
@@ -259,7 +259,11 @@ function startWave(){
     S.q.push(t);
   }
   if(S.wave%5==0)S.q.push('boss');
-  S.sp=0;run=1;spawnChest(S.wave>4?2:1);
+  S.sp=0;run=1;
+  // Controlled chest spawn: Wave 1, every 3 waves, and milestones - maximum 1 wave chest
+  if(S.wave===1 || (S.wave%3===0 && S.wave%5!==0)){
+    if(CH.length < 3) spawnChest(1);
+  }
 }
 function spawn(t){
   const an=Math.random()*6.28,dd=420+Math.random()*200,x=Math.max(10,Math.min(WS-10,P.x+Math.cos(an)*dd)),y=Math.max(10,Math.min(WS-10,P.y+Math.sin(an)*dd));
@@ -367,54 +371,54 @@ function gun(i,rc){
 }
 let AC=null,MUTE=0,CH=[],LT=[],HZ=[];
 const PKS=[
-  ['Power Shot','+20% damage',()=>S.dm*=1.2,6],
-  ['Rapid Fire','+15% fire rate',()=>S.rf=(S.rf||1)*1.15,6],
-  ['Double Barrel','+1 projectile per shot',()=>S.xp2=(S.xp2||0)+1,3],
-  ['Piercing Rounds','Bullets pierce +1 zombie',()=>S.pc=(S.pc||0)+1,3],
-  ['Explosive Rounds','Bullets explode on impact',()=>S.eb=1,1],
-  ['Sharpshooter','+8% crit chance',()=>S.ct=(S.ct||0)+.08,5],
-  ['Iron Body','+25 max HP and heal',()=>{P.mx+=25;P.hp+=25},5],
-  ['Second Wind','Regenerate 1.5 HP/s',()=>S.rg=(S.rg||0)+1.5,3],
-  ['Bloodthirst','+1 HP per kill',()=>S.ls=(S.ls||0)+1,3],
-  ['Adrenaline','+10% move speed',()=>S.ms=(S.ms||1)*1.1,4],
-  ['Kevlar','-10% damage taken',()=>S.ar=(S.ar||1)*.9,4],
-  ['Quick Skills','Skills recharge 20% faster',()=>S.cd2=(S.cd2||1)*1.2,3],
-  ['Magnet','Wider pickup range',()=>S.mg=(S.mg||1)+.7,3],
-  ['Gold Rush','+25% cash from kills',()=>S.cm=(S.cm||1)+.25,3],
-  ['Grenadier','+4 grenades',()=>S.gr+=4,3],
-  ['✦ Chain Lightning','Bullets arc to nearby zombies',()=>S.cl=(S.cl||0)+1,3,'#9be7ff'],
-  ['✦ Frost Aura','Zombies near you are slowed',()=>S.fa=(S.fa||0)+1,3,'#9be7ff'],
-  ['✦ Immolation','Burn every zombie close to you',()=>S.fi=(S.fi||0)+1,3,'#ff9a3a'],
-  ['✦ Spectral Blades','+1 orbiting spirit blade',()=>S.ob=(S.ob||0)+1,4,'#c9a6ff'],
-  ['✦ Meteor Rain','Meteors crash onto the horde',()=>S.mt=(S.mt||0)+1,3,'#ff7a3a'],
-  ['✦ Arcane Barrier','Absorb a hit, recharges in 12s',()=>{S.bl=(S.bl||0)+1;S.bc=(S.bc||0)+1},3,'#be8cff'],
-  ['✦ Shadow Step','Dashing damages zombies you pass',()=>S.sd=(S.sd||0)+1,3,'#9a7aff'],
-  ['✦ Phoenix','Revive once at half HP with a fire blast',()=>S.ph=(S.ph||0)+1,1,'#ffb347'],
-  ['✦ Storm Caller','Lightning strikes random zombies',()=>S.sc=(S.sc||0)+1,3,'#9be7ff'],
-  ['✦ Venom Rounds','Bullets poison zombies over time',()=>S.pv=(S.pv||0)+1,3,'#7be04a'],
-  ['✦ Soul Harvest','Every few kills release a soul blast',()=>S.so=(S.so||0)+1,3,'#c9a6ff'],
-  ['✦ Thorns','Hits on you blast attackers away',()=>S.th=(S.th||0)+1,3,'#ff7a5a'],
-  ['✦ Berserker','More damage the lower your HP',()=>S.bk=(S.bk||0)+1,3,'#ff5a3a'],
-  ['✦ Time Warp','All zombies move 12% slower',()=>S.tw=(S.tw||0)+1,3,'#9be7ff'],
-  ['✦ Executioner','Execute weakened zombies',()=>S.xe=(S.xe||0)+1,3,'#ff4a3a'],
-  ['✦ Lucky Charm','More chests and free powers',()=>S.lk=(S.lk||0)+1,3,'#e0b83a'],
-  ['✦ Arcane Missiles','Homing missiles hit nearest zombies',()=>S.am=(S.am||0)+1,3,'#c9a6ff'],
-  ['✦ Bloodlust','Kills boost your fire rate briefly',()=>S.bz=(S.bz||0)+1,3,'#ff5a3a'],
-  ['✦ Volatile Corpses','Dead zombies may explode',()=>S.vc=(S.vc||0)+1,3,'#ff9a3a'],
-  ['✦ Kill Rush','Kills speed up skill cooldowns',()=>S.hs=(S.hs||0)+1,3,'#9be7ff'],
-  ['✦ Overcharge','Every few shots deal triple damage',()=>S.oc=(S.oc||0)+1,3,'#ffd36b'],
-  ['✦ Guardian Angel','Heal 30% when near death',()=>S.ga=(S.ga||0)+1,2,'#8fd06a'],
-  ['✦ Fragmentation','Bullets burst into shards on impact',()=>S.fr=(S.fr||0)+1,2,'#ff9a3a'],
-  ['✦ Glass Cannon','+40% damage, -20% max HP',()=>{S.dm*=1.4;P.mx=Math.max(40,Math.round(P.mx*.8));P.hp=Math.min(P.hp,P.mx)},1,'#ff4a3a'],
-  ['✦ Nano Swarm','Drones seek and shred nearby zombies',()=>S.ns=(S.ns||0)+1,3,'#00e5ff'],
-  ['✦ Cryo Blast','Frost nova explodes when damaged',()=>S.cb2=(S.cb2||0)+1,3,'#9be7ff'],
-  ['✦ Overdrive','+25% fire rate and +15% move speed',()=>{S.rf=(S.rf||1)*1.25;S.ms=(S.ms||1)*1.15},3,'#ff7a3a'],
-  ['✦ Singularity','Grenades pull zombies into a vortex',()=>S.sg=(S.sg||0)+1,3,'#c9a6ff'],
-  ['✦ Static Discharge','Taking damage zaps all nearby zombies',()=>S.ed=(S.ed||0)+1,3,'#9be7ff'],
-  ['✦ Toxic Trail','Moving leaves a toxic trail behind you',()=>S.tt2=(S.tt2||0)+1,3,'#7be04a'],
-  ['✦ Critical Surge','Crits boost speed and fire rate for 3s',()=>S.cs=(S.cs||0)+1,3,'#ffd36b'],
-  ['✦ Kinetic Deflector','Ranged spit attacks bounce off you',()=>S.kd=(S.kd||0)+1,2,'#00e5ff'],
-  ['✦ Heavy Ordnance','Explosions have +35% radius and damage',()=>S.ho=(S.ho||0)+1,3,'#ff7a3a']
+  ['Power Shot','+15% weapon damage (additive)',()=>{S.pkDmg=(S.pkDmg||0)+.15;S.dm=1+(S.pkDmg||0)},5,'#ff5a3a','OFFENSE'],
+  ['Rapid Fire','+12% fire rate (additive)',()=>{S.pkRf=(S.pkRf||0)+.12;S.rf=1+(S.pkRf||0)},5,'#ff9a3a','OFFENSE'],
+  ['Double Barrel','+1 projectile per shot',()=>{S.xp2=(S.xp2||0)+1},2,'#ffd36b','OFFENSE'],
+  ['Piercing Rounds','Bullets pierce +1 enemy',()=>{S.pc=(S.pc||0)+1},3,'#e0b83a','OFFENSE'],
+  ['Explosive Rounds','Bullets trigger kinetic detonations on hit',()=>{S.eb=1},1,'#ff4a3a','OFFENSE'],
+  ['Sharpshooter','+8% crit chance (max 75%)',()=>{S.ct=Math.min(.75,(S.ct||0)+.08)},5,'#ff7a5a','OFFENSE'],
+  ['Iron Body','+25 Max HP and instant heal',()=>{P.mx+=25;P.hp+=25},5,'#8fae4a','DEFENSE'],
+  ['Second Wind','Regenerate +1.0 HP per second',()=>{S.rg=(S.rg||0)+1.0},3,'#8fd06a','DEFENSE'],
+  ['Bloodthirst','+0.5 HP recovered per kill',()=>{S.ls=(S.ls||0)+.5},3,'#ff5a3a','DEFENSE'],
+  ['Adrenaline','+8% move speed (diminishing return)',()=>{S.ms=Math.min(1.55,(S.ms||1)+.08)},4,'#00e5ff','MOBILITY'],
+  ['Kevlar','-10% damage taken (max 65% reduction)',()=>{S.ar=Math.max(.35,(S.ar||1)-.10)},4,'#9be7ff','DEFENSE'],
+  ['Quick Skills','+15% skill recharge rate (max 50% CDR)',()=>{S.cd2=Math.min(1.8,(S.cd2||1)+.15)},3,'#be8cff','TACTICAL'],
+  ['Magnet','+70% item & cash pickup radius',()=>{S.mg=(S.mg||1)+.7},3,'#e0b83a','TACTICAL'],
+  ['Gold Rush','+20% cash bounty from kills',()=>{S.cm=(S.cm||1)+.20},3,'#ffd84a','TACTICAL'],
+  ['Grenadier','+3 tactical grenades ready',()=>{S.gr+=3},3,'#d98f3a','TACTICAL'],
+  ['✦ Chain Lightning','Bullets arc electric chains to nearby enemies',()=>{S.cl=(S.cl||0)+1},3,'#9be7ff','ELEMENTAL'],
+  ['✦ Frost Aura','Permanent frost aura slows nearby enemies by 25%',()=>{S.fa=(S.fa||0)+1},3,'#9be7ff','ELEMENTAL'],
+  ['✦ Immolation','Ignites all nearby zombies in continuous flames',()=>{S.fi=(S.fi||0)+1},3,'#ff9a3a','ELEMENTAL'],
+  ['✦ Spectral Blades','+1 orbiting ethereal blade protecting you',()=>{S.ob=(S.ob||0)+1},3,'#c9a6ff','TACTICAL'],
+  ['✦ Meteor Rain','Meteors periodically crash on distant hordes',()=>{S.mt=(S.mt||0)+1},3,'#ff7a3a','TACTICAL'],
+  ['✦ Arcane Barrier','Absorbs a lethal hit, recharges in 12s',()=>{S.bl=(S.bl||0)+1;S.bc=(S.bc||0)+1},3,'#be8cff','DEFENSE'],
+  ['✦ Shadow Step','Tactical dash damages and passes through zombies',()=>{S.sd=(S.sd||0)+1},3,'#9a7aff','MOBILITY'],
+  ['✦ Phoenix','Revive once at 50% HP with a massive blast',()=>{S.ph=(S.ph||0)+1},1,'#ffb347','ULTIMATE'],
+  ['✦ Storm Caller','Thunderbolts strike random targets periodically',()=>{S.sc=(S.sc||0)+1},3,'#9be7ff','ELEMENTAL'],
+  ['✦ Venom Rounds','Bullets inject corrosive poison over time',()=>{S.pv=(S.pv||0)+1},3,'#7be04a','ELEMENTAL'],
+  ['✦ Soul Harvest','Every 8 kills release a radial soul shockwave',()=>{S.so=(S.so||0)+1},3,'#c9a6ff','ELEMENTAL'],
+  ['✦ Thorns','Taking melee hits blasts attackers back with force',()=>{S.th=(S.th||0)+1},3,'#ff7a5a','DEFENSE'],
+  ['✦ Berserker','Deal up to +40% bonus damage as HP drops',()=>{S.bk=(S.bk||0)+1},3,'#ff5a3a','OFFENSE'],
+  ['✦ Time Warp','All zombies move 10% slower',()=>{S.tw=(S.tw||0)+1},3,'#9be7ff','TACTICAL'],
+  ['✦ Executioner','Instantly execute low-health non-boss enemies',()=>{S.xe=(S.xe||0)+1},3,'#ff4a3a','OFFENSE'],
+  ['✦ Lucky Charm','Improves chest quality and drop chances',()=>{S.lk=(S.lk||0)+1},3,'#e0b83a','TACTICAL'],
+  ['✦ Arcane Missiles','Homing arcane missiles seek closest enemies',()=>{S.am=(S.am||0)+1},3,'#c9a6ff','ELEMENTAL'],
+  ['✦ Bloodlust','Kills briefly accelerate fire rate by 15%',()=>{S.bz=(S.bz||0)+1},3,'#ff5a3a','OFFENSE'],
+  ['✦ Volatile Corpses','Defeated zombies have a 25% chance to explode',()=>{S.vc=(S.vc||0)+1},3,'#ff9a3a','TACTICAL'],
+  ['✦ Kill Rush','Kills shave 0.12s off active skill cooldowns',()=>{S.hs=(S.hs||0)+1},3,'#9be7ff','TACTICAL'],
+  ['✦ Overcharge','Every 4th shot deals double damage',()=>{S.oc=(S.oc||0)+1},3,'#ffd36b','OFFENSE'],
+  ['✦ Guardian Angel','Heal 25% HP when health falls below 20%',()=>{S.ga=(S.ga||0)+1},2,'#8fd06a','DEFENSE'],
+  ['✦ Fragmentation','Bullets burst into sharp fragmentation shards on hit',()=>{S.fr=(S.fr||0)+1},2,'#ff9a3a','OFFENSE'],
+  ['✦ Glass Cannon','+35% damage, -15% Max HP',()=>{S.pkDmg=(S.pkDmg||0)+.35;S.dm=1+(S.pkDmg||0);P.mx=Math.max(40,Math.round(P.mx*.85));P.hp=Math.min(P.hp,P.mx)},1,'#ff4a3a','ULTIMATE'],
+  ['✦ Nano Swarm','Autonomous combat drones seek and shred enemies',()=>{S.ns=(S.ns||0)+1},3,'#00e5ff','TACTICAL'],
+  ['✦ Cryo Blast','Freezing frost nova erupts whenever you take damage',()=>{S.cb2=(S.cb2||0)+1},3,'#9be7ff','ELEMENTAL'],
+  ['✦ Overdrive','+18% fire rate and +10% move speed',()=>{S.pkRf=(S.pkRf||0)+.18;S.rf=1+(S.pkRf||0);S.ms=Math.min(1.55,(S.ms||1)+.10)},3,'#ff7a3a','OFFENSE'],
+  ['✦ Singularity','Grenades pull surrounding zombies into a vortex',()=>{S.sg=(S.sg||0)+1},3,'#c9a6ff','TACTICAL'],
+  ['✦ Static Discharge','Taking damage emits radial electric lightning arcs',()=>{S.ed=(S.ed||0)+1},3,'#9be7ff','ELEMENTAL'],
+  ['✦ Toxic Trail','Moving leaves a toxic acid trail damaging pursuers',()=>{S.tt2=(S.tt2||0)+1},3,'#7be04a','ELEMENTAL'],
+  ['✦ Critical Surge','Scoring critical hits boosts speed & ROF for 3s',()=>{S.cs=(S.cs||0)+1},3,'#ffd36b','OFFENSE'],
+  ['✦ Kinetic Deflector','Incoming ranged acid attacks bounce harmlessly',()=>{S.kd=(S.kd||0)+1},2,'#00e5ff','DEFENSE'],
+  ['✦ Heavy Ordnance','Explosion radius & damage increased by +30%',()=>{S.ho=(S.ho||0)+1},3,'#ff7a3a','OFFENSE']
 ];
 function applyPerk(p){
   p[2]();
@@ -424,10 +428,189 @@ function applyPerk(p){
   S.ts='+ '+nm;S.tt=2;
   txt(P.x,P.y-25,'+ '+nm,p[4]||'#8fae4a',true);
 }
+
+const PI_CACHE={};
+function getPerkIcon(name, col){
+  const cleanName = name.replace(/^✦\s*/, '');
+  if(PI_CACHE[cleanName]) return PI_CACHE[cleanName];
+  const cv=document.createElement('canvas');cv.width=48;cv.height=48;
+  const cx=cv.getContext('2d'),c=col||'#8fae4a';
+  cx.fillStyle='#131710';cx.beginPath();cx.roundRect(2,2,44,44,7);cx.fill();
+  cx.strokeStyle=c;cx.lineWidth=2;cx.stroke();
+  cx.fillStyle='rgba(255,255,255,.05)';cx.fillRect(4,4,40,20);
+  cx.save();cx.translate(24,24);
+  cx.fillStyle=c;cx.strokeStyle=c;cx.lineWidth=2;cx.lineCap='round';
+  
+  if(cleanName==='Power Shot'){
+    cx.beginPath();cx.arc(0,0,9,0,6.28);cx.stroke();
+    cx.beginPath();cx.moveTo(-13,0);cx.lineTo(13,0);cx.moveTo(0,-13);cx.lineTo(0,13);cx.stroke();
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(0,0,3,0,6.28);cx.fill();
+  } else if(cleanName==='Rapid Fire'){
+    for(let k=-1;k<=1;k++){
+      cx.beginPath();cx.moveTo(k*6-3,-8);cx.lineTo(k*6+3,-8);cx.lineTo(k*6+3,8);cx.lineTo(k*6-3,8);cx.closePath();cx.fill();
+      cx.beginPath();cx.moveTo(k*6-3,-8);cx.lineTo(k*6,-12);cx.lineTo(k*6+3,-8);cx.closePath();cx.fill();
+    }
+  } else if(cleanName==='Double Barrel'){
+    cx.fillStyle='#c8302a';
+    cx.beginPath();cx.roundRect(-8,-10,6,20,2);cx.roundRect(2,-10,6,20,2);cx.fill();
+    cx.fillStyle='#ffd84a';cx.fillRect(-8,6,6,4);cx.fillRect(2,6,6,4);
+  } else if(cleanName==='Piercing Rounds'){
+    cx.beginPath();cx.moveTo(-11,11);cx.lineTo(11,-11);cx.stroke();
+    cx.beginPath();cx.moveTo(4,-11);cx.lineTo(11,-11);cx.lineTo(11,-4);cx.stroke();
+    cx.strokeStyle='#fff';cx.strokeRect(-5,-5,10,10);
+  } else if(cleanName==='Explosive Rounds'){
+    for(let a=0;a<6.28;a+=0.785){
+      cx.beginPath();cx.moveTo(Math.cos(a)*4,Math.sin(a)*4);cx.lineTo(Math.cos(a)*13,Math.sin(a)*13);cx.stroke();
+    }
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(0,0,4,0,6.28);cx.fill();
+  } else if(cleanName==='Sharpshooter'){
+    cx.beginPath();cx.arc(0,0,12,0,6.28);cx.arc(0,0,6,0,6.28);cx.stroke();
+    cx.fillStyle='#ff3b30';cx.beginPath();cx.arc(0,0,2.5,0,6.28);cx.fill();
+  } else if(cleanName==='Iron Body'){
+    cx.fillStyle='#fff';cx.fillRect(-4,-12,8,24);cx.fillRect(-12,-4,24,8);
+    cx.strokeStyle='#8fae4a';cx.strokeRect(-12,-12,24,24);
+  } else if(cleanName==='Second Wind'){
+    cx.beginPath();cx.moveTo(-12,2);cx.lineTo(-6,-4);cx.lineTo(0,8);cx.lineTo(6,-8);cx.lineTo(12,2);cx.stroke();
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(6,-8,2.5,0,6.28);cx.fill();
+  } else if(cleanName==='Bloodthirst'){
+    cx.fillStyle='#ff3b30';cx.beginPath();
+    cx.moveTo(0,-11);cx.quadraticCurveTo(8,-2,8,3);cx.arc(0,3,8,0,3.14);cx.quadraticCurveTo(-8,-2,0,-11);cx.fill();
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(-2,2,2,0,6.28);cx.fill();
+  } else if(cleanName==='Adrenaline'){
+    cx.beginPath();cx.moveTo(-8,8);cx.lineTo(4,-10);cx.lineTo(0,-10);cx.lineTo(8,-10);cx.stroke();
+    cx.beginPath();cx.moveTo(-12,2);cx.lineTo(-2,2);cx.moveTo(-10,5);cx.lineTo(0,5);cx.stroke();
+    cx.fillStyle='#00e5ff';cx.beginPath();cx.arc(3,-4,3,0,6.28);cx.fill();
+  } else if(cleanName==='Kevlar'){
+    cx.beginPath();
+    cx.moveTo(0,-12);cx.lineTo(11,-6);cx.lineTo(8,10);cx.lineTo(0,13);cx.lineTo(-8,10);cx.lineTo(-11,-6);cx.closePath();cx.fill();
+    cx.strokeStyle='#fff';cx.lineWidth=1.5;cx.stroke();
+  } else if(cleanName==='Quick Skills'){
+    cx.beginPath();cx.arc(0,2,10,0,6.28);cx.stroke();
+    cx.fillRect(-2,-12,4,4);
+    cx.beginPath();cx.moveTo(0,2);cx.lineTo(4,-4);cx.stroke();
+  } else if(cleanName==='Magnet'){
+    cx.lineWidth=4;cx.beginPath();cx.arc(0,-2,8,3.14,0);cx.lineTo(8,8);cx.moveTo(-8,-2);cx.lineTo(-8,8);cx.stroke();
+    cx.fillStyle='#fff';cx.fillRect(-10,4,4,4);cx.fillRect(6,4,4,4);
+  } else if(cleanName==='Gold Rush'){
+    cx.beginPath();cx.arc(0,0,11,0,6.28);cx.fill();
+    cx.fillStyle='#111';cx.font='bold 12px Arial';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('$',0,1);
+  } else if(cleanName==='Grenadier'){
+    cx.beginPath();cx.roundRect(-7,-5,14,16,4);cx.fill();
+    cx.fillRect(-3,-10,6,5);cx.strokeRect(-1,-12,4,2);
+  } else if(cleanName==='Chain Lightning'){
+    cx.beginPath();cx.moveTo(-2,-12);cx.lineTo(-8,0);cx.lineTo(0,0);cx.lineTo(-4,12);cx.lineTo(8,-2);cx.lineTo(1,-2);cx.lineTo(5,-12);cx.closePath();cx.fill();
+  } else if(cleanName==='Frost Aura'){
+    for(let k=0;k<3;k++){
+      const a=k*1.047;
+      cx.beginPath();cx.moveTo(Math.cos(a)*-12,Math.sin(a)*-12);cx.lineTo(Math.cos(a)*12,Math.sin(a)*12);cx.stroke();
+    }
+    cx.beginPath();cx.arc(0,0,4,0,6.28);cx.stroke();
+  } else if(cleanName==='Immolation'){
+    cx.beginPath();
+    cx.moveTo(0,-12);cx.quadraticCurveTo(8,-4,6,4);cx.arc(0,4,8,0,3.14);cx.quadraticCurveTo(-6,-4,0,-12);cx.fill();
+    cx.fillStyle='#ffee55';cx.beginPath();cx.arc(0,5,3.5,0,6.28);cx.fill();
+  } else if(cleanName==='Spectral Blades'){
+    cx.lineWidth=3;cx.beginPath();cx.moveTo(-9,9);cx.quadraticCurveTo(0,-2,10,-10);cx.stroke();
+    cx.fillStyle='#fff';cx.beginPath();cx.moveTo(-9,9);cx.lineTo(-4,4);cx.lineTo(11,-11);cx.lineTo(6,-3);cx.closePath();cx.fill();
+  } else if(cleanName==='Meteor Rain'){
+    cx.beginPath();cx.moveTo(-10,-10);cx.lineTo(6,6);cx.stroke();
+    cx.beginPath();cx.arc(6,6,5,0,6.28);cx.fill();
+    cx.strokeStyle='#ffee55';cx.beginPath();cx.moveTo(-6,-12);cx.lineTo(3,3);cx.stroke();
+  } else if(cleanName==='Arcane Barrier'){
+    cx.beginPath();
+    for(let i=0;i<6;i++){const a=i*1.047;cx[i?'lineTo':'moveTo'](Math.cos(a)*12,Math.sin(a)*12)}
+    cx.closePath();cx.stroke();
+    cx.fillStyle=c;cx.beginPath();cx.arc(0,0,4,0,6.28);cx.fill();
+  } else if(cleanName==='Shadow Step'){
+    cx.beginPath();cx.moveTo(-12,-8);cx.lineTo(4,-8);cx.lineTo(8,-3);cx.lineTo(2,8);cx.stroke();
+    cx.beginPath();cx.moveTo(-8,2);cx.lineTo(6,2);cx.stroke();
+  } else if(cleanName==='Phoenix'){
+    cx.beginPath();cx.arc(0,2,4,0,6.28);cx.fill();
+    cx.beginPath();cx.moveTo(-12,-6);cx.quadraticCurveTo(-4,0,0,6);cx.quadraticCurveTo(4,0,12,-6);cx.stroke();
+  } else if(cleanName==='Storm Caller'){
+    cx.beginPath();cx.roundRect(-10,-10,20,9,3);cx.fill();
+    cx.strokeStyle='#fff';cx.beginPath();cx.moveTo(0,-1);cx.lineTo(-4,9);cx.lineTo(1,9);cx.lineTo(-2,14);cx.stroke();
+  } else if(cleanName==='Venom Rounds'){
+    cx.beginPath();cx.arc(0,-2,6,0,6.28);cx.fill();
+    cx.fillRect(-3,4,6,5);
+    cx.fillStyle='#111';cx.beginPath();cx.arc(-2,-2,1.5,0,6.28);cx.arc(2,-2,1.5,0,6.28);cx.fill();
+  } else if(cleanName==='Soul Harvest'){
+    cx.strokeRect(-7,-8,14,16);
+    cx.fillStyle='#df8aff';cx.beginPath();cx.ellipse(0,0,4,6,0,0,6.28);cx.fill();
+  } else if(cleanName==='Thorns'){
+    for(let i=0;i<8;i++){const a=i*0.785;cx.beginPath();cx.moveTo(Math.cos(a)*5,Math.sin(a)*5);cx.lineTo(Math.cos(a)*13,Math.sin(a)*13);cx.stroke()}
+    cx.beginPath();cx.arc(0,0,5,0,6.28);cx.fill();
+  } else if(cleanName==='Berserker'){
+    cx.fillStyle='#ff3b30';cx.beginPath();cx.arc(0,0,11,0,6.28);cx.fill();
+    cx.strokeStyle='#fff';cx.strokeRect(-5,-5,10,10);
+  } else if(cleanName==='Time Warp'){
+    cx.beginPath();cx.moveTo(-8,-10);cx.lineTo(8,-10);cx.lineTo(0,0);cx.lineTo(8,10);cx.lineTo(-8,10);cx.closePath();cx.stroke();
+  } else if(cleanName==='Executioner'){
+    cx.beginPath();cx.moveTo(-8,-10);cx.lineTo(8,-10);cx.lineTo(12,4);cx.lineTo(-12,4);cx.closePath();cx.fill();
+    cx.strokeRect(-2,4,4,8);
+  } else if(cleanName==='Lucky Charm'){
+    for(let i=0;i<4;i++){const a=i*1.57;cx.beginPath();cx.arc(Math.cos(a)*5,Math.sin(a)*5,4,0,6.28);cx.fill()}
+  } else if(cleanName==='Arcane Missiles'){
+    for(let k=-1;k<=1;k++){
+      cx.beginPath();cx.moveTo(k*6,-10);cx.lineTo(k*6+2,4);cx.lineTo(k*6-2,4);cx.closePath();cx.fill();
+    }
+  } else if(cleanName==='Bloodlust'){
+    cx.beginPath();cx.arc(0,0,10,0,6.28);cx.stroke();
+    cx.fillStyle='#ff2222';cx.beginPath();cx.arc(0,0,4,0,6.28);cx.fill();
+  } else if(cleanName==='Volatile Corpses'){
+    cx.beginPath();cx.arc(0,0,11,0,6.28);cx.stroke();
+    cx.beginPath();cx.arc(0,0,4,0,6.28);cx.fill();
+  } else if(cleanName==='Kill Rush'){
+    cx.beginPath();cx.moveTo(-8,-4);cx.lineTo(0,-11);cx.lineTo(8,-4);cx.moveTo(-8,4);cx.lineTo(0,-3);cx.lineTo(8,4);cx.stroke();
+  } else if(cleanName==='Overcharge'){
+    cx.strokeRect(-8,-10,16,20);
+    cx.fillRect(-3,-13,6,3);
+    cx.fillStyle='#ffee33';cx.beginPath();cx.moveTo(1,-4);cx.lineTo(-3,1);cx.lineTo(1,1);cx.lineTo(-1,6);cx.lineTo(3,0);cx.lineTo(-1,0);cx.closePath();cx.fill();
+  } else if(cleanName==='Guardian Angel'){
+    cx.beginPath();cx.arc(0,-8,6,3.14,0);cx.stroke();
+    cx.beginPath();cx.moveTo(-10,0);cx.quadraticCurveTo(-4,4,0,10);cx.quadraticCurveTo(4,4,10,0);cx.stroke();
+  } else if(cleanName==='Fragmentation'){
+    for(let k=0;k<6;k++){const a=k*1.047;cx.fillRect(Math.cos(a)*8-1.5,Math.sin(a)*8-1.5,3,3)}
+    cx.beginPath();cx.arc(0,0,3,0,6.28);cx.fill();
+  } else if(cleanName==='Glass Cannon'){
+    cx.beginPath();cx.arc(0,0,11,0,6.28);cx.stroke();
+    cx.beginPath();cx.moveTo(-8,-8);cx.lineTo(8,8);cx.moveTo(-4,8);cx.lineTo(4,-8);cx.stroke();
+  } else if(cleanName==='Nano Swarm'){
+    for(let k=0;k<3;k++){const a=k*2.094-1.57;cx.beginPath();cx.moveTo(Math.cos(a)*8,Math.sin(a)*8);cx.lineTo(Math.cos(a)*8-3,Math.sin(a)*8+5);cx.lineTo(Math.cos(a)*8+3,Math.sin(a)*8+5);cx.closePath();cx.fill()}
+  } else if(cleanName==='Cryo Blast'){
+    cx.beginPath();cx.arc(0,0,11,0,6.28);cx.stroke();
+    for(let k=0;k<4;k++){const a=k*1.57;cx.fillRect(Math.cos(a)*10-1.5,Math.sin(a)*10-1.5,3,3)}
+  } else if(cleanName==='Overdrive'){
+    cx.beginPath();cx.arc(0,2,11,3.14,0);cx.stroke();
+    cx.strokeStyle='#ff3b30';cx.beginPath();cx.moveTo(0,2);cx.lineTo(6,-6);cx.stroke();
+  } else if(cleanName==='Singularity'){
+    cx.beginPath();cx.arc(0,0,11,0,3);cx.arc(0,0,11,3.5,6);cx.stroke();
+    cx.fillStyle='#111';cx.beginPath();cx.arc(0,0,5,0,6.28);cx.fill();
+  } else if(cleanName==='Static Discharge'){
+    cx.beginPath();cx.arc(0,0,4,0,6.28);cx.fill();
+    for(let k=0;k<4;k++){const a=k*1.57+0.78;cx.beginPath();cx.moveTo(Math.cos(a)*5,Math.sin(a)*5);cx.lineTo(Math.cos(a)*12,Math.sin(a)*12);cx.stroke()}
+  } else if(cleanName==='Toxic Trail'){
+    cx.beginPath();cx.ellipse(0,4,11,5,0,0,6.28);cx.fill();
+    cx.beginPath();cx.arc(-3,-3,2.5,0,6.28);cx.arc(4,-5,2,0,6.28);cx.fill();
+  } else if(cleanName==='Critical Surge'){
+    cx.beginPath();cx.arc(0,0,11,0,6.28);cx.stroke();
+    cx.beginPath();cx.moveTo(-4,0);cx.lineTo(0,-6);cx.lineTo(4,6);cx.stroke();
+  } else if(cleanName==='Kinetic Deflector'){
+    cx.beginPath();cx.arc(0,0,11,-1.57,1.57);cx.stroke();
+    cx.beginPath();cx.moveTo(-10,0);cx.lineTo(-2,0);cx.lineTo(6,-6);cx.stroke();
+  } else {
+    // Heavy Ordnance & Default
+    cx.beginPath();cx.roundRect(-6,-10,12,18,3);cx.fill();
+    cx.beginPath();cx.moveTo(-6,8);cx.lineTo(-9,12);cx.moveTo(6,8);cx.lineTo(9,12);cx.stroke();
+  }
+  cx.restore();
+  return PI_CACHE[cleanName]=cv.toDataURL();
+}
+
 function openPerk(){
   if(SV.ap){
     S.pend--;
-    const av=PKS.filter(p=>(S.pk[p[0]]||0)<p[3]).sort((a,b)=>(b[3]==1?2:b[0].startsWith('✦')?1:0)-(a[3]==1?2:a[0].startsWith('✦')?1:0)||(Math.random()-.5));
+    const av=PKS.filter(p=>(S.pk[p[0]]||0)<p[3]).sort((a,b)=>(b[3]==1?2:(b[5]==='ULTIMATE'?2:b[4]?1:0))-(a[3]==1?2:(a[5]==='ULTIMATE'?2:a[4]?1:0))||(Math.random()-.5));
     if(av.length)applyPerk(av[0]);
     if(S.pend>0)openPerk();
     return;
@@ -436,8 +619,21 @@ function openPerk(){
   const av=PKS.filter(p=>(S.pk[p[0]]||0)<p[3]).sort(()=>Math.random()-.5);
   if(!av.length){S.pend=0;S.po=0;run=1;return}
   $('pcards').innerHTML=av.slice(0,3).map(p=>{
-    const n=S.pk[p[0]]||0,isSpec=p[0].startsWith('✦'),tag=p[3]==1?'ULTIMATE':(isSpec?'SPECIAL':'PERK'),tagCol=p[3]==1?'#ff4a3a':(isSpec?'#00e5ff':'#8fae4a');
-    return `<button data-p='${p[0]}' style='text-align:left;width:100%;border-left:4px solid ${p[4]||'#c8502d'};padding:10px 12px;background:rgba(26,30,20,.95)'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px'><b style='color:${p[4]||(p[3]==1?'#e0b83a':'#e8e4cf')};font-size:13.5px'>${p[0]}</b><span style='font-size:9px;font-weight:900;color:${tagCol};background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px'>${tag}</span></div><div style='opacity:.7;font-size:10px;margin-bottom:4px'>RANK ${n}/${p[3]} ${'●'.repeat(n)}${'○'.repeat(p[3]-n)}</div><span style='opacity:.88;font-weight:400;font-size:12px'>${p[1]}</span></button>`;
+    const n=S.pk[p[0]]||0, tag=p[5]||(p[3]==1?'ULTIMATE':'PERK'), tagCol=p[4]||'#8fae4a';
+    const pips = Array.from({length:p[3]}, (_,k)=> `<span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${k<n?tagCol:'#2b3022'};border:1px solid ${k<n?tagCol:'#404834'}"></span>`).join('');
+    return `<button data-p='${p[0]}' style='text-align:left;width:100%;border:1.5px solid ${tagCol}55;border-left:5px solid ${tagCol};padding:8px 12px;background:rgba(20,24,16,.96);display:flex;align-items:center;gap:12px;border-radius:8px;box-shadow:0 3px 12px rgba(0,0,0,.4)'>
+      <img src="${getPerkIcon(p[0], tagCol)}" style="width:44px;height:44px;flex-shrink:0;border-radius:6px">
+      <div style="flex:1;min-width:0">
+        <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:2px'>
+          <b style='color:${p[3]==1?'#ffd36b':'#f0ece1'};font-size:13px;letter-spacing:.3px'>${p[0]}</b>
+          <span style='font-size:8.5px;font-weight:900;color:${tagCol};background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;letter-spacing:.5px'>${tag}</span>
+        </div>
+        <div style='opacity:.75;font-size:9.5px;margin-bottom:3px;display:flex;align-items:center;gap:4px'>
+          <span>RANK ${n}/${p[3]}</span> ${pips}
+        </div>
+        <span style='opacity:.9;font-weight:400;font-size:11.5px;line-height:1.25;display:block;color:#d8d2c0'>${p[1]}</span>
+      </div>
+    </button>`;
   }).join('');
   $('quickpick').onclick=()=>{
     applyPerk(av[0]);
@@ -462,19 +658,19 @@ function spawnChest(n){
 }
 function openChest(c){
   const w=S.wave,R=[
-    ['FULL HEAL',()=>{P.hp=P.mx}],
-    ['DOUBLE DAMAGE 15s',()=>{S.dd=15}],
-    ['RAPID FIRE 12s',()=>{SK.rage.on=12}],
-    ['+$'+w*60,()=>{S.cash+=w*60}],
-    ['+5 GRENADES',()=>{S.gr+=5}],
-    ['FREEZE 6s',()=>{S.fz=6}],
-    ['SHIELD 8s',()=>{S.sh2=8}],
-    ['AIRSTRIKE',()=>{for(const z of Z)if(Math.hypot(z.x-P.x,z.y-P.y)<650){z.hp-=160*S.dm;z.hit=.2;txt(z.x,z.y-20,Math.round(160*S.dm),'#ffb347')}RG.push({x:P.x,y:P.y,r:10,l:.6,v:900,c:'255,150,50'});SH=14}],
-    ['+$'+(w*100+150)+' & +3 GRENADES',()=>{S.cash+=w*100+150;S.gr+=3;txt(P.x,P.y-20,'+$'+(w*100+150),'#e0b83a')}],
-    ['TACTICAL NUKE',()=>{for(const z of Z){if(z.t!='boss'){z.hp=0;z.dead=1}else{z.hp-=320*S.dm;z.hit=.3}}RG.push({x:P.x,y:P.y,r:10,l:.8,v:1100,c:'255,220,60'});SH=18;burst(P.x,P.y,'#ffd36b',36);snd(80,.5,'sawtooth',.18,.2);S.ts='TACTICAL NUKE';S.tt=3}],
-    ['HYPER DRIVE 10s',()=>{S.hd=10;burst(P.x,P.y,'#00e5ff',20);snd(600,.3,'sine',.08,2);S.ts='HYPER DRIVE';S.tt=2.5}]
-  ],r=R[Math.random()<.12+.08*(S.lk||0)?8:Math.floor(Math.random()*R.length)];
-  r[1]();if(r[0]!=='TACTICAL NUKE'&&r[0]!=='HYPER DRIVE'){S.ts=r[0];S.tt=2.5}burst(c.x,c.y,'#e0b83a',26);snd(600,.3,'triangle',.08,2);noise(.15,.06);
+    ['FIELD REPAIR +50 HP',()=>{P.hp=Math.min(P.mx,P.hp+50)}],
+    ['DAMAGE BOOST (+35% 10s)',()=>{S.dd=10}],
+    ['RAPID FIRE (8s)',()=>{SK.rage.on=8}],
+    ['SUPPLY CASH +$'+(w*35+50),()=>{S.cash+=w*35+50}],
+    ['+3 TACTICAL GRENADES',()=>{S.gr+=3}],
+    ['CRYO PULSE (4s)',()=>{S.fz=4}],
+    ['KINETIC SHIELD (6s)',()=>{S.sh2=6}],
+    ['SUPPLY CRATE +$'+(w*50+80)+' & +2 GRENADES',()=>{S.cash+=w*50+80;S.gr+=2;txt(P.x,P.y-20,'+$'+(w*50+80),'#e0b83a')}],
+    ['SURVIVOR XP +40',()=>{gainXP(40)}]
+  ];
+  const r=R[Math.floor(Math.random()*R.length)];
+  r[1]();S.ts=r[0];S.tt=2;
+  snd(520,.2,'sine',.08,1.4);burst(c.x,c.y,'#ffd36b',16);
 }
 function ac(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume()}catch(e){}return AC}
 function snd(f,d,t,v,s){if(MUTE||!ac())return;try{const n=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=t||'square';o.frequency.setValueAtTime(f,n);o.frequency.exponentialRampToValueAtTime(Math.max(30,f*(s||.5)),n+d);g.gain.setValueAtTime(v||.05,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(n+d)}catch(e){}}
@@ -727,7 +923,7 @@ $('art').onclick=e=>{
   const b=e.target.closest('button');if(!b)return;
   const i=+b.dataset.a;
   if(SV.ar.includes(i)){const k=SV.eq.indexOf(i);if(k>=0)SV.eq.splice(k,1);else if(SV.eq.length<2)SV.eq.push(i)}
-  else if(AR[i]&&AR[i][2]<=SV.cr){SV.cr-=AR[i][2];SV.ar.push(i)}
+  else if(AR[i]&&AR[i][2]<=SV.cr){if(transactMetaCredits(AR[i][2],'relic_'+i)){SV.ar.push(i)}}
   sv();lobby();
 };
 const GI={};
@@ -743,7 +939,7 @@ function lobby2(){
     const b=e.target.closest('button');if(!b)return;
     const i=+b.dataset.c;
     if(SV.ucl[i])SV.cls=i;
-    else{const c=[0,800,1500,2200,2600][i];if(c>SV.cr)return;SV.cr-=c;SV.ucl[i]=1;SV.cls=i}
+    else{const c=[0,800,1500,2200,2600][i];if(!transactMetaCredits(c,'class_'+i))return;SV.ucl[i]=1;SV.cls=i}
     sv();lobby();
   };
   $('spt').textContent='Skill points: '+(SV.sp||0)+'  (earn 1 per level)';
@@ -757,7 +953,17 @@ function lobby2(){
     SV[k]=(SV[k]||0)+1;SV.sp--;sv();lobby();
   };
 }
-let SV={xp:0,lvl:1,cr:0,best:0,own:[1],start:0,hu:0,du:0,gu:0,cb:0,day:'',mute:0,cls:0,ucl:[1],sp:3,ar:[],eq:[],map:0,ap:0};
+let SV={v:2,rev:1,ts:Date.now(),xp:0,lvl:1,cr:0,best:0,own:[1],start:0,hu:0,du:0,gu:0,cb:0,day:'',mute:0,cls:0,ucl:[1],sp:3,ar:[],eq:[],map:0,ap:0};
+function transactMetaCredits(cost, desc){
+  cost=Math.max(0,Math.floor(Number(cost)||0));
+  if((SV.cr||0)<cost)return false;
+  SV.cr-=cost;
+  SV.rev=(SV.rev||0)+1;
+  SV.ts=Date.now();
+  sv();
+  lobby();
+  return true;
+}
 function sanitizeSV(s){
   if(!s||typeof s!=='object')return null;
   const out=Object.assign({},SV,s);
@@ -790,7 +996,11 @@ function ld(){
       if(res&&res.value){
         try{
           const nData=sanitizeSV(JSON.parse(res.value));
-          if(nData&&(nData.lvl>SV.lvl||(nData.lvl===SV.lvl&&nData.xp>=SV.xp)||nData.cr>SV.cr)){
+          const localRev = (SV.rev || 0);
+          const remoteRev = (nData && nData.rev) || 0;
+          const localTs = (SV.ts || 0);
+          const remoteTs = (nData && nData.ts) || 0;
+          if(nData && (remoteRev > localRev || (remoteRev === localRev && remoteTs > localTs))){
             SV=nData;MUTE=SV.mute?1:0;if(SV.col)PC=SV.col;
             lobby();
             try{
@@ -798,6 +1008,8 @@ function ld(){
               localStorage.setItem('dzs',s);
               localStorage.setItem('dzs_bak',s);
             }catch(e){}
+          } else if(SV && localRev > remoteRev) {
+            sv();
           }
         }catch(e){}
       }else{
@@ -960,7 +1172,22 @@ function skill(k){
   else if(k=='shield'){S.sh2=4;burst(P.x,P.y,'#8fd06a',16);snd(500,.3,'sine',.06,1.5)}
 }
 function commitXP(){let up=0;SV.xp+=Math.max(0,S.axp||0);S.axp=0;while(SV.xp>=need(SV.lvl)){SV.xp-=need(SV.lvl);SV.lvl++;SV.sp=(SV.sp||0)+1;up++}S.up=(S.up||0)+up}
-function saveBest(){if(S&&S.saved)return;commitXP();const e=S.wave*40+S.kills;SV.cr+=e;SV.best=Math.max(SV.best,S.wave);S.earn=e;if(S)S.saved=1;sv()}
+function saveBest(){
+  if(S&&S.saved)return;
+  commitXP();
+  const wBonus = S.wave * 35;
+  const kBonus = Math.floor(S.kills * 1.5);
+  const cConverted = Math.floor((S.cash || 0) * 0.5);
+  const totalEarned = wBonus + kBonus + cConverted;
+  SV.cr = (SV.cr || 0) + totalEarned;
+  SV.best = Math.max(SV.best || 0, S.wave);
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
+  S.earn = totalEarned;
+  S.earnBreakdown = { wave: wBonus, kills: kBonus, cash: cConverted };
+  if(S) S.saved = 1;
+  sv();
+}
 function tab(n){
   document.querySelectorAll('.pp').forEach((e,i)=>e.classList.toggle('on',i==n));
   document.querySelectorAll('#nav button').forEach((e,i)=>e.classList.toggle('on',i==n));
@@ -982,7 +1209,7 @@ function lobby(){
     const b=e.target.closest('button');if(!b)return;
     const i=+b.dataset.i;
     if(SV.own[i])SV.start=i;
-    else{const c=Math.round(WEAP[i].c/2);if(c>SV.cr)return;SV.cr-=c;SV.own[i]=1}
+    else{const c=Math.round(WEAP[i].c/2);if(!transactMetaCredits(c,'weapon_'+i))return;SV.own[i]=1}
     sv();lobby();
   };
   const U=[['hu','+10 Max HP',100],['du','+5% Damage',150],['gu','+2 Start Grenades',120],['cb','+10% Cash',130],['spd','+4% Move Speed',140],['rof','+6% Fire Rate',160],['crit','+4% Crit Chance',180],['vamp','+0.5 HP Vamp per Kill',220]];
@@ -992,8 +1219,9 @@ function lobby(){
   }).join('');
   $('upg').onclick=e=>{
     const b=e.target.closest('button');if(!b)return;
-    const u=U.find(x=>x[0]==b.dataset.u),n=SV[u[0]]||0,c=u[2]*(n+1);if(n>=10||c>SV.cr)return;
-    SV.cr-=c;SV[u[0]]=n+1;sv();lobby();
+    const u=U.find(x=>x[0]==b.dataset.u),n=SV[u[0]]||0,c=u[2]*(n+1);if(n>=10)return;
+    if(!transactMetaCredits(c,'upgrade_'+u[0]))return;
+    SV[u[0]]=n+1;sv();lobby();
   };
 }
 function stick(s){if(!s||!isFinite(s.x)||!isFinite(s.y)||!isFinite(s.ox)||!isFinite(s.oy))return[0,0,0];let dx=s.x-s.ox,dy=s.y-s.oy;const l=Math.hypot(dx,dy),m=Math.min(l,50);return (l<6||!isFinite(l))?[0,0,0]:[dx/l*m/50,dy/l*m/50,m/50]}
@@ -1006,7 +1234,8 @@ function update(dt){
   else if(!TCH&&M.moved){P.a=Math.atan2(M.y-(P.y-CY),M.x-(P.x-CX))}
   const l=Math.hypot(mx,my);if(l>1){mx/=l;my/=l}
   const m2=Math.hypot(mx,my);if(m2>.1){P.lx=mx/m2;P.ly=my/m2}
-  let sp=(CL[SV.cls||0]||CL[0]).spd*(1+.04*(SV.spd||0))*(S.ms||1)*(S.cst>0?1+.15*(S.cs||0):1)*(S.hd>0?1.3:1),vx=mx,vy=my;
+  const isMinigunFiring = (firing && P.cur === 4);
+  let sp=(CL[SV.cls||0]||CL[0]).spd*(1+.04*(SV.spd||0))*(S.ms||1)*(S.cst>0?1+.15*(S.cs||0):1)*(S.hd>0?1.3:1)*(isMinigunFiring?0.78:1),vx=mx,vy=my;
   if(P.dash>0){P.dash-=dt;sp=650;vx=P.lx;vy=P.ly}
   if(Math.hypot(vx,vy)>.1)P.st=(P.st||0)+dt*14;
   P.x=P.x+vx*sp*dt;P.y=P.y+vy*sp*dt;
@@ -1250,7 +1479,8 @@ function update(dt){
       if(G.length>450)G.splice(250,1);
       SH=Math.max(SH,z.t=='boss'?14:3);gainXP(T.cash);
       if(z.t=='boss'){
-        CH.push({x:z.x+40,y:z.y,ph:1},{x:z.x-40,y:z.y,ph:2});
+        // Boss rewards 1 high-tier supply chest
+        if(CH.length < 3) CH.push({x:z.x,y:z.y,ph:1,boss:1});
         S.pend++;S.ts='BOSS DOWN! +POWER';S.tt=3;
         const un=AR.map((a,i)=>i).filter(i=>!SV.ar.includes(i));
         if(un.length){const i=un[Math.floor(Math.random()*un.length)];SV.ar.push(i);S.ts='RELIC: '+AR[i][0];sv()}
@@ -1270,10 +1500,13 @@ function update(dt){
       snd(90,.18,'sawtooth',.05,.4);
       D.push({x:z.x,y:z.y,k:'c',v:Math.round(T.cash*(1+.1*(SV.cb||0))*(S.cm||1)*(S.ev?1.5:1)*MP[SV.map||0].cm*(1+Math.min(.5,(S.cmb||0)*.01))),l:12});
       if(Math.random()<.08)D.push({x:z.x+8,y:z.y,k:'h',v:25,l:12});
-      const canDrop=(S.t-(S.lastDrop||0))>14;
-      if(z.t=='tank'||z.t=='boss'||z.el||(canDrop&&Math.random()<.02+.02*(S.lk||0)+.005*(SV.luck||0))){
-        CH.push({x:z.x,y:z.y,ph:Math.random()*6});
-        if(z.t!='tank'&&z.t!='boss'&&!z.el)S.lastDrop=S.t;
+      // Controlled elite/tank chest drops with 28s cooldown and cap of 3
+      const canDrop=(S.t-(S.lastDrop||0))>28;
+      if(z.t!=='boss' && (z.el || z.t==='tank') && canDrop && Math.random()<0.14){
+        if(CH.length < 3){
+          CH.push({x:z.x,y:z.y,ph:Math.random()*6});
+          S.lastDrop=S.t;
+        }
       }
     }
   }
@@ -1327,7 +1560,12 @@ function update(dt){
   if(S.pend>0&&!S.po&&P.hp>0)openPerk();
   if(P.hp<=0){
     run=0;saveBest();
-    $('sum').textContent='Reached wave '+S.wave+' with '+S.kills+' kills. +'+S.earn+' credits. Account Rank '+SV.lvl+(S.up?' (+'+S.up+' Level Up, +'+S.up+' Skill Points!)':'')+' • Survivor Lv '+S.lv;
+    const eb = S.earnBreakdown || {wave: S.wave*35, kills: Math.floor(S.kills*1.5), cash: 0};
+    $('sum').innerHTML = '<div style="font-size:13.5px;margin-bottom:6px"><b>WAVE '+S.wave+'</b> &bull; '+S.kills+' KILLS &bull; SURVIVOR LV '+S.lv+'</div>'
+      + '<div style="font-size:11.5px;opacity:.9;line-height:1.6;margin-bottom:6px">'
+      + 'Wave Bounty: <b>+'+eb.wave+' cr</b> | Kills: <b>+'+eb.kills+' cr</b> | Cash Converted ($'+(S.cash||0)+'): <b>+'+eb.cash+' cr</b><br>'
+      + '<span style="color:#e0b83a;font-weight:800;font-size:13.5px">Total Earned: +'+S.earn+' CREDITS</span></div>'
+      + '<div style="font-size:11px;color:#8fae4a">Account Rank: '+SV.lvl+(S.up?' (+'+S.up+' Skill Points!)':'')+'</div>';
     $('over').classList.add('on');
   }
   else if(!S.q.length&&!Z.length&&!S.po){run=0;openShop()}
@@ -1842,7 +2080,8 @@ function draw(){
   X.lineCap='round';
   for(const b of B){
     const bAng=Math.atan2(b.vy,b.vx);
-    if(b.ex){
+    if(b.wi===9){
+      // Dedicated Rocket Launcher Missile (ONLY weapon 9)
       X.save();X.translate(b.x,b.y);X.rotate(bAng);
       const flmPulse=Math.random()*6;
       X.fillStyle='#ff6600';X.beginPath();X.moveTo(-8,-2.5);X.lineTo(-14-flmPulse,0);X.lineTo(-8,2.5);X.closePath();X.fill();
@@ -1852,6 +2091,15 @@ function draw(){
       X.fillStyle='#c8442a';X.beginPath();X.moveTo(6,-2.5);X.lineTo(10,0);X.lineTo(6,2.5);X.closePath();X.fill();
       X.restore();
       if(Math.random()<.35)F.push({x:b.x-Math.cos(bAng)*12,y:b.y-Math.sin(bAng)*12,vx:(Math.random()-.5)*20,vy:(Math.random()-.5)*20,l:.35,c:'#88888899'});
+    }
+    else if(b.wi===12){
+      // Dedicated GL-40 40mm Grenade Canister
+      X.save();X.translate(b.x,b.y);X.rotate(bAng);
+      X.fillStyle='#3a4234';X.beginPath();X.roundRect(-5,-3,10,6,2);X.fill();
+      X.fillStyle='#d9b84a';X.beginPath();X.arc(4,0,2.5,-1.57,1.57);X.fill();
+      X.fillStyle='#1a1f16';X.fillRect(-6,-2.5,2,5);
+      X.restore();
+      if(Math.random()<.25)F.push({x:b.x-Math.cos(bAng)*6,y:b.y-Math.sin(bAng)*6,vx:(Math.random()-.5)*15,vy:(Math.random()-.5)*15,l:.2,c:'#88888877'});
     }
     else if(b.flm){
       const flmR=7+(.7-b.l)*16,fGrad=X.createRadialGradient(b.x,b.y,1,b.x,b.y,flmR);
@@ -1880,13 +2128,26 @@ function draw(){
       X.fillStyle='#fff';X.beginPath();X.arc(b.x,b.y,2,0,6.28);X.fill();
       X.strokeStyle='rgba(0,229,255,.5)';X.lineWidth=1.5;X.beginPath();X.arc(b.x,b.y,7+Math.sin(S.t*30)*2,0,6.28);X.stroke();
     }
+    else if(b.wi===8){
+      // Plasma Cannon energy bolt
+      X.fillStyle='#5ae0ff';X.beginPath();X.arc(b.x,b.y,b.isCrit?5.5:4,0,6.28);X.fill();
+      X.fillStyle='#fff';X.beginPath();X.arc(b.x,b.y,2,0,6.28);X.fill();
+      X.strokeStyle='rgba(90,224,255,.5)';X.lineWidth=2;X.beginPath();X.arc(b.x,b.y,6,0,6.28);X.stroke();
+    }
     else{
-      const trailLen=b.isCrit?.045:.035;
+      // Standard firearm projectiles (Pistol, SMG, Shotgun, Revolver, Rifle, Assault, Sniper, Minigun)
+      const trailLen=b.isCrit?.045:(b.wi===7?.05:.035);
       const bGrad=X.createLinearGradient(b.x-b.vx*trailLen,b.y-b.vy*trailLen,b.x,b.y);
       bGrad.addColorStop(0,'rgba(255,200,80,0)');bGrad.addColorStop(.7,b.c||'#ffd86b');bGrad.addColorStop(1,'#fff');
-      X.strokeStyle=bGrad;X.lineWidth=b.isCrit?5:3;
+      X.strokeStyle=bGrad;
+      X.lineWidth=b.isCrit?5:(b.wi===7?4.5:(b.wi===5?4:(b.wi===2?2.2:(b.wi===4?2.5:3))));
       X.beginPath();X.moveTo(b.x-b.vx*trailLen,b.y-b.vy*trailLen);X.lineTo(b.x,b.y);X.stroke();
-      X.fillStyle='#fff';X.beginPath();X.arc(b.x,b.y,b.isCrit?2.5:1.8,0,6.28);X.fill();
+      X.fillStyle='#fff';X.beginPath();X.arc(b.x,b.y,b.isCrit?2.5:(b.wi===2?1.4:1.8),0,6.28);X.fill();
+      // If explosive rounds perk is active, draw a kinetic amber detonator spark at bullet tip (NOT a rocket)
+      if(b.ex){
+        X.fillStyle='rgba(255,160,40,.85)';X.beginPath();X.arc(b.x,b.y,3,0,6.28);X.fill();
+        X.fillStyle='#fff';X.beginPath();X.arc(b.x,b.y,1.2,0,6.28);X.fill();
+      }
     }
   }
   for(const f of F){X.globalAlpha=Math.max(0,f.l*2);X.fillStyle=f.c;const sz=f.s||3.5;X.fillRect(f.x-sz/2,f.y-sz/2,sz,sz)}X.globalAlpha=1;
@@ -1977,7 +2238,7 @@ function draw(){
   X.fillText('WAVE '+S.wave,rx+36,ry-3);
   X.fillStyle=P.hp>30?'#8fae4a':'#ff5a3a';X.font='bold 11px Arial';
   X.fillText('HP '+Math.max(0,Math.round(P.hp))+'/'+P.mx,rx+36,ry+12);
-  X.textAlign='right';X.font='bold 15px Arial';X.fillStyle='#e0b83a';X.fillText('$'+S.cash,W-50,18);
+  X.textAlign='right';X.font='bold 15px Arial';X.fillStyle='#e0b83a';X.fillText('CASH $'+S.cash,W-50,18);
   X.font='bold 11.5px Arial';X.fillStyle='#e8e4cf';
   X.fillText('ZOMBIES '+(Z.length+S.q.length),W-50,33);
   if(S.cmb>2){
@@ -2191,7 +2452,7 @@ $('resume').onclick=resume;$('quit').onclick=quit;
 document.querySelectorAll('#nav button').forEach((b,i)=>b.onclick=()=>tab(i));
 $('sndbtn').onclick=()=>{SV.mute=SV.mute?0:1;MUTE=SV.mute;sv();lobby()};
 const apBtn=$('apbtn');if(apBtn)apBtn.onclick=()=>{SV.ap=SV.ap?0:1;sv();lobby()};
-$('daily').onclick=()=>{SV.cr+=200;SV.day=new Date().toDateString();sv();lobby()};
+$('daily').onclick=()=>{SV.cr+=200;SV.day=new Date().toDateString();SV.rev=(SV.rev||0)+1;SV.ts=Date.now();sv();lobby()};
 addEventListener('pointerdown',()=>ac());
 addEventListener('click',e=>{if(e.target.tagName=='BUTTON')snd(520,.05,'square',.04,.8)});
 function autoSave(){
