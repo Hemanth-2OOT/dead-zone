@@ -92,24 +92,81 @@ When an overpowered combination is detected, identify the exact multiplicative s
 Every firearm in Dead Zone must satisfy its designated role:
 - **Pistol (0 cr)**: Pinpoint precision, moderate fire rate, high mobility, low cost.
 - **SMG (300 cr)**: Close-to-mid spray, high mobility, wider spread cone.
+- **Dual Pistols (350 cr)**: High mobility run-and-gun skirmisher, alternating dual fire.
 - **Revolver (400 cr)**: Heavy kinetic stopping power, high single-target stagger, deliberate cadence.
 - **Shotgun (500 cr)**: Devastating point-blank burst (8 pellets), rapid falloff beyond mid-range.
 - **Rifle (700 cr)**: Disciplined mid-to-long range battle rifle with moderate recoil.
+- **Burst Rifle (850 cr)**: Precision 3-round burst, lethal at mid-to-long range.
 - **Assault (900 cr)**: Versatile full-auto combat weapon with predictable recoil.
 - **Sniper (1200 cr)**: High-caliber precision rifle, pierces 3 targets, severe hipfire penalty while sprinting.
-- **Minigun (1500 cr)**: Heavy rotary cannon, immense sustained suppression, -20% movement speed while firing, tight spinup.
-- **Flamer (1800 cr)**: Continuous incendiary cone, ignores obstacle deflection, burn damage-over-time.
+- **Minigun (1500 cr)**: Heavy rotary cannon, immense sustained suppression, -22% movement speed while firing.
+- **Flamer (1800 cr)**: Dedicated short-range conical stream, intense point-blank billow, burn damage-over-time.
 - **Plasma (2500 cr)**: High-energy piercing spheres with ionized splash radius.
 - **GL-40 (2800 cr)**: Bouncing 40mm explosive canisters, high tactical crowd clearance.
-- **Rocket Launcher (3000 cr)**: Massive explosive warhead, 220 direct damage + 110 splash radius, long reload.
+- **Rocket Launcher (3000 cr)**: Massive explosive warhead, 175 direct damage + 115 splash radius.
 - **Cryo Blaster (3400 cr)**: Cryogenic shards slowing enemies by 55%, defensive utility over raw DPS.
 - **Tesla (3500 cr)**: High-voltage arc generator chaining through up to 4 targets with falloff.
+- **Arc Shotgun (3800 cr)**: Electrified heavy buckshot chaining miniature lightning arcs to adjacent targets.
 - **Heavy Railgun (4200 cr)**: Pure electromagnetic kinetic beam piercing up to 10 targets, high commitment.
 
-### Rule 15 — Verification Checklist Before Any Update
-Before any update is committed, the developer must verify:
+---
+
+## 3. Mandatory Operational & Live-Service Rules
+
+### Mandatory Rule 1 — Validated Enemy Death Pipeline
+All enemy damage must pass through a validated, centralized damage/death pipeline (`damageZ`). Damage must check for finite numbers, clamp corrupted health, apply legitimate armor/resistance, and trigger the death lifecycle (`killZ`) exactly once. Dead enemies must immediately cease attacks and collision.
+
+### Mandatory Rule 2 — Weapon Visual Fidelity
+Every weapon's visuals and trajectories must strictly match its actual firing mechanics. Ballistic tracers, pellet spreads, rockets, and beams must reflect their true hitboxes and ranges. An explosion flag must never transform unrelated bullets into rocket sprites.
+
+### Mandatory Rule 3 — Cosmetic Integrity (Zero Pay-to-Win)
+Cosmetic skins, finishes, and visual evolutions must never secretly or overtly alter damage, fire rate, range, hitboxes, critical chance, or survivability. Any combat bonus must belong to transparent gameplay progression.
+
+### Mandatory Rule 4 — Purposeful Arsenal Expansion
+Every weapon added to Dead Zone must fill a genuine tactical role, with defined range, DPS envelope, recoil, price, weakness, and upgrade interaction. Redundant or gimmicky weapons are strictly prohibited.
+
+### Mandatory Rule 5 — Dedicated Events Isolation
+Special operations and events are strictly separate game modes accessed through the dedicated Events lobby section. Events must never randomly activate during normal sector deployment. Normal play remains pure survival across the seven sectors.
+
+### Mandatory Rule 6 — Defined Event Specifications
+Every event must define explicit start conditions, objectives, difficulty ratings, modifiers, win/loss criteria, reward schedules, and cleanup routines. Completing or failing an event must return cleanly to the lobby without residual modifiers bleeding into standard runs.
+
+### Mandatory Rule 7 — Idempotent Reward Claims
+All event rewards, milestone achievements, daily missions, and login rewards must be strictly idempotent. Repeated callbacks, app restarts, or network re-connections must never grant duplicate rewards.
+
+### Mandatory Rule 8 — Documented Reset Cycles
+Daily missions and login reward tracks must follow a single, transparent calendar date reset. Progression tracks must be forgiving: missing a day must never harshly wipe accumulated progress back to Day 1.
+
+### Mandatory Rule 9 — Multi-Tier Progression Testing
+All new content, balance adjustments, and game modes must be verified across three distinct account tiers:
+1. Fresh Account (Rank 1, basic Pistol, zero meta-upgrades).
+2. Mid-Tier Account (Rank 10, mid-tier loadouts, moderate upgrades).
+3. Endgame Account (Rank 25+, high-tier weapons, stacked perks).
+
+### Mandatory Rule 10 — Mobile Performance Limits & Fallbacks
+All transient visual effects, particles, damage indicators, and bullet casings must enforce strict array caps and lifecycle limits. Performance on mobile devices must sustain 60 FPS without memory leaks.
+
+### Mandatory Rule 11 — Safe Save Migrations
+Save data schema updates must increment version numbers (`SV.v`), preserve all historical credits, unlocks, and progression, and provide defensive migration fallbacks. A save file must never be wiped due to an unrecognized optional field.
+
+### Mandatory Rule 12 — Genuine Loading Screens
+Loading screens must correspond to real operational work (asset initialization, procedural icon caching, preference synchronization). Arbitrary spin delays and frozen spinners are forbidden.
+
+### Mandatory Rule 13 — Rarity and Power Separation
+Weapon rarity tiers (Common, Uncommon, Rare, Epic, Legendary, Event-Exclusive) communicate acquisition difficulty, thematic uniqueness, and complexity—not raw unbalanced DPS superiority.
+
+---
+
+## 4. Pre-Update Verification Checklist
+
+Before any update is committed or deployed, verify:
 - [ ] Automated syntax and simulation tests pass with exit code 0.
-- [ ] No weapon's bullets visually morph into rockets or other projectile types.
-- [ ] Currency transactions validate affordability and survive app close/relaunch.
-- [ ] Frame rate on mobile maintains steady 60 FPS without memory leaks.
-- [ ] Android landscape and immersive fullscreen remain locked.
+- [ ] Centralized damage/death pipeline prevents immortal enemies with NaN health.
+- [ ] Flamer reach is restricted to a short-range cone stream (~140px max) with visible muzzle flare.
+- [ ] No firearm bullets visually morph into rockets or other projectile types.
+- [ ] Events mode is strictly isolated to the Events lobby tab and never bleeds into normal runs.
+- [ ] Event rewards and daily missions cannot be claimed twice.
+- [ ] 10-day login track preserves progress across app restarts and does not reset on missed days.
+- [ ] Save migration from previous versions preserves all player credits and unlocks without reset.
+- [ ] Frame rate on mobile maintains steady 60 FPS without memory leaks or unbounded arrays.
+- [ ] Android landscape and sticky immersive fullscreen remain locked.
