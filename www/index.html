@@ -66,7 +66,11 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 @media (orientation: landscape), (min-width: 520px) {
   .pp{max-width:880px!important}
   #p0.pp.on{flex-direction:row!important;max-width:960px!important;width:100%!important;height:100%!important;justify-content:space-evenly!important;align-items:center!important;gap:14px!important;padding:2px 14px 4px!important}
-  .l-left{flex:1 1 44%!important;max-width:360px!important;height:100%!important;justify-content:space-evenly!important;gap:3px!important}
+  .l-left{flex:1 1 44%!important;max-width:360px!important;height:100%!important;max-height:calc(100vh - 80px)!important;overflow-y:auto!important;overflow-x:hidden!important;justify-content:flex-start!important;gap:5px!important;padding:2px 4px 4px 0!important}
+  .l-left::-webkit-scrollbar, #rview-m::-webkit-scrollbar{width:4px}
+  .l-left::-webkit-scrollbar-thumb, #rview-m::-webkit-scrollbar-thumb{background:#5a6840;border-radius:2px}
+  .ev-tab,.sk-tab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#aaa;border-radius:4px;cursor:pointer;transition:all .15s}
+  .ev-tab.on,.sk-tab.on{background:rgba(143,174,74,.25);border-color:#8fae4a;color:#ece7d5}
   .l-right{flex:1 1 52%!important;max-width:480px!important;height:100%!important;justify-content:center!important;background:rgba(0,0,0,.35)!important;border:1px solid rgba(58,65,40,.45)!important;border-radius:10px!important;padding:6px 10px!important}
   .map-box{width:100%!important;gap:4px!important}
   #maps{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:5px!important;width:100%!important;max-width:100%!important;padding:2px!important;overflow-x:visible!important}
@@ -95,11 +99,17 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">ACCOUNT RANK</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
 <div id="pn">
 <div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.9.0</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div>
-<div style="margin-top:12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px">
-  <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#ffd36b;margin-bottom:6px">DAILY MISSIONS</div>
-  <div id="daily-list"></div>
-  <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#8fae4a;margin:8px 0 6px">10-DAY LOGIN TRACK</div>
-  <div id="login-track" style="display:flex;gap:4px;overflow-x:auto;padding-bottom:4px"></div>
+<div style="margin-top:6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px;width:100%;max-width:340px">
+  <div style="display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
+    <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')" style="flex:1;padding:3px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">DAILY MISSIONS</button>
+    <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')" style="flex:1;padding:3px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">10-DAY REWARDS</button>
+  </div>
+  <div id="rview-m" style="display:block;max-height:120px;overflow-y:auto;padding-right:2px">
+    <div id="daily-list"></div>
+  </div>
+  <div id="rview-l" style="display:none;padding:2px 0">
+    <div id="login-track" style="display:flex;gap:4px;overflow-x:auto;padding-bottom:4px"></div>
+  </div>
 </div>
 </div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
 <div class="pp" id="pe">
@@ -117,6 +127,20 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
   <div id="ev-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
 </div>
 <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
+<div class="pp" id="psk">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px">
+    <div>
+      <b style="font-size:15px;letter-spacing:1px;color:#f0ece1">WEAPON & OPERATIVE SKINS</b>
+      <div style="font-size:10.5px;opacity:.7">Custom Camouflage & Weapon Finishes &bull; 100% Cosmetic Parity</div>
+    </div>
+    <div id="sk-filter" style="display:flex;gap:6px">
+      <button class="sk-tab on" onclick="filterSkins('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+      <button class="sk-tab" onclick="filterSkins('unlocked')" style="padding:4px 8px;min-height:28px;font-size:10px">UNLOCKED</button>
+      <button class="sk-tab" onclick="filterSkins('locked')" style="padding:4px 8px;min-height:28px;font-size:10px">LOCKED</button>
+    </div>
+  </div>
+  <div id="skin-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
+</div>
 <div class="pp" id="pc"><div id="cls" class="grid"></div></div><div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div><div class="pp" id="p2"><div id="upg" class="grid"></div></div>
 <div class="pp" id="pa"><p id="rcnt" style="font-weight:700;color:#8fae4a"></p><div id="art" class="grid"></div></div>
 <div class="pp" id="p3"><div class="card" style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px;padding:16px"><b>SETTINGS</b><button id="sndbtn" style="width:100%"></button><button id="apbtn" style="width:100%"></button><div><span style="font-weight:700;display:block;margin-bottom:6px">Survivor Suit Colour</span><div style="display:flex;gap:8px"><button style="flex:1" onclick="PC='#d8c9a0';SV.col=PC;sv()">Sand</button><button style="flex:1" onclick="PC='#7fb2d9';SV.col=PC;sv()">Blue</button><button style="flex:1" onclick="PC='#d98f7f';SV.col=PC;sv()">Red</button></div></div></div></div>
@@ -125,6 +149,7 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
 <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
 <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 9h10l2 2h7v3h-3l-1 2h-3v-2H10l-2 5H5l2-5H2V9z"/></svg>GUNS</button>
+<button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
 <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
 <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
 <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
@@ -376,41 +401,79 @@ function fire(){
   CS.push({x:P.x+Math.cos(P.a)*10,y:P.y+Math.sin(P.a)*10,vx:Math.cos(ca)*csSpd,vy:Math.sin(ca)*csSpd,a:Math.random()*6.28,va:(Math.random()-.5)*22,col:P.cur==2?'#c8302a':'#d4a64a'});
   if(CS.length>70)CS.shift();
   SH=Math.max(SH,w.p>1?4:1.5);
+  const curSkin=(typeof SV!=='undefined'&&SV&&SV.eqSkin&&SV.eqSkin[P.cur])?SKINS[SV.eqSkin[P.cur]]:null;
+  const bulletCol=curSkin?curSkin.col:WC[P.cur];
   const mOff=((ML[P.cur]||45)*.87),bx0=P.x+Math.cos(P.a)*mOff,by0=P.y+Math.sin(P.a)*mOff;
   const canSpawn=hasLOS(P.x,P.y,bx0,by0);
   const sx=canSpawn?bx0:P.x,sy=canSpawn?by0:P.y;
+
+  function getPointBlankTarget(aimAngle, maxDist){
+    let closestZ=null,minD=maxDist+25;
+    const cosA=Math.cos(aimAngle),sinA=Math.sin(aimAngle);
+    for(const z of Z){
+      if(z.dead||z.hp<=0)continue;
+      const T=ZT[z.t]||ZT.walk;
+      const dx=z.x-P.x,dy=z.y-P.y;
+      const fwd=dx*cosA+dy*sinA;
+      if(fwd>-8&&fwd<maxDist+T.r+6){
+        const perp=Math.abs(-dx*sinA+dy*cosA);
+        if(perp<T.r+10){
+          const d=Math.hypot(dx,dy);
+          if(d<minD){minD=d;closestZ=z;}
+        }
+      }
+    }
+    return closestZ;
+  }
+
   for(let i=0;i<w.p+(S.xp2||0);i++){
     const a=P.a+(Math.random()-.5)*w.sp*2+(S.xp2?(Math.random()-.5)*.12:0);
     const isCrit=Math.random()<.04*(SV.crit||0)+CL[SV.cls||0].crit+(S.ct||0);
     const critMult=isCrit?2:1;
     const finalDmg=w.d*S.dm*(S.dd>0?2:1)*(1+(S.bk||0)*.35*(1-P.hp/P.mx))*(S.oc&&S.shots%Math.max(4,12-S.oc*3)==0?3:1)*(S.fo&&S.stl>1?1+.4*S.fo:1)*critMult;
-    if(w.flm){
-      // Dedicated short-range conical stream with limited reach (~140px max)
-      const spd = 360 + Math.random()*70;
+    const pbZ=getPointBlankTarget(a,mOff);
+    if(pbZ){
+      damageZ(pbZ,finalDmg,'bullet',isCrit);
+      txt(pbZ.x,pbZ.y-(ZT[pbZ.t]||ZT.walk).r,isCrit?('CRIT '+Math.round(finalDmg)):Math.round(finalDmg),isCrit?'#ff3b30':'#fff',isCrit);
+      if(w.ex||(S.eb?45:0))boom({x:pbZ.x,y:pbZ.y,ex:w.ex||45,d:finalDmg});
+      burst(pbZ.x,pbZ.y,bulletCol||'#ffd86b',5,2,85);
+      const remainingPen=(w.pr||0)+(S.pc||0);
+      if(remainingPen>0&&!w.flm){
+        const bSpeed=w.rg>1.2?1050:(w.sp===0?920:700);
+        B.push({
+          x:sx,y:sy,
+          vx:Math.cos(a)*bSpeed,vy:Math.sin(a)*bSpeed,
+          d:finalDmg,l:w.rg||.7,c:bulletCol,
+          pr:remainingPen-1,ex:w.ex||(S.eb?45:0),
+          isCrit,flm:0,fz:w.fz,cl:(w.cl||0)+(S.cl||0),wi:P.cur,
+          h:[pbZ]
+        });
+      }
+    } else if(w.flm){
+      const spd=360+Math.random()*70;
       B.push({
-        x:sx, y:sy,
-        vx:Math.cos(a)*spd, vy:Math.sin(a)*spd,
-        d:finalDmg, l:0.24, c:'#ff7700',
-        pr:3, ex:0,
-        isCrit, flm:1, wi:P.cur
+        x:sx,y:sy,
+        vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+        d:finalDmg,l:0.24,c:bulletCol||'#ff7700',
+        pr:3,ex:0,
+        isCrit,flm:1,wi:P.cur
       });
-      // Visible muzzle flame tongue
-      if(F.length < 240){
+      if(F.length<240){
         F.push({
-          x:sx, y:sy,
-          vx:Math.cos(a)*220 + (Math.random()-.5)*70,
-          vy:Math.sin(a)*220 + (Math.random()-.5)*70,
-          l:0.18, c:Math.random()<.5?'#ffcc00':'#ff5500', s:5
+          x:sx,y:sy,
+          vx:Math.cos(a)*220+(Math.random()-.5)*70,
+          vy:Math.sin(a)*220+(Math.random()-.5)*70,
+          l:0.18,c:Math.random()<.5?'#ffcc00':'#ff5500',s:5
         });
       }
     } else {
-      const bSpeed = w.rg>1.2 ? 1050 : (w.sp===0 ? 920 : 700);
+      const bSpeed=w.rg>1.2?1050:(w.sp===0?920:700);
       B.push({
-        x:sx, y:sy,
-        vx:Math.cos(a)*bSpeed, vy:Math.sin(a)*bSpeed,
-        d:finalDmg, l:w.rg||.7, c:WC[P.cur],
-        pr:(w.pr||0)+(S.pc||0), ex:w.ex||(S.eb?45:0),
-        isCrit, flm:0, fz:w.fz, cl:(w.cl||0)+(S.cl||0), wi:P.cur
+        x:sx,y:sy,
+        vx:Math.cos(a)*bSpeed,vy:Math.sin(a)*bSpeed,
+        d:finalDmg,l:w.rg||.7,c:bulletCol,
+        pr:(w.pr||0)+(S.pc||0),ex:w.ex||(S.eb?45:0),
+        isCrit,flm:0,fz:w.fz,cl:(w.cl||0)+(S.cl||0),wi:P.cur
       });
     }
   }
@@ -489,6 +552,16 @@ function gun(i,rc){
   else{
     // Generic fallback for any future expansion
     bx(0,-4,24,8,'#475569');pg([[2,4],[8,4],[6,12],[0,12]],DK);
+  }
+  const activeSkinKey=(typeof SV!=='undefined'&&SV&&SV.eqSkin&&SV.eqSkin[i])?SV.eqSkin[i]:null;
+  const skDef=activeSkinKey&&SKINS[activeSkinKey]?SKINS[activeSkinKey]:null;
+  if(skDef){
+    X.save();
+    X.strokeStyle=skDef.col;X.lineWidth=1.6;
+    X.strokeRect(2,-4,22,8);
+    X.fillStyle=skDef.col;X.globalAlpha=ga*(0.65+Math.sin(((typeof S!=='undefined'&&S)?S.t:0)*10)*0.25);
+    X.fillRect(4,-2,18,4);
+    X.restore();
   }
   X.restore();
 }
@@ -915,10 +988,10 @@ const EVENTS = {
 };
 
 const SKINS = {
-  ashen_assault: { id:'ashen_assault', name:'Ashen Vanguard', wi:6, col:'#ff4a22', desc:'Smoldering ash finish with ember muzzle flash.', tagCol:'#ff5a3a' },
-  crimson_sniper: { id:'crimson_sniper', name:'Crimson Eclipse', wi:7, col:'#e11d48', desc:'Anodized crimson casing with blood-red supersonic tracer.', tagCol:'#f43f5e' },
-  volt_railgun: { id:'volt_railgun', name:'Cyberpunk Volt', wi:14, col:'#facc15', desc:'High-voltage overclocked frame with electric yellow discharge.', tagCol:'#00e5ff' },
-  gold_minigun: { id:'gold_minigun', name:'Golden Legion', wi:4, col:'#fbbf24', desc:'Prestigious gilded rotary cannon for 10-day frontier veterans.', tagCol:'#e0b83a' }
+  ashen_assault: { id:'ashen_assault', name:'Ashen Vanguard', wi:6, wName:'Assault Rifle', col:'#ff4a22', desc:'Smoldering volcanic ash finish with ember muzzle flash & tracer.', tagCol:'#ff5a3a', how:'Complete Operation Last Stand (Events)' },
+  crimson_sniper: { id:'crimson_sniper', name:'Crimson Eclipse', wi:7, wName:'Sniper Rifle', col:'#e11d48', desc:'Anodized crimson casing with blood-red supersonic tracer.', tagCol:'#f43f5e', how:'Complete Operation Elite Hunt (Events)' },
+  volt_railgun: { id:'volt_railgun', name:'Cyberpunk Volt', wi:14, wName:'Heavy Railgun', col:'#facc15', desc:'High-voltage overclocked frame with electric yellow discharge.', tagCol:'#00e5ff', how:'Complete Operation Heavy Metal (Events)' },
+  gold_minigun: { id:'gold_minigun', name:'Golden Legion', wi:4, wName:'Minigun', col:'#fbbf24', desc:'Prestigious gilded rotary cannon for 10-day frontier veterans.', tagCol:'#e0b83a', how:'Claim Day 10 Login Reward' }
 };
 
 let activeEventFilter = 'all';
@@ -952,12 +1025,16 @@ function renderEventsUI() {
         <span style="font-size:9px;font-weight:900;color:${ev.col};background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">${ev.category}</span>
       </div>
       <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${ev.desc}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;opacity:.9">
-        <span style="color:#e0b83a">${diffStars}</span>
-        <span style="color:#8fae4a;font-weight:700">REWARD: +${ev.rewardCr} CR + SKIN</span>
+      <div style="background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <span style="color:#ffd36b;font-weight:800;font-size:11px">?? REWARD: +${ev.rewardCr} CR</span>
+          <span style="color:${ev.col};font-weight:700;font-size:10px">?? SKIN: ${ev.skinName}</span>
+        </div>
+        <span style="font-size:9.5px;font-weight:800;padding:3px 6px;border-radius:4px;background:${isDone?'rgba(143,174,74,.2)':'rgba(224,184,58,.2)'};color:${isDone?'#8fae4a':'#e0b83a'}">${isDone?'? CLAIMED':'? FIRST CLEAR'}</span>
       </div>
-      <div style="margin-top:auto;display:flex;gap:8px">
-        <button onclick="openEventBriefing('${k}')" style="flex:1;min-height:34px;font-weight:700;border-color:${ev.col}">${isDone?'REPLAY OP':'INSPECT OP'}</button>
+      <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span style="color:#e0b83a;font-size:11px">${diffStars}</span>
+        <button onclick="openEventBriefing('${k}')" style="min-height:34px;padding:0 18px;font-weight:700;border-color:${ev.col}">${isDone?'REPLAY OP':'INSPECT OP'}</button>
       </div>
     </div>`;
   }).join('');
@@ -974,7 +1051,7 @@ function openEventBriefing(k) {
   $('ev-desc').textContent = ev.desc;
   $('ev-rules').innerHTML = rulesList;
   $('ev-meta').innerHTML = `Sector: <b>${MP[ev.map].n}</b> &bull; Threat Level: <b style="color:#e0b83a">${diffStars}</b>`;
-  $('ev-rew').innerHTML = `<b>+${ev.rewardCr} Credits</b> &bull; Exclusive Skin: <b style="color:${ev.col}">${ev.skinName}</b>`;
+  $('ev-rew').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="color:#ffd36b;font-weight:800;font-size:12px">?? Operational Bounty: +${ev.rewardCr} Credits</span><span style="color:${ev.col};font-weight:800;font-size:11.5px">?? Exclusive Skin: ${ev.skinName}</span></div><div style="font-size:10px;opacity:.75;color:#ccc">One-time operational reward. Replaying operation awards standard sector XP and cash.</div>`;
   
   const deployBtn = $('ev-deploy-btn');
   deployBtn.textContent = isDone ? 'REPLAY OPERATION' : 'DEPLOY OPERATION';
@@ -1199,6 +1276,95 @@ function toggleSkin(weapIdx) {
   }
   sv();
   lobby();
+}
+
+function switchLobbyRewards(t){
+  const isM = (t === 'm');
+  const btnM = $('rtab-m'), btnL = $('rtab-l');
+  const viewM = $('rview-m'), viewL = $('rview-l');
+  if (btnM) btnM.classList.toggle('on', isM);
+  if (btnL) btnL.classList.toggle('on', !isM);
+  if (viewM) viewM.style.display = isM ? 'block' : 'none';
+  if (viewL) viewL.style.display = isM ? 'none' : 'block';
+}
+
+let activeSkinFilter = 'all';
+function filterSkins(f){
+  activeSkinFilter = f;
+  document.querySelectorAll('.sk-tab').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase().includes(f)));
+  renderSkinsUI();
+}
+
+function renderSkinsUI(){
+  const el = $('skin-list'); if(!el) return;
+  const sKeys = Object.keys(SKINS);
+  const filtered = sKeys.filter(k => {
+    const isOwned = SV.skins && SV.skins[k];
+    if (activeSkinFilter === 'unlocked') return isOwned;
+    if (activeSkinFilter === 'locked') return !isOwned;
+    return true;
+  });
+
+  if (!filtered.length) {
+    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;opacity:.6">No skins matching current filter.</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(k => {
+    const sk = SKINS[k];
+    const isOwned = Boolean(SV.skins && SV.skins[k]);
+    const isEquipped = Boolean(SV.eqSkin && SV.eqSkin[sk.wi] === k);
+    const w = WEAP[sk.wi] || { n: sk.wName || 'Weapon' };
+    
+    return `<div class="card" style="border:1.5px solid ${isEquipped?'#8fae4a':(isOwned?sk.col+'66':'rgba(255,255,255,.08)')};border-left:5px solid ${sk.col};display:flex;flex-direction:column;gap:8px;background:rgba(20,24,18,.96)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <b style="font-size:13.5px;color:${isEquipped?'#8fae4a':'#f0ece1'}">${sk.name}</b>
+          <div style="font-size:10px;opacity:.75;color:${sk.col};font-weight:700">${w.n.toUpperCase()} FINISH</div>
+        </div>
+        <span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:${isOwned?'rgba(143,174,74,.2)':'rgba(255,255,255,.08)'};color:${isOwned?'#8fae4a':'#888'}">${isEquipped?'EQUIPPED':(isOwned?'UNLOCKED':'LOCKED')}</span>
+      </div>
+      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${sk.desc}</div>
+      <div style="background:rgba(0,0,0,.35);padding:6px 8px;border-radius:6px;font-size:10px">
+        <span style="opacity:.65">UNLOCK: </span>
+        <span style="color:${isOwned?'#8fae4a':'#e0b83a'};font-weight:700">${sk.how || 'Special Event'}</span>
+      </div>
+      <div style="margin-top:auto;display:flex;gap:6px">
+        ${isOwned ? `
+          <button onclick="equipSkinDirect('${k}')" style="flex:1;min-height:32px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'}">
+            ${isEquipped ? '? EQUIPPED' : 'EQUIP SKIN'}
+          </button>
+          ${isEquipped ? `<button onclick="unequipSkinDirect(${sk.wi})" style="min-height:32px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
+        ` : `
+          <button disabled style="flex:1;min-height:32px;font-size:11px;opacity:.5">LOCKED</button>
+        `}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function equipSkinDirect(skinId){
+  const sk = SKINS[skinId]; if (!sk || !(SV.skins && SV.skins[skinId])) return;
+  SV.eqSkin = SV.eqSkin || {};
+  SV.eqSkin[sk.wi] = skinId;
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
+  sv();
+  snd(400, .15, 'sine', .05, 1.5);
+  renderSkinsUI();
+  if (typeof lobby === 'function') lobby();
+}
+
+function unequipSkinDirect(weapIdx){
+  if (SV.eqSkin && SV.eqSkin[weapIdx]) {
+    delete SV.eqSkin[weapIdx];
+    SV.rev = (SV.rev || 0) + 1;
+    SV.ts = Date.now();
+    sv();
+    snd(250, .15, 'sawtooth', .05, 1);
+    renderSkinsUI();
+    if (typeof lobby === 'function') lobby();
+  }
 }
 
 
@@ -1947,7 +2113,7 @@ function lobby(){
   $('lvn').textContent=SV.lvl;$('xpf').style.width=Math.min(100,100*SV.xp/need(SV.lvl))+'%';
   $('cr').textContent=SV.cr;
   $('best').textContent='BEST: WAVE '+SV.best+' • '+(CL[SV.cls||0]||CL[0]).n.toUpperCase()+' • '+(WEAP[SV.start]||WEAP[0]).n.toUpperCase()+' • RELICS '+SV.eq.length+'/2';
-  mapsUI();renderEventsUI();renderMissionsUI();renderLoginTrackUI();$('daily').style.display=SV.day==today?'none':'';$('sndbtn').textContent='SOUND: '+(MUTE?'OFF':'ON');
+  mapsUI();renderEventsUI();renderMissionsUI();renderLoginTrackUI();renderSkinsUI();$('daily').style.display=SV.day==today?'none':'';$('sndbtn').textContent='SOUND: '+(MUTE?'OFF':'ON');
   const apb=$('apbtn');if(apb){apb.textContent='AUTO-PICK POWERS: '+(SV.ap?'ON (NO PAUSES)':'OFF (MANUAL)');apb.style.borderColor=SV.ap?'#8fae4a':'#353b26';apb.style.color=SV.ap?'#8fae4a':'#ece7d5'}
   const sortedWeap=WEAP.map((w,i)=>({...w,i})).sort((a,b)=>a.c-b.c);
   $('arm').innerHTML=sortedWeap.map(w=>{
@@ -2384,6 +2550,12 @@ function drawZombie(z){
   const T=ZT[z.t]||ZT.walk,sc=Math.max(0.01,Math.min(1,(z.age||0)*3)*(1+Math.sin(z.ph||0)*.06)||0.01);
   const a=Math.atan2(P.y-z.y,P.x-z.x),sw=Math.sin(z.ph||0),isHit=z.hit>0;
   const hitSquash=isHit?1.18:1;
+  const dToP=Math.hypot(P.x-z.x,P.y-z.y);
+  if(dToP<55){
+    X.strokeStyle='rgba(255,60,40,'+(0.65+Math.sin(S.t*12)*.35)+')';
+    X.lineWidth=2.5;
+    X.beginPath();X.arc(z.x,z.y,T.r*sc+5,0,6.28);X.stroke();
+  }
   if(z.t=='stalker'){
     const dToP=Math.hypot(P.x-z.x,P.y-z.y);
     X.globalAlpha=dToP>180?0.55:1;
@@ -2923,6 +3095,19 @@ function draw(){
   }
   bodyFront();
   X.restore();
+  for(const z of Z){
+    if(z.dead)continue;
+    const dToP=Math.hypot(P.x-z.x,P.y-z.y);
+    if(dToP<52){
+      const T=ZT[z.t]||ZT.walk;
+      const hpPct=Math.max(0,z.hp/z.mh);
+      const bw=T.r*2.2,bh=4,by=z.y-T.r-8;
+      X.strokeStyle='#ff3b30';X.lineWidth=2;
+      X.beginPath();X.arc(z.x,z.y,T.r+3,0,6.28);X.stroke();
+      X.fillStyle='#000000dd';X.fillRect(z.x-bw/2-1,by-1,bw+2,bh+2);
+      X.fillStyle=hpPct>.4?'#48cae4':'#e63946';X.fillRect(z.x-bw/2,by,bw*hpPct,bh);
+    }
+  }
   X.restore();
   X.setTransform(DPR,0,0,DPR,0,0);X.globalAlpha=1;X.setLineDash([]);
   if(P.hp<P.mx*.35){
