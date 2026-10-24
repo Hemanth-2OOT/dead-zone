@@ -98,7 +98,7 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 <canvas id="c"></canvas>
 <div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">ACCOUNT RANK</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
 <div id="pn">
-<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.9.0</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div>
+<div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.9.1</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div>
 <div style="margin-top:6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px;width:100%;max-width:340px">
   <div style="display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
     <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')" style="flex:1;padding:3px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">DAILY MISSIONS</button>
@@ -408,19 +408,19 @@ function fire(){
   const sx=canSpawn?bx0:P.x,sy=canSpawn?by0:P.y;
 
   function getPointBlankTarget(aimAngle, maxDist){
-    let closestZ=null,minD=maxDist+25;
+    let closestZ=null,minD=maxDist+30;
     const cosA=Math.cos(aimAngle),sinA=Math.sin(aimAngle);
     for(const z of Z){
       if(z.dead||z.hp<=0)continue;
       const T=ZT[z.t]||ZT.walk;
       const dx=z.x-P.x,dy=z.y-P.y;
+      const d=Math.hypot(dx,dy);
       const fwd=dx*cosA+dy*sinA;
-      if(fwd>-8&&fwd<maxDist+T.r+6){
-        const perp=Math.abs(-dx*sinA+dy*cosA);
-        if(perp<T.r+10){
-          const d=Math.hypot(dx,dy);
-          if(d<minD){minD=d;closestZ=z;}
-        }
+      const perp=Math.abs(-dx*sinA+dy*cosA);
+      if(d < (T.r + 28) && fwd > -15){
+        if(d < minD){ minD = d; closestZ = z; }
+      } else if(fwd > -8 && fwd < maxDist + T.r + 10 && perp < T.r + 14){
+        if(d < minD){ minD = d; closestZ = z; }
       }
     }
     return closestZ;
@@ -557,10 +557,31 @@ function gun(i,rc){
   const skDef=activeSkinKey&&SKINS[activeSkinKey]?SKINS[activeSkinKey]:null;
   if(skDef){
     X.save();
-    X.strokeStyle=skDef.col;X.lineWidth=1.6;
-    X.strokeRect(2,-4,22,8);
-    X.fillStyle=skDef.col;X.globalAlpha=ga*(0.65+Math.sin(((typeof S!=='undefined'&&S)?S.t:0)*10)*0.25);
-    X.fillRect(4,-2,18,4);
+    if(activeSkinKey==='ashen_assault'){
+      X.fillStyle='#ff4a22';X.globalAlpha=ga*.75;
+      X.fillRect(4,-5,22,2);X.fillRect(20,-6,16,2);X.fillRect(36,-4,14,2);
+      X.strokeStyle='#ff6b3d';X.lineWidth=1.5;X.strokeRect(0,-5,20,8);
+    }else if(activeSkinKey==='crimson_sniper'){
+      X.fillStyle='#e11d48';X.globalAlpha=ga*.8;
+      X.fillRect(4,-5,18,8);X.fillRect(22,-3,40,3);
+      X.fillStyle='#ff4d6d';X.fillRect(8,-12,28,4);
+      X.strokeStyle='#fb7185';X.lineWidth=1.5;X.strokeRect(8,-13,30,6);
+    }else if(activeSkinKey==='volt_railgun'){
+      X.fillStyle='#facc15';X.globalAlpha=ga*.85;
+      X.fillRect(30,-8,44,4);X.fillRect(30,4,44,4);
+      X.fillStyle='#00e5ff';X.fillRect(14,-7,16,14);
+      X.strokeStyle='#fef08a';X.lineWidth=1.5;X.strokeRect(28,-9,48,18);
+    }else if(activeSkinKey==='gold_minigun'){
+      X.fillStyle='#fbbf24';X.globalAlpha=ga*.85;
+      X.fillRect(12,-8,14,16);X.fillRect(26,-8,3,16);X.fillRect(44,-8,3,16);
+      X.fillStyle='#fef08a';X.fillRect(4,9,12,7);
+      X.strokeStyle='#d97706';X.lineWidth=1.5;X.strokeRect(12,-8,35,16);
+    }else{
+      X.strokeStyle=skDef.col;X.lineWidth=1.6;
+      X.strokeRect(2,-4,22,8);
+      X.fillStyle=skDef.col;X.globalAlpha=ga*(0.65+Math.sin(((typeof S!=='undefined'&&S)?S.t:0)*10)*0.25);
+      X.fillRect(4,-2,18,4);
+    }
     X.restore();
   }
   X.restore();
@@ -810,24 +831,36 @@ function getPerkIcon(name, col){
 const SI_CACHE = {};
 function getStatIcon(statId, col = '#e0b83a') {
   if (SI_CACHE[statId + '_' + col]) return SI_CACHE[statId + '_' + col];
-  const cv = document.createElement('canvas'); cv.width = 36; cv.height = 36;
+  const cv = document.createElement('canvas'); cv.width = 40; cv.height = 40;
   const cx = cv.getContext('2d');
-  cx.translate(18, 18);
+  cx.translate(20, 20);
   cx.strokeStyle = col; cx.fillStyle = col; cx.lineWidth = 2.2; cx.lineCap = 'round'; cx.lineJoin = 'round';
-  
-  if (statId === 'hp') {
+
+  if (statId === 'hp' || statId === 'hu') {
     // Shield with cross
     cx.beginPath(); cx.moveTo(0, -11); cx.lineTo(10, -7); cx.lineTo(9, 3); cx.lineTo(0, 11); cx.lineTo(-9, 3); cx.lineTo(-10, -7); cx.closePath(); cx.stroke();
     cx.fillRect(-2, -5, 4, 10); cx.fillRect(-5, -2, 10, 4);
-  } else if (statId === 'dmg') {
+  } else if (statId === 'dmg' || statId === 'du') {
     // Crosshair target
     cx.beginPath(); cx.arc(0, 0, 9, 0, 6.28); cx.stroke();
     cx.beginPath(); cx.arc(0, 0, 3, 0, 6.28); cx.fill();
     cx.beginPath(); cx.moveTo(0, -12); cx.lineTo(0, -7); cx.moveTo(0, 7); cx.lineTo(0, 12); cx.moveTo(-12, 0); cx.lineTo(-7, 0); cx.moveTo(7, 0); cx.lineTo(12, 0); cx.stroke();
+  } else if (statId === 'gu') {
+    // Tactical frag grenade
+    cx.beginPath(); cx.roundRect(-6, -6, 12, 14, 3); cx.stroke();
+    cx.beginPath(); cx.moveTo(-2, -10); cx.lineTo(2, -10); cx.lineTo(2, -6); cx.lineTo(-2, -6); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.arc(5, -9, 3, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.moveTo(-6, 0); cx.lineTo(6, 0); cx.moveTo(-6, 4); cx.lineTo(6, 4); cx.moveTo(0, -6); cx.lineTo(0, 8); cx.stroke();
+  } else if (statId === 'cb' || statId === 'cr') {
+    // Supply credit coin
+    cx.beginPath(); cx.arc(0, 0, 10, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.arc(0, 0, 7.5, 0, 6.28); cx.stroke();
+    cx.font = 'bold 11px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText('C', 0, 0.5);
   } else if (statId === 'rof') {
     // Triple rapid velocity chevrons
     for (let i = -1; i <= 1; i++) {
-      cx.beginPath(); cx.moveTo(-6, i * 6 - 2); cx.lineTo(0, i * 6); cx.lineTo(6, i * 6 - 2); cx.stroke();
+      cx.beginPath(); cx.moveTo(-7, i * 6 - 2); cx.lineTo(0, i * 6); cx.lineTo(7, i * 6 - 2); cx.stroke();
     }
   } else if (statId === 'crit') {
     // Diamond precision reticle
@@ -837,6 +870,11 @@ function getStatIcon(statId, col = '#e0b83a') {
     // Winged velocity boots
     cx.beginPath(); cx.moveTo(-10, -4); cx.lineTo(-2, -4); cx.lineTo(4, 4); cx.lineTo(10, 4); cx.stroke();
     cx.beginPath(); cx.moveTo(-8, 1); cx.lineTo(-1, 1); cx.lineTo(3, 7); cx.lineTo(8, 7); cx.stroke();
+  } else if (statId === 'vamp') {
+    // Life leech blood drop with fangs
+    cx.beginPath(); cx.moveTo(0, -11); cx.quadraticCurveTo(8, -2, 8, 3); cx.arc(0, 3, 8, 0, 3.14); cx.quadraticCurveTo(-8, -2, 0, -11); cx.closePath(); cx.stroke();
+    cx.beginPath(); cx.moveTo(-3, 0); cx.lineTo(-1, 4); cx.lineTo(-4, 4); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.moveTo(3, 0); cx.lineTo(4, 4); cx.lineTo(1, 4); cx.closePath(); cx.fill();
   } else if (statId === 'ar') {
     // Armor plate
     cx.beginPath(); cx.moveTo(-8, -10); cx.lineTo(8, -10); cx.lineTo(10, 6); cx.lineTo(0, 12); cx.lineTo(-10, 6); cx.closePath(); cx.stroke();
@@ -845,11 +883,6 @@ function getStatIcon(statId, col = '#e0b83a') {
     // Crossed combat blades
     cx.beginPath(); cx.moveTo(-9, -9); cx.lineTo(9, 9); cx.moveTo(-9, 9); cx.lineTo(9, -9); cx.stroke();
     cx.beginPath(); cx.arc(0, 0, 3.5, 0, 6.28); cx.fill();
-  } else if (statId === 'cr') {
-    // Supply credit coin
-    cx.beginPath(); cx.arc(0, 0, 10, 0, 6.28); cx.stroke();
-    cx.font = 'bold 11px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-    cx.fillText('C', 0, 0);
   } else if (statId === 'lvl') {
     // Military chevron rank
     cx.beginPath(); cx.moveTo(-8, -5); cx.lineTo(0, -11); cx.lineTo(8, -5); cx.stroke();
@@ -869,7 +902,7 @@ function getSkillIcon(skillId, col = '#8fae4a') {
   const cx = cv.getContext('2d');
   cx.translate(20, 20);
   cx.strokeStyle = col; cx.fillStyle = col; cx.lineWidth = 2.4; cx.lineCap = 'round'; cx.lineJoin = 'round';
-  
+
   if (skillId === 'dash') {
     cx.beginPath(); cx.moveTo(-11, -7); cx.lineTo(-1, 0); cx.lineTo(-11, 7); cx.stroke();
     cx.beginPath(); cx.moveTo(-2, -7); cx.lineTo(8, 0); cx.lineTo(-2, 7); cx.stroke();
@@ -910,14 +943,94 @@ function getSkillIcon(skillId, col = '#8fae4a') {
   } else if (skillId === 'meteor') {
     cx.beginPath(); cx.arc(-3, 3, 6, 0, 6.28); cx.fill();
     cx.beginPath(); cx.moveTo(-4, -3); cx.lineTo(9, -11); cx.moveTo(3, 4); cx.lineTo(11, -4); cx.stroke();
-  } else {
-    // Grenade
+  } else if (skillId === 'gren' || skillId === 'grx') {
+    // Demolitionist Grenades / Dynamite
     cx.beginPath(); cx.roundRect(-5, -6, 10, 13, 2); cx.stroke();
     cx.beginPath(); cx.moveTo(-2, -9); cx.lineTo(2, -9); cx.moveTo(0, -9); cx.lineTo(0, -6); cx.stroke();
+    cx.beginPath(); cx.moveTo(-5, 0); cx.lineTo(5, 0); cx.stroke();
+  } else if (skillId === 'armor') {
+    // Tough Skin: Heavy ballistic armor vest
+    cx.beginPath(); cx.moveTo(-9, -9); cx.lineTo(-4, -12); cx.lineTo(0, -8); cx.lineTo(4, -12); cx.lineTo(9, -9); cx.lineTo(8, 8); cx.lineTo(-8, 8); cx.closePath(); cx.stroke();
+    cx.beginPath(); cx.moveTo(0, -8); cx.lineTo(0, 8); cx.moveTo(-6, 0); cx.lineTo(6, 0); cx.stroke();
+  } else if (skillId === 'rof') {
+    // Quick Hands: Rapid firing trace & chevrons
+    cx.beginPath(); cx.moveTo(-8, -6); cx.lineTo(0, -10); cx.lineTo(8, -6); cx.stroke();
+    cx.beginPath(); cx.moveTo(-8, 0); cx.lineTo(0, -4); cx.lineTo(8, 0); cx.stroke();
+    cx.beginPath(); cx.moveTo(-8, 6); cx.lineTo(0, 2); cx.lineTo(8, 6); cx.stroke();
+  } else if (skillId === 'spd') {
+    // Sprinter: Dual velocity boots
+    cx.beginPath(); cx.moveTo(-10, -5); cx.lineTo(-2, -5); cx.lineTo(3, 5); cx.lineTo(10, 5); cx.stroke();
+    cx.beginPath(); cx.moveTo(-8, 1); cx.lineTo(0, 1); cx.lineTo(4, 9); cx.lineTo(9, 9); cx.stroke();
+  } else if (skillId === 'crit') {
+    // Deadeye: Sniper reticle with cross pips
+    cx.beginPath(); cx.arc(0, 0, 9, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.arc(0, 0, 3, 0, 6.28); cx.fill();
+    cx.beginPath(); cx.moveTo(0, -12); cx.lineTo(0, 12); cx.moveTo(-12, 0); cx.lineTo(12, 0); cx.stroke();
+  } else if (skillId === 'regen') {
+    // Regeneration: Medical cross with revolving nano arrows
+    cx.fillRect(-2.5, -6, 5, 12); cx.fillRect(-6, -2.5, 12, 5);
+    cx.beginPath(); cx.arc(0, 0, 10, -1.2, 0.4); cx.stroke();
+    cx.beginPath(); cx.arc(0, 0, 10, 1.9, 3.5); cx.stroke();
+  } else if (skillId === 'cdr') {
+    // Focus: Tactical cooldown chronometer
+    cx.beginPath(); cx.arc(0, 0, 9.5, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(0, -6); cx.moveTo(0, 0); cx.lineTo(4, 2); cx.stroke();
+    cx.beginPath(); cx.moveTo(-3, -11); cx.lineTo(3, -11); cx.stroke();
+  } else if (skillId === 'xpb') {
+    // Fast Learner: Tactical rank star
+    for (let k = 0; k < 5; k++) {
+      const a = k * 1.256 - 1.57;
+      const b = a + 0.628;
+      k ? cx.lineTo(Math.cos(a) * 11, Math.sin(a) * 11) : cx.moveTo(Math.cos(a) * 11, Math.sin(a) * 11);
+      cx.lineTo(Math.cos(b) * 5, Math.sin(b) * 5);
+    }
+    cx.closePath(); cx.stroke();
+  } else if (skillId === 'vamp') {
+    // Vampirism: Leeching blood drop with fangs
+    cx.beginPath(); cx.moveTo(0, -11); cx.quadraticCurveTo(8, -2, 8, 3); cx.arc(0, 3, 8, 0, 3.14); cx.quadraticCurveTo(-8, -2, 0, -11); cx.closePath(); cx.stroke();
+    cx.beginPath(); cx.moveTo(-3, 1); cx.lineTo(-1, 5); cx.lineTo(-4, 5); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.moveTo(3, 1); cx.lineTo(4, 5); cx.lineTo(1, 5); cx.closePath(); cx.fill();
+  } else if (skillId === 'brut') {
+    // Brutality: Spiked brass knuckles / combat cleaver
+    cx.beginPath(); cx.moveTo(-8, -8); cx.lineTo(8, -8); cx.lineTo(6, 6); cx.lineTo(-6, 6); cx.closePath(); cx.stroke();
+    cx.beginPath(); cx.moveTo(-4, -11); cx.lineTo(-4, -8); cx.moveTo(0, -12); cx.lineTo(0, -8); cx.moveTo(4, -11); cx.lineTo(4, -8); cx.stroke();
+  } else if (skillId === 'vit') {
+    // Vitality: Heart with pulse wave
+    cx.beginPath(); cx.moveTo(0, 8); cx.bezierCurveTo(9, 1, 10, -8, 4, -9); cx.bezierCurveTo(0, -9, 0, -5, 0, -5); cx.bezierCurveTo(0, -5, 0, -9, -4, -9); cx.bezierCurveTo(-10, -8, -9, 1, 0, 8); cx.closePath(); cx.stroke();
+    cx.beginPath(); cx.moveTo(-6, -1); cx.lineTo(-2, -1); cx.lineTo(0, -4); cx.lineTo(2, 2); cx.lineTo(6, -1); cx.stroke();
+  } else if (skillId === 'scav') {
+    // Scavenger: Loot magnet attractor
+    cx.beginPath(); cx.arc(0, -2, 8, 3.14, 0); cx.stroke();
+    cx.beginPath(); cx.moveTo(-8, -2); cx.lineTo(-8, 6); cx.moveTo(8, -2); cx.lineTo(8, 6); cx.stroke();
+    cx.fillRect(-10, 6, 4, 3); cx.fillRect(6, 6, 4, 3);
+  } else if (skillId === 'luck') {
+    // Fortune: 4-leaf clover
+    for (let k = 0; k < 4; k++) {
+      const a = k * 1.57;
+      cx.beginPath(); cx.arc(Math.cos(a) * 5, Math.sin(a) * 5, 4, 0, 6.28); cx.stroke();
+    }
+  } else if (skillId === 'boon') {
+    // Blessed: Radiant halo & celestial solar rays
+    cx.beginPath(); cx.arc(0, 0, 6, 0, 6.28); cx.stroke();
+    for (let k = 0; k < 8; k++) {
+      const a = k * 0.785;
+      cx.beginPath(); cx.moveTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5); cx.lineTo(Math.cos(a) * 11.5, Math.sin(a) * 11.5); cx.stroke();
+    }
+  } else {
+    // Default fallback icon
+    cx.beginPath(); cx.arc(0, 0, 8, 0, 6.28); cx.stroke();
   }
   return SK_CACHE[skillId + '_' + col] = cv.toDataURL();
 }
 
+function threatStars(diff) {
+  let s = '';
+  for (let i = 1; i <= 5; i++) {
+    const on = i <= diff;
+    s += `<svg width="12" height="12" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:2px" fill="${on?'#e0b83a':'none'}" stroke="#e0b83a" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+  }
+  return s;
+}
 
 // =========================================================================
 // EVENTS & OPERATIONS ENGINE (Phase 6 - Dedicated Game Mode)
@@ -1018,7 +1131,7 @@ function renderEventsUI() {
 
   el.innerHTML = filtered.map(k => {
     const ev = EVENTS[k], isDone = SV.evDone && SV.evDone[k];
-    const diffStars = '★'.repeat(ev.diff) + '☆'.repeat(5 - ev.diff);
+    const diffStars = threatStars(ev.diff);
     return `<div class="card" style="border:1.5px solid ${isDone?'#304820':ev.col+'55'};border-left:5px solid ${ev.col};display:flex;flex-direction:column;gap:8px;background:rgba(20,24,18,.96)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <b style="font-size:13.5px;color:${isDone?'#8fae4a':'#f0ece1'}">${ev.title}</b>
@@ -1027,10 +1140,10 @@ function renderEventsUI() {
       <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${ev.desc}</div>
       <div style="background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center;margin-top:2px">
         <div style="display:flex;flex-direction:column;gap:2px">
-          <span style="color:#ffd36b;font-weight:800;font-size:11px">?? REWARD: +${ev.rewardCr} CR</span>
-          <span style="color:${ev.col};font-weight:700;font-size:10px">?? SKIN: ${ev.skinName}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;color:#ffd36b;font-weight:800;font-size:11px"><img src="${getStatIcon('cr','#ffd36b')}" style="width:14px;height:14px"> REWARD: +${ev.rewardCr} CR</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;color:${ev.col};font-weight:700;font-size:10.5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${ev.col}" stroke-width="2.2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><circle cx="7.5" cy="16.5" r="1.5"/></svg> SKIN: ${ev.skinName}</span>
         </div>
-        <span style="font-size:9.5px;font-weight:800;padding:3px 6px;border-radius:4px;background:${isDone?'rgba(143,174,74,.2)':'rgba(224,184,58,.2)'};color:${isDone?'#8fae4a':'#e0b83a'}">${isDone?'? CLAIMED':'? FIRST CLEAR'}</span>
+        <span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:4px;background:${isDone?'rgba(143,174,74,.2)':'rgba(224,184,58,.2)'};color:${isDone?'#8fae4a':'#e0b83a'};border:1px solid ${isDone?'#8fae4a44':'#e0b83a44'}">${isDone?'CLAIMED':'FIRST CLEAR'}</span>
       </div>
       <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px">
         <span style="color:#e0b83a;font-size:11px">${diffStars}</span>
@@ -1044,14 +1157,18 @@ function openEventBriefing(k) {
   const ev = EVENTS[k]; if(!ev) return;
   const isDone = SV.evDone && SV.evDone[k];
   const rulesList = ev.rules.map(r => `<li style="margin-bottom:4px">${r}</li>`).join('');
-  const diffStars = '★'.repeat(ev.diff) + '☆'.repeat(5 - ev.diff);
+  const diffStars = threatStars(ev.diff);
   
   $('ev-title').textContent = ev.title;
   $('ev-title').style.color = ev.col;
   $('ev-desc').textContent = ev.desc;
   $('ev-rules').innerHTML = rulesList;
   $('ev-meta').innerHTML = `Sector: <b>${MP[ev.map].n}</b> &bull; Threat Level: <b style="color:#e0b83a">${diffStars}</b>`;
-  $('ev-rew').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="color:#ffd36b;font-weight:800;font-size:12px">?? Operational Bounty: +${ev.rewardCr} Credits</span><span style="color:${ev.col};font-weight:800;font-size:11.5px">?? Exclusive Skin: ${ev.skinName}</span></div><div style="font-size:10px;opacity:.75;color:#ccc">One-time operational reward. Replaying operation awards standard sector XP and cash.</div>`;
+  $('ev-rew').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+    <span style="display:inline-flex;align-items:center;gap:5px;color:#ffd36b;font-weight:800;font-size:12px"><img src="${getStatIcon('cr','#ffd36b')}" style="width:15px;height:15px"> Bounty: +${ev.rewardCr} Credits</span>
+    <span style="display:inline-flex;align-items:center;gap:5px;color:${ev.col};font-weight:800;font-size:11.5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${ev.col}" stroke-width="2.2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><circle cx="7.5" cy="16.5" r="1.5"/></svg> Exclusive Skin: ${ev.skinName}</span>
+  </div>
+  <div style="font-size:10px;opacity:.75;color:#ccc">One-time operational reward. Replaying operation awards standard sector XP and cash.</div>`;
   
   const deployBtn = $('ev-deploy-btn');
   deployBtn.textContent = isDone ? 'REPLAY OPERATION' : 'DEPLOY OPERATION';
@@ -1239,7 +1356,7 @@ function renderLoginTrackUI() {
     return `<div style="flex:1;min-width:65px;background:${isClaimed?'rgba(143,174,74,.15)':isAvailable?'rgba(224,184,58,.15)':'rgba(255,255,255,.04)'};border:1px solid ${isClaimed?'#8fae4a':isAvailable?'#e0b83a':'rgba(255,255,255,.1)'};border-radius:6px;padding:6px 4px;text-align:center">
       <div style="font-size:9.5px;font-weight:800;color:${isAvailable?'#e0b83a':'#aaa'}">DAY ${r.day}</div>
       <div style="font-size:9px;margin:3px 0;opacity:.9">${r.txt}</div>
-      <button onclick="claimLoginDay(${r.day})" ${!isAvailable?'disabled':''} style="font-size:9px;padding:2px 4px;min-height:22px;width:100%">${isClaimed?'✓':(isAvailable?'CLAIM':'WAIT')}</button>
+      <button onclick="claimLoginDay(${r.day})" ${!isAvailable?'disabled':''} style="font-size:9px;padding:2px 4px;min-height:22px;width:100%">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'WAIT')}</button>
     </div>`;
   }).join('');
 }
@@ -1295,6 +1412,40 @@ function filterSkins(f){
   renderSkinsUI();
 }
 
+const SKI_CACHE = {};
+function skinIcon(skinKey) {
+  if (SKI_CACHE[skinKey]) return SKI_CACHE[skinKey];
+  const sk = SKINS[skinKey];
+  if (!sk) return '';
+  const cv = document.createElement('canvas');
+  cv.width = 180; cv.height = 54;
+  const cx = cv.getContext('2d');
+  const prevX = X;
+  X = cx;
+  X.save();
+  X.fillStyle = '#10140c';
+  X.fillRect(0, 0, 180, 54);
+  X.strokeStyle = 'rgba(255,255,255,0.04)';
+  X.lineWidth = 1;
+  for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
+  for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
+  const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
+  rg.addColorStop(0, sk.col + '33');
+  rg.addColorStop(1, 'rgba(0,0,0,0)');
+  X.fillStyle = rg;
+  X.fillRect(0, 0, 180, 54);
+  X.translate(26, 27);
+  X.scale(1.6, 1.6);
+  const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
+  SV.eqSkin = SV.eqSkin || {};
+  SV.eqSkin[sk.wi] = skinKey;
+  gun(sk.wi, 0);
+  if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
+  X.restore();
+  X = (typeof X0 !== 'undefined' ? X0 : prevX);
+  return SKI_CACHE[skinKey] = cv.toDataURL();
+}
+
 function renderSkinsUI(){
   const el = $('skin-list'); if(!el) return;
   const sKeys = Object.keys(SKINS);
@@ -1322,7 +1473,10 @@ function renderSkinsUI(){
           <b style="font-size:13.5px;color:${isEquipped?'#8fae4a':'#f0ece1'}">${sk.name}</b>
           <div style="font-size:10px;opacity:.75;color:${sk.col};font-weight:700">${w.n.toUpperCase()} FINISH</div>
         </div>
-        <span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:${isOwned?'rgba(143,174,74,.2)':'rgba(255,255,255,.08)'};color:${isOwned?'#8fae4a':'#888'}">${isEquipped?'EQUIPPED':(isOwned?'UNLOCKED':'LOCKED')}</span>
+        <span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:${isEquipped?'rgba(143,174,74,.25)':(isOwned?'rgba(143,174,74,.15)':'rgba(255,255,255,.08)')};color:${isEquipped?'#8fae4a':(isOwned?'#8fae4a':'#888')};border:1px solid ${isEquipped?'#8fae4a55':'transparent'}">${isEquipped?'EQUIPPED':(isOwned?'UNLOCKED':'LOCKED')}</span>
+      </div>
+      <div style="background:radial-gradient(ellipse at center, rgba(35,42,30,.7) 0%, rgba(12,15,10,.95) 100%);border:1px solid ${sk.col}33;border-radius:6px;padding:6px;display:flex;justify-content:center;align-items:center;min-height:56px">
+        <img src="${skinIcon(k)}" style="width:100%;max-width:210px;height:52px;object-fit:contain">
       </div>
       <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${sk.desc}</div>
       <div style="background:rgba(0,0,0,.35);padding:6px 8px;border-radius:6px;font-size:10px">
@@ -1331,12 +1485,12 @@ function renderSkinsUI(){
       </div>
       <div style="margin-top:auto;display:flex;gap:6px">
         ${isOwned ? `
-          <button onclick="equipSkinDirect('${k}')" style="flex:1;min-height:32px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'}">
-            ${isEquipped ? '? EQUIPPED' : 'EQUIP SKIN'}
+          <button onclick="equipSkinDirect('${k}')" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
+            ${isEquipped ? 'EQUIPPED' : 'EQUIP SKIN'}
           </button>
-          ${isEquipped ? `<button onclick="unequipSkinDirect(${sk.wi})" style="min-height:32px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
+          ${isEquipped ? `<button onclick="unequipSkinDirect(${sk.wi})" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
         ` : `
-          <button disabled style="flex:1;min-height:32px;font-size:11px;opacity:.5">LOCKED</button>
+          <button disabled style="flex:1;min-height:34px;font-size:11px;opacity:.5">LOCKED</button>
         `}
       </div>
     </div>`;
@@ -1744,10 +1898,27 @@ function lobby2(){
     else{const c=[0,800,1500,2200,2600][i];if(!transactMetaCredits(c,'class_'+i))return;SV.ucl[i]=1;SV.cls=i}
     sv();lobby();
   };
-  $('spt').textContent='Skill points: '+(SV.sp||0)+'  (earn 1 per level)';
-  $('skl').innerHTML=SKL.map(s=>{
-    const n=SV[s[0]]||0;
-    return `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>${s[1]} <span style="opacity:.6">${'\u25cf'.repeat(n)}${'\u25cb'.repeat(5-n)}</span></b>${s[2]}</div><button data-k="${s[0]}" ${n>=5||!(SV.sp>0)?'disabled':''}>+</button></div>`
+  $('spt').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(20,24,18,.9);border:1px solid rgba(224,184,58,.3);border-radius:6px;padding:6px 10px;margin-bottom:8px">
+    <span style="font-size:12px;font-weight:800;color:#ffd36b;display:inline-flex;align-items:center;gap:6px">
+      <img src="${getSkillIcon('xpb','#ffd36b')}" style="width:16px;height:16px"> SKILL POINTS: ${SV.sp||0}
+    </span>
+    <span style="font-size:9.5px;opacity:.7;color:#ece7d5">+1 Point per Level</span>
+  </div>`;
+  $('skl').innerHTML = SKL.map(s => {
+    const n = SV[s[0]] || 0;
+    return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(20,24,18,.96);border:1px solid rgba(255,255,255,.08);border-radius:8px">
+      <div style="width:38px;height:38px;border-radius:8px;background:rgba(0,0,0,.45);border:1px solid rgba(143,174,74,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <img src="${getSkillIcon(s[0], '#8fae4a')}" style="width:26px;height:26px">
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <b style="font-size:13px;color:#f0ece1">${s[1]}</b>
+          <span style="font-size:11px;letter-spacing:1px;color:#8fae4a">${'\u25cf'.repeat(n)}<span style="opacity:.3;color:#888">${'\u25cb'.repeat(5-n)}</span></span>
+        </div>
+        <div style="font-size:10.5px;opacity:.8;color:#ccc;line-height:1.25">${s[2]}</div>
+      </div>
+      <button data-k="${s[0]}" ${n>=5||!(SV.sp>0)?'disabled':''} style="min-width:36px;height:36px;padding:0;font-size:17px;font-weight:900;border-color:${n>=5?'#333':(SV.sp>0?'#8fae4a':'#444')};color:${n>=5?'#666':(SV.sp>0?'#8fae4a':'#888')};display:flex;align-items:center;justify-content:center">+</button>
+    </div>`;
   }).join('');
   $('skl').onclick=e=>{
     const b=e.target.closest('button');if(!b||!(SV.sp>0))return;
@@ -2133,7 +2304,7 @@ function lobby(){
         <b style="color:${WC[i]||'#fff'};font-size:12.5px">${w.n}</b>
         <span style="font-size:8px;font-weight:900;color:${tierCol};background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px">${tier}</span>
       </div>
-      <img src="${gunIcon(i)}" style="width:100%;height:38px;object-fit:contain;margin:3px 0">
+      <img src="${curSkinKey?skinIcon(curSkinKey):gunIcon(i)}" style="width:100%;height:38px;object-fit:contain;margin:3px 0">
       <div style="font-size:9.5px;display:flex;justify-content:space-between;opacity:.8;margin-bottom:2px">
         <span>DMG: ${w.d*(w.p||1)}</span>
         <span>ROF: ${(1/w.r).toFixed(1)}/s</span>
@@ -2152,9 +2323,24 @@ function lobby(){
     sv();lobby();
   };
   const U=[['hu','+10 Max HP',100],['du','+5% Damage',150],['gu','+2 Start Grenades',120],['cb','+10% Cash',130],['spd','+4% Move Speed',140],['rof','+6% Fire Rate',160],['crit','+4% Crit Chance',180],['vamp','+0.5 HP Vamp per Kill',220]];
-  $('upg').innerHTML=U.map(u=>{
-    const n=SV[u[0]]||0,c=u[2]*(n+1);
-    return `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>${u[1]}</b>Lv ${n}/10</div><button data-u="${u[0]}" ${n>=10||c>SV.cr?'disabled':''}>${n>=10?'MAX':c}</button></div>`
+  $('upg').innerHTML = U.map(u => {
+    const n = SV[u[0]] || 0, c = u[2] * (n + 1);
+    const canAfford = (SV.cr >= c);
+    return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(20,24,18,.96);border:1px solid rgba(255,255,255,.08);border-radius:8px">
+      <div style="width:38px;height:38px;border-radius:8px;background:rgba(0,0,0,.45);border:1px solid rgba(224,184,58,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <img src="${getStatIcon(u[0], '#e0b83a')}" style="width:26px;height:26px">
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <b style="font-size:13px;color:#f0ece1">${u[1]}</b>
+          <span style="font-size:10.5px;font-weight:800;color:${n>=10?'#8fae4a':'#ffd36b'}">Lv ${n}/10</span>
+        </div>
+        <div style="font-size:10px;opacity:.7;color:#aaa">Rank ${n} Permanent Base Stat</div>
+      </div>
+      <button data-u="${u[0]}" ${n>=10||!canAfford?'disabled':''} style="min-width:70px;height:36px;padding:0 8px;font-size:11.5px;font-weight:800;border-color:${n>=10?'#333':(canAfford?'#e0b83a':'#444')}">
+        ${n>=10 ? 'MAX' : `<span style="color:${canAfford?'#ffd36b':'#888'}">${c} CR</span>`}
+      </button>
+    </div>`;
   }).join('');
   $('upg').onclick=e=>{
     const b=e.target.closest('button');if(!b)return;
@@ -3098,12 +3284,17 @@ function draw(){
   for(const z of Z){
     if(z.dead)continue;
     const dToP=Math.hypot(P.x-z.x,P.y-z.y);
-    if(dToP<52){
+    if(dToP<58){
       const T=ZT[z.t]||ZT.walk;
       const hpPct=Math.max(0,z.hp/z.mh);
-      const bw=T.r*2.2,bh=4,by=z.y-T.r-8;
-      X.strokeStyle='#ff3b30';X.lineWidth=2;
-      X.beginPath();X.arc(z.x,z.y,T.r+3,0,6.28);X.stroke();
+      const bw=T.r*2.2,bh=4,by=z.y-T.r-10;
+      X.save();
+      X.strokeStyle='#ff3b30';X.lineWidth=2.2;
+      X.beginPath();X.arc(z.x,z.y,T.r+4,0,6.28);X.stroke();
+      X.fillStyle='rgba(255,59,48,'+(0.18+Math.sin(S.t*12)*0.1)+')';
+      X.beginPath();X.arc(z.x,z.y,T.r+7,0,6.28);X.fill();
+      X.restore();
+      drawZombie(z);
       X.fillStyle='#000000dd';X.fillRect(z.x-bw/2-1,by-1,bw+2,bh+2);
       X.fillStyle=hpPct>.4?'#48cae4':'#e63946';X.fillRect(z.x-bw/2,by,bw*hpPct,bh);
     }
