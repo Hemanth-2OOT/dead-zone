@@ -83,7 +83,7 @@ button.eq{border-color:var(--ok);background:rgba(143,174,74,.18)}
 }
 </style></head><body>
 <canvas id="c"></canvas>
-<div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">LEVEL</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
+<div class="ov on" id="start"><div id="top"><div id="lv"><b id="lvn">1</b><div><div style="font-size:10px;opacity:.7;letter-spacing:1px;font-weight:700">ACCOUNT RANK</div><div class="bar"><i id="xpf"></i></div></div></div><div id="crd">CREDITS <span id="cr">0</span></div></div>
 <div id="pn">
 <div class="pp on" id="p0"><div class="l-left"><div class="logo-wrap"><h1 class="logo">DEAD ZONE</h1><div class="tagline">OUTBREAK PROTOCOL ACTIVE • v1.5.0</div></div><p id="best"></p><div class="act-box"><button class="go" id="play">DEPLOY</button><button id="daily">Claim daily reward +200</button></div></div><div class="l-right"><div class="map-box"><div class="sec-title">DEPLOYMENT ZONE</div><div id="maps"></div><p id="mapd"></p></div></div></div>
 <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
@@ -143,7 +143,7 @@ const BT=[
   {n:'>',ar:1,p:()=>[W/2+68,H-25],f:()=>swap(1)}
 ];
 function init(){
-  S={wave:0,cash:0,kills:0,dm:1,t:0,q:[],sp:0,bn:0,gr:5,lv:0,xp:0,axp:0,pk:{},pend:0,po:0,dd:0,fz:0,sh2:0,tt:0,ts:''};
+  S={wave:0,cash:0,kills:0,dm:1,t:0,q:[],sp:0,bn:0,gr:5,lv:1,xp:0,axp:0,pk:{},pend:0,po:0,dd:0,fz:0,sh2:0,tt:0,ts:'',saved:0};
   P={x:WS/2,y:WS/2,hp:100,mx:100,a:0,w:WEAP.map((_,i)=>i?0:1),cur:0,cd:0,hurt:0,fl:0,dash:0,lx:1,ly:0};
   B=[];Z=[];D=[];F=[];T=[];RG=[];GH=[];AB=[];TR=[];CH=[];LT=[];NS=[];TX=[];CS=[];SH=0;
   SK={dash:{cd:0,max:3},nova:{cd:0,max:10},rage:{cd:0,max:18,on:0},gren:{cd:0,max:.5},turret:{cd:0,max:14},heal:{cd:0,max:18},cloak:{cd:0,max:16},bolt:{cd:0,max:8},frost:{cd:0,max:14},meteor:{cd:0,max:12},shield:{cd:0,max:16}};
@@ -549,21 +549,68 @@ function lobby2(){
   };
 }
 let SV={xp:0,lvl:1,cr:0,best:0,own:[1],start:0,hu:0,du:0,gu:0,cb:0,day:'',mute:0,cls:0,ucl:[1],sp:3,ar:[],eq:[],map:0,ap:0};
-function ld(){
-  try{
-    const s=JSON.parse(localStorage.getItem('dzs'));
-    if(s)SV=Object.assign(SV,s);
-    if(!Array.isArray(SV.own))SV.own=[1];
-    while(SV.own.length<WEAP.length)SV.own.push(0);
-    if(!Array.isArray(SV.ucl))SV.ucl=[1];
-    if(!Array.isArray(SV.ar))SV.ar=[];
-    if(!Array.isArray(SV.eq))SV.eq=[];
-    if(typeof SV.map!=='number'||SV.map<0||SV.map>=MP.length)SV.map=0;
-    if(typeof SV.ap!=='number')SV.ap=0;
-  }catch(e){}
-  MUTE=SV.mute?1:0;if(SV.col)PC=SV.col;
+function sanitizeSV(s){
+  if(!s||typeof s!=='object')return null;
+  const out=Object.assign({},SV,s);
+  out.lvl=Math.max(1,Math.floor(Number(out.lvl)||1));
+  out.xp=Math.max(0,Math.floor(Number(out.xp)||0));
+  out.cr=Math.max(0,Math.floor(Number(out.cr)||0));
+  out.sp=Math.max(0,Math.floor(Number(out.sp)||0));
+  out.best=Math.max(0,Math.floor(Number(out.best)||0));
+  if(!Array.isArray(out.own))out.own=[1];
+  out.own[0]=1;
+  while(out.own.length<WEAP.length)out.own.push(0);
+  if(!Array.isArray(out.ucl))out.ucl=[1];
+  out.ucl[0]=1;
+  if(!Array.isArray(out.ar))out.ar=[];
+  if(!Array.isArray(out.eq))out.eq=[];
+  if(typeof out.map!=='number'||out.map<0||out.map>=MP.length)out.map=0;
+  if(typeof out.ap!=='number')out.ap=0;
+  return out;
 }
-function sv(){try{localStorage.setItem('dzs',JSON.stringify(SV))}catch(e){}}
+function ld(){
+  let parsed=null;
+  try{
+    const raw=localStorage.getItem('dzs')||localStorage.getItem('dzs_bak');
+    if(raw)parsed=sanitizeSV(JSON.parse(raw));
+  }catch(e){}
+  if(parsed)SV=parsed;
+  MUTE=SV.mute?1:0;if(SV.col)PC=SV.col;
+  if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Preferences){
+    window.Capacitor.Plugins.Preferences.get({key:'dzs'}).then(res=>{
+      if(res&&res.value){
+        try{
+          const nData=sanitizeSV(JSON.parse(res.value));
+          if(nData&&(nData.lvl>SV.lvl||(nData.lvl===SV.lvl&&nData.xp>=SV.xp)||nData.cr>SV.cr)){
+            SV=nData;MUTE=SV.mute?1:0;if(SV.col)PC=SV.col;
+            lobby();
+            try{
+              const s=JSON.stringify(SV);
+              localStorage.setItem('dzs',s);
+              localStorage.setItem('dzs_bak',s);
+            }catch(e){}
+          }
+        }catch(e){}
+      }else{
+        sv();
+      }
+    }).catch(()=>{});
+  }
+}
+function sv(){
+  try{
+    SV.lvl=Math.max(1,Math.floor(Number(SV.lvl)||1));
+    SV.xp=Math.max(0,Math.floor(Number(SV.xp)||0));
+    SV.cr=Math.max(0,Math.floor(Number(SV.cr)||0));
+    SV.sp=Math.max(0,Math.floor(Number(SV.sp)||0));
+    const str=JSON.stringify(SV);
+    localStorage.setItem('dzs',str);
+    localStorage.setItem('dzs_bak',str);
+    if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Preferences){
+      window.Capacitor.Plugins.Preferences.set({key:'dzs',value:str}).catch(()=>{});
+    }
+  }catch(e){}
+}
 function need(l){return 100+l*50}
 function rneed(l){return Math.round(55+l*32+Math.pow(l,1.35)*10)}
 function applySV(){
@@ -693,8 +740,8 @@ function skill(k){
   }
   else if(k=='shield'){S.sh2=4;burst(P.x,P.y,'#8fd06a',16);snd(500,.3,'sine',.06,1.5)}
 }
-function commitXP(){let up=0;SV.xp+=S.axp||0;S.axp=0;while(SV.xp>=need(SV.lvl)){SV.xp-=need(SV.lvl);SV.lvl++;SV.sp=(SV.sp||0)+1;up++}S.up=(S.up||0)+up}
-function saveBest(){commitXP();const e=S.wave*40+S.kills;SV.cr+=e;SV.best=Math.max(SV.best,S.wave);S.earn=e;sv()}
+function commitXP(){let up=0;SV.xp+=Math.max(0,S.axp||0);S.axp=0;while(SV.xp>=need(SV.lvl)){SV.xp-=need(SV.lvl);SV.lvl++;SV.sp=(SV.sp||0)+1;up++}S.up=(S.up||0)+up}
+function saveBest(){if(S&&S.saved)return;commitXP();const e=S.wave*40+S.kills;SV.cr+=e;SV.best=Math.max(SV.best,S.wave);S.earn=e;if(S)S.saved=1;sv()}
 function tab(n){
   document.querySelectorAll('.pp').forEach((e,i)=>e.classList.toggle('on',i==n));
   document.querySelectorAll('#nav button').forEach((e,i)=>e.classList.toggle('on',i==n));
@@ -1056,7 +1103,7 @@ function update(dt){
   if(S.pend>0&&!S.po&&P.hp>0)openPerk();
   if(P.hp<=0){
     run=0;saveBest();
-    $('sum').textContent='Reached wave '+S.wave+' with '+S.kills+' kills. +'+S.earn+' credits. Lobby level '+SV.lvl+(S.up?' (+'+S.up+' level ups, new skill points!)':'')+'.';
+    $('sum').textContent='Reached wave '+S.wave+' with '+S.kills+' kills. +'+S.earn+' credits. Account Rank '+SV.lvl+(S.up?' (+'+S.up+' Level Up, +'+S.up+' Skill Points!)':'')+' • Survivor Lv '+S.lv;
     $('over').classList.add('on');
   }
   else if(!S.q.length&&!Z.length&&!S.po){run=0;openShop()}
@@ -1685,7 +1732,7 @@ function draw(){
     X.fillText('COMBO x'+S.cmb,0,0);X.restore();
   }
   X.fillStyle='#000a';X.fillRect(W/2-55,5,110,6);X.fillStyle='#8fae4a';X.fillRect(W/2-55,5,110*S.xp/rneed(S.lv),6);
-  X.fillStyle='#e8e4cf';X.textAlign='center';X.font='bold 9.5px Arial';X.fillText('LV '+S.lv,W/2,21);
+  X.fillStyle='#e8e4cf';X.textAlign='center';X.font='bold 9.5px Arial';X.fillText('SURVIVOR LV '+S.lv,W/2,21);
   const bs=Z.find(z=>z.t=='boss');
   if(bs){
     const bw=Math.min(220,W-120),bx=W/2-bw/2,by=28;
@@ -1773,7 +1820,7 @@ function draw(){
   }
 }
 function loop(t){requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1000||0);last=t;if(run)update(dt);if(S)draw()}
-function openShop(){commitXP();sv();$('st').textContent='Wave '+S.wave+' cleared';P.hp=Math.min(P.mx,P.hp+20);rebuild();$('shopov').classList.add('on')}
+function openShop(){commitXP();if(S.wave>0)SV.best=Math.max(SV.best,S.wave);sv();$('st').textContent='Wave '+S.wave+' cleared';P.hp=Math.min(P.mx,P.hp+20);rebuild();$('shopov').classList.add('on')}
 function rebuild(){
   $('cash').textContent='Cash: $'+S.cash;const s=$('shop');s.innerHTML='';
   const add=(txt,cost,fn,eq)=>{
@@ -1839,6 +1886,18 @@ const apBtn=$('apbtn');if(apBtn)apBtn.onclick=()=>{SV.ap=SV.ap?0:1;sv();lobby()}
 $('daily').onclick=()=>{SV.cr+=200;SV.day=new Date().toDateString();sv();lobby()};
 addEventListener('pointerdown',()=>ac());
 addEventListener('click',e=>{if(e.target.tagName=='BUTTON')snd(520,.05,'square',.04,.8)});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+function autoSave(){
+  if(run||(S&&S.wave>0)){
+    commitXP();
+    if(S.wave>0)SV.best=Math.max(SV.best,S.wave);
+    sv();
+  }
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();autoSave()}});
+window.addEventListener('pagehide',autoSave);
+window.addEventListener('beforeunload',autoSave);
+if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){
+  window.Capacitor.Plugins.App.addListener('appStateChange',state=>{if(!state.isActive){pause();autoSave()}});
+}
 requestAnimationFrame(loop);
 </script></body></html>

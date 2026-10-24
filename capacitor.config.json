@@ -1,1 +1,10 @@
-{"appId":"com.deadzone.game","appName":"Dead Zone","webDir":"www","backgroundColor":"#14170f"}
+{
+  "appId": "com.deadzone.game",
+  "appName": "Dead Zone",
+  "webDir": "www",
+  "backgroundColor": "#14170f",
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost"
+  }
+}
