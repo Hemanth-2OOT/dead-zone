@@ -97,8 +97,53 @@ function hurtP(dmg, srcX, srcY) {
   if (!P || P.hp <= 0 || P.dash > 0 || (S && S.sh2 > 0)) return;
   const armor = Math.max(0.35, (S && S.ar != null) ? S.ar : 1); // Damage reduction hard-capped at 65%
   const d = Math.max(1, Math.round(dmg * armor));
+
+  // Aegis barrier charges: one charge eats a whole real hit, then rebuilds in
+  // 12s. Per-frame ticks (acid, hazards) are far too small to spend a charge.
+  if (S && S.bc > 0 && dmg >= 5) {
+    S.bc--;
+    S.bcRe = 12;
+    P.hurt = 0.16;
+    HURT_VIGNETTE_TIMER = 0.2;
+    RG.push({ x: P.x, y: P.y, r: 7, l: 0.36, v: 320, c: '234,179,8' });
+    burst(P.x, P.y, '#eab308', 12, 2.6, 110, 1);
+    if (typeof snd === 'function') snd(300, 0.18, 'square', 0.07, 1.4);
+    if (typeof txt === 'function') txt(P.x, P.y - 20, 'BLOCKED', '#eab308');
+    return;
+  }
+
+  // Deflector Ring: a chance to shrug the hit off completely.
+  if (S && S.kd && Math.random() < Math.min(0.6, 0.35 * S.kd)) {
+    P.hurt = 0.1;
+    RG.push({ x: P.x, y: P.y, r: 6, l: 0.3, v: 300, c: '96,165,250' });
+    if (typeof snd === 'function') snd(880, 0.12, 'sine', 0.06, 0.4);
+    if (typeof txt === 'function') txt(P.x, P.y - 20, 'DEFLECT', '#60a5fa');
+    return;
+  }
+
   P.hp -= d;
   P.hurt = 0.28;
+
+  // Thorns: whatever lands a hit on you gets blasted back off.
+  if (S && S.th) {
+    let struck = 0;
+    for (const z of Z) {
+      if (!z || z.dead) continue;
+      const dx = z.x - P.x, dy = z.y - P.y;
+      if (dx * dx + dy * dy < 14400) {
+        const za = Math.atan2(dy, dx);
+        z.kx = (z.kx || 0) + Math.cos(za) * 190;
+        z.ky = (z.ky || 0) + Math.sin(za) * 190;
+        damageZ(z, 40 * S.th, 'thorns', false);
+        struck++;
+      }
+    }
+    if (struck) {
+      RG.push({ x: P.x, y: P.y, r: 6, l: 0.32, v: 380, c: '255,122,90' });
+      burst(P.x, P.y, '#ff7a5a', 12, 2.8, 130, 1);
+    }
+  }
+
   if (S) { S.hitWave = true; if (S.cmb > 0) S.cmt = Math.min(S.cmt, 1.2); }
   HURT_VIGNETTE_TIMER = 0.35; // Trigger red damage screen vignette
 
@@ -155,6 +200,8 @@ function init() {
   if (typeof TURRET_DEBRIS !== 'undefined') TURRET_DEBRIS = [];
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
   if (typeof clearFeelFX === 'function') clearFeelFX();
+  if (typeof clearPassives === 'function') clearPassives();
+  if (typeof HUD_FLYING_ICONS !== 'undefined') HUD_FLYING_ICONS.length = 0;
   if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = 0;
 
   SK = {
@@ -323,6 +370,7 @@ function fire() {
   }
 
   S.shots = (S.shots || 0) + 1;
+  if (P.cloak > 0) P.cloak = 0; // firing blows your cover
   P.cd = w.r / ((SK && SK.rage && SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1) * (S.adr > 0 ? 1.45 : 1));
   P.fl = 0.07;
   sfx(P.cur);
@@ -350,7 +398,7 @@ function fire() {
   });
   if (CS.length > 70) CS.shift();
 
-  if (QUALITY_SETTINGS.screenShake) SH = Math.max(SH, w.p > 1 ? 4 : 1.5);
+  if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : QUALITY_SETTINGS.screenShake) SH = Math.max(SH, w.p > 1 ? 4 : 1.5);
 
   const curSkin = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[P.cur]) ? SKINS[SV.eqSkin[P.cur]] : null;
   const bulletCol = curSkin ? curSkin.col : WC[P.cur];
@@ -579,6 +627,7 @@ function killZ(z, src, hitAngle, isCrit, wi) {
   if (S.bz) S.bl2 = 2.5;
 
   // Missions & Events tracking
+  if (typeof passiveOnKill === 'function') passiveOnKill(z);
   if (typeof trackMissionProgress === 'function') trackMissionProgress('kills', 1);
   if (z.el && typeof trackMissionProgress === 'function') trackMissionProgress('elites', 1);
   if (S && S.isEvent && typeof trackEventKill === 'function') trackEventKill(z);
@@ -679,6 +728,11 @@ function skill(k) {
   const s = SK[k];
   if (!s || s.cd > 0) return;
   if (k === 'gren' && S.gr <= 0) return;
+  // Refund the cooldown when a targeted skill has nothing to act on, so a
+  // wasted press never costs the player their escape or their burst window.
+  if (k === 'heal' && P.hp >= P.mx - 0.5) return;
+  if (k === 'bolt' && !nearestZombie(P.x, P.y, 560)) return;
+  if (k === 'meteor' && !nearestZombie(P.x, P.y, 900)) return;
   s.cd = s.max;
 
   // Cast VFX fire before the gameplay effect so the animation leads the hit.
@@ -697,7 +751,7 @@ function skill(k) {
         damageZ(z, 90 * S.dm, 'nova');
       }
     }
-    if (QUALITY_SETTINGS.screenShake) SH = Math.max(SH, 8);
+    if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : QUALITY_SETTINGS.screenShake) SH = Math.max(SH, 8);
     if (typeof noise === 'function') noise(0.25, 0.1);
   } else if (k === 'rage') {
     s.on = 6;
@@ -718,6 +772,54 @@ function skill(k) {
     TR.push({ x: P.x + Math.cos(P.a) * 28, y: P.y + Math.sin(P.a) * 28, l: 18, cd: 0, a: P.a });
     burst(P.x, P.y, '#ffd36b', 14);
     if (typeof snd === 'function') snd(300, 0.2, 'square', 0.05, 1.5);
+  } else if (k === 'frost') {
+    // Frost Burst - a chilling wave that chips and deeply slows the crowd.
+    const R2 = 220 * 220;
+    RG.push({ x: P.x, y: P.y, r: 10, l: 0.55, v: 560, c: '150,220,255' });
+    RG.push({ x: P.x, y: P.y, r: 6, l: 0.4, v: 380, c: '220,245,255' });
+    burst(P.x, P.y, '#9be7ff', 26, 3.2, 155, 1);
+    for (const z of Z) {
+      if (!z || z.dead) continue;
+      const dx = z.x - P.x, dy = z.y - P.y;
+      if (dx * dx + dy * dy < R2) {
+        damageZ(z, 50 * S.dm, 'frost', false);
+        z.fz = Math.max(z.fz || 0, 4);
+      }
+    }
+    if (typeof snd === 'function') snd(700, 0.26, 'sine', 0.07, 0.5);
+  } else if (k === 'cloak') {
+    // Cloak - leaves the zombies' threat model for a few seconds. Firing breaks
+    // it, so it buys a reposition rather than free damage.
+    P.cloak = 2.8;
+    burst(P.x, P.y, '#9be7ff', 18, 3, 120, 1);
+    RG.push({ x: P.x, y: P.y, r: 8, l: 0.4, v: 320, c: '150,200,255' });
+    if (typeof snd === 'function') snd(520, 0.22, 'sine', 0.05, 1.6);
+  } else if (k === 'shield') {
+    // Aegis Shield - one absorb charge; the barrier loop rebuilds it.
+    S.bc = (S.bc || 0) + 1;
+    S.bl = (S.bl || 0) + 1;
+    burst(P.x, P.y, '#eab308', 16, 3, 110, 1);
+    if (typeof snd === 'function') snd(420, 0.18, 'triangle', 0.06, 1.5);
+  } else if (k === 'heal') {
+    if (typeof healP === 'function') healP(P.mx * 0.35);
+    burst(P.x, P.y, '#8fae4a', 18, 3, 110, 1);
+    RG.push({ x: P.x, y: P.y, r: 6, l: 0.4, v: 260, c: '143,174,74' });
+    if (typeof snd === 'function') snd(560, 0.25, 'triangle', 0.07, 1.6);
+  } else if (k === 'bolt') {
+    // Storm Bolt - sky lightning onto the nearest hostile, then it chains.
+    const tg = nearestZombie(P.x, P.y, 560);
+    if (tg) {
+      ARCS.push({ x1: tg.x, y1: tg.y - 300, x2: tg.x, y2: tg.y, l: 0.2, maxL: 0.2, seed: Math.random() * 999 });
+      damageZ(tg, 130 * S.dm, 'bolt', false);
+      burst(tg.x, tg.y, '#9be7ff', 12, 3, 140, 1);
+      if (typeof chainLightning === 'function') chainLightning(tg, { cl: 3, d: 130 * S.dm, h: [tg], wi: P.cur });
+      if (typeof snd === 'function') snd(1200, 0.18, 'sawtooth', 0.09, 0.2);
+    }
+  } else if (k === 'meteor') {
+    // Meteor - a telegraphed strike that lands a beat later at the aim point.
+    const mx = Math.max(40, Math.min(WS - 40, P.x + Math.cos(P.a) * 280));
+    const my = Math.max(40, Math.min(WS - 40, P.y + Math.sin(P.a) * 280));
+    meteorStrike(mx, my, 240 * S.dm, 0.55, 150);
   }
 }
 
@@ -953,6 +1055,14 @@ function update(dt) {
   S.sh2 -= dt;
   if (S.nukeFlash > 0) S.nukeFlash -= dt;
   if (S.mgTime > 0) S.mgTime -= dt;
+  if (P.cloak > 0) P.cloak -= dt;
+  // Aegis barrier rebuild: a spent charge returns after 12s.
+  if (S && S.bl > 0 && S.bc < S.bl) {
+    S.bcRe = (S.bcRe == null ? 12 : S.bcRe) - dt;
+    if (S.bcRe <= 0) { S.bc = Math.min(S.bl, (S.bc || 0) + 1); S.bcRe = 12; }
+  } else if (S) {
+    S.bcRe = 12;
+  }
   S.lsTok = Math.min(4, (S.lsTok == null ? 4 : S.lsTok) + dt * 4);
   if (S.lu > 0) S.lu -= dt;
 
@@ -970,6 +1080,8 @@ function update(dt) {
   }
 
   if (typeof directorUpdate === 'function') directorUpdate(dt);
+  // Passive auras, summons and status effects (SPECIAL perks & relics).
+  if (typeof updatePassives === 'function') updatePassives(dt);
 
   // Firing check
   if (firing && P.cd <= 0) fire();
@@ -986,12 +1098,15 @@ function update(dt) {
 
   // Update projectiles
   for (const b of B) {
+    if (b.l <= 0) continue;
     b.x += b.vx * dt; b.y += b.vy * dt; b.l -= dt;
     for (const o of O) {
+      if (b.l <= 0) break;
       if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) {
         b.l = 0;
         if (b.ex) boom(b);
         if (typeof impactFX === 'function') impactFX(b.x, b.y, b.vx, b.vy, o.col); else burst(b.x, b.y, '#bbb', 3);
+        break; // one impact per bullet: overlapping walls must not re-fire the boom
       }
     }
   }
@@ -1137,6 +1252,7 @@ function update(dt) {
         if (b.cl && !b.arced) { b.arced = 1; if (typeof chainLightning === 'function') chainLightning(z, b); }
         if (b.pr > 0) b.pr--; else b.l = 0;
         if (b.fz) z.fz = 2.5;
+        if (S.pv) z.psn = Math.max(z.psn || 0, 2.5); // Venom Rounds: bullets poison
 
         // Knockback
         const bSpd = Math.hypot(b.vx, b.vy) || 1;
@@ -1284,8 +1400,8 @@ function draw() {
 
   // Camera tracking with look-ahead vector
   const lookX = Math.cos(P.a) * 30, lookY = Math.sin(P.a) * 30;
-  const shakeX = QUALITY_SETTINGS.screenShake ? (Math.random() - 0.5) * SH : 0;
-  const shakeY = QUALITY_SETTINGS.screenShake ? (Math.random() - 0.5) * SH : 0;
+  const shakeX = (typeof isShakeEnabled === 'function' ? isShakeEnabled() : QUALITY_SETTINGS.screenShake) ? (Math.random() - 0.5) * SH : 0;
+  const shakeY = (typeof isShakeEnabled === 'function' ? isShakeEnabled() : QUALITY_SETTINGS.screenShake) ? (Math.random() - 0.5) * SH : 0;
   let cx = Math.max(0, Math.min(WS - W, P.x - W / 2 + lookX)) + shakeX;
   let cy = Math.max(0, Math.min(WS - H, P.y - H / 2 + lookY)) + shakeY;
   if (!isFinite(cx)) cx = 0; if (!isFinite(cy)) cy = 0;
@@ -1734,6 +1850,8 @@ function draw() {
   // 13b. Skill VFX are ground-anchored (dash trails, nova scorch, grenade
   //      arcs, rage aura) so they sit beneath entities and above the decals.
   if (typeof renderSkillFX === 'function') renderSkillFX(cx, cy, W, H);
+  // Ground-anchored passive auras and meteor telegraphs.
+  if (typeof renderPassivesGround === 'function') renderPassivesGround(cx, cy, W, H);
 
   // 14. Telegraphed attacks are ground markers, drawn beneath every entity
   for (const z of Z) { if (typeof drawTelegraph === "function") drawTelegraph(z); }
@@ -1748,6 +1866,10 @@ function draw() {
 
   // 14d. Electric arcs (chain lightning) ride on top of the entity band.
   if (typeof renderArcs === 'function') renderArcs();
+
+  // 14e. Summoned weapons (spectral blades, nano drones), arcane missiles,
+  //      soul-blast rings and venom haze ride above the entity band.
+  if (typeof renderPassives === 'function') renderPassives(cx, cy, W, H);
 
   // 16. Floating texts
   if (typeof renderFloatingTextsPass === 'function') {

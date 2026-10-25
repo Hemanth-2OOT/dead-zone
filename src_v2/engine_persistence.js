@@ -57,6 +57,12 @@ function sanitizeSV(s) {
   out.cr = Math.max(0, Math.floor(Number(out.cr) || 0));
   out.sp = Math.max(0, Math.floor(Number(out.sp) || 0));
   out.best = Math.max(0, Math.floor(Number(out.best) || 0));
+  // Skill-tree ranks and loadout indices: a corrupt or hand-edited save must
+  // never be able to inject NaN/Infinity into P.mx, S.dm or the crit roll.
+  const RANKS = ['mx', 'spd', 'dm', 'rof', 'crit', 'vamp', 'regen', 'cb', 'xpb', 'hu', 'du', 'gu', 'sc', 'shadows', 'luck', 'mute'];
+  for (const k of RANKS) out[k] = Math.max(0, Math.min(999, Math.floor(Number(out[k]) || 0)));
+  if (typeof CL !== 'undefined' && CL.length) out.cls = Math.max(0, Math.min(CL.length - 1, Math.floor(Number(out.cls) || 0)));
+  if (typeof WEAP !== 'undefined' && WEAP.length) out.start = Math.max(0, Math.min(WEAP.length - 1, Math.floor(Number(out.start) || 0)));
   if (!Array.isArray(out.own)) out.own = [1];
   out.own[0] = 1;
   while (out.own.length < WEAP.length) out.own.push(0);

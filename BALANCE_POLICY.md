@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.4.2**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **the new depth/retention layer (Section 6)** and **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
+> **Status:** Updated for **v2.5.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **the new depth/retention layer (Section 6)**, **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** and **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
 
 ---
 
@@ -370,4 +370,87 @@ including: `pruneArr` order/reference identity, that no hot loop still allocates
 parallax determinism and factor, that both depth passes are wired into `draw()`, that `drawEntityBand()`
 reuses pooled entries and culls off-screen entities while still drawing in-view ones, that moving zombies
 emit dust, that the combo-heat overlay renders at high combo, and that bullet x zombie collision uses
-squared distance. Current run: **126 PASS / 0 FAIL**.
+squared distance. Current run: **126 PASS / 0 FAIL** (at v2.4.2).
+
+## 9. v2.5.0 — Dead-code Resurrection: Skill & Perk Audit
+
+9.1 **The bug this section fixes.** A full audit of the shipped build found a whole tier of content that was
+*purchasable and visible but inert* - the state field was written by the perk table and then read by nothing:
+
+  - **6 of the 11 class skills had no implementation.** `BT[0..2]` are bound to `CL[SV.cls].sk[0..2]`, and
+    `skill()` only handled `dash`, `nova`, `rage`, `gren`, `turret`. The Scout (`frost`, `cloak`), the
+    Juggernaut (`shield`, `heal`) and the **entire Spec-Ops kit** (`cloak`, `bolt`, `meteor`) burned their
+    full cooldown on a cast VFX with no gameplay effect. `P.cloak` was read in three places but never
+    written or decayed anywhere.
+  - **13 SPECIAL perks / relics did nothing.** `Frost Aura`, `Immolation`, `Spectral Blades`, `Nano Swarm`,
+    `Arcane Missiles`, `Meteor Rain`, `Storm Caller`, `Soul Harvest`, `Venom Rounds`, `Thorns`,
+    `Shadow Step`, `Deflector Ring` and `Second Wind` were offered in the perk draft and the relic vendor
+    with no consumer for their `S.*` field.
+  - **Barrier charges never blocked anything.** `S.bc` was incremented by `Shield Battery`, `Phase Plating`,
+    `Aegis Ward` and `Arcane Barrier` ("Absorb a hit, recharges in 12s" - the documented intent) and only
+    ever *displayed* in the HUD.
+
+The fix is additive, not a rebalance: every effect is implemented at the strength its own description
+promised, in a new self-contained module `engine_passives.js`.
+
+9.2 **Class skills (all 11 now implemented).** Values are pre-`S.dm` scaling.
+
+| key | name | cd | behaviour |
+|---|---|---|---|
+| `frost` | Frost Burst | 14s | 220px wave: 50 dmg + `z.fz = 4s` (0.45x speed, frozen overlay) |
+| `cloak` | Cloak | 16s | `P.cloak = 2.8s` - zombies move at 0.25x and cannot melee/spit; **firing breaks it** |
+| `shield` | Aegis Shield | 16s | +1 barrier charge (`S.bc` / `S.bl`) |
+| `heal` | Field Heal | 18s | `healP(35% max HP)`; cooldown is refunded at full HP |
+| `bolt` | Storm Bolt | 8s | nearest hostile <=560px: 130 dmg + 3 chain jumps (45% each) |
+| `meteor` | Meteor | 12s | aim point <=280px ahead, 0.55s telegraph, then 240 dmg in a 150px radius |
+
+`bolt`/`meteor` refund their cooldown when there is no target in range, so a wasted press never costs the
+player their escape. `meteorBlast()` deliberately damages **zombies only** - an automatic or player-cast
+skill must never punish the player for landing.
+
+9.3 **Passives, auras and summons (the 13 formerly-inert perks).** Per-rank scaling where ranks exist:
+
+| field | perk | effect |
+|---|---|---|
+| `S.rg` | Second Wind | `+rg` HP/sec regeneration |
+| `S.fa` | Frost Aura | 140+20/rank px: keeps `z.fz` refreshed (slow + frozen overlay) |
+| `S.fi` | Immolation | 88+8/rank px: 20x`fi` HP/sec burn |
+| `S.ob` | Spectral Blades | one orbiting blade per rank (r=52), 26 dmg, 0.32s per-target cd |
+| `S.ns` | Nano Swarm | one orbiting drone per rank (r=34), 16 dmg, 0.45s per-target cd |
+| `S.am` | Arcane Missiles | every 1.7/rank s, one homing missile, 34 dmg |
+| `S.mt` | Meteor Rain | every 4.2/rank s, a 150 dmg / 130px strike on the horde |
+| `S.sc` | Storm Caller | every 2.6/rank s, 65 dmg sky bolt + 2 chain jumps |
+| `S.so` | Soul Harvest | every `max(4, 9-so)` kills: 70 dmg blast in 210px |
+| `S.pv` | Venom Rounds | bullets mark `z.psn = 2.5s`; 14x`pv` HP/sec |
+| `S.th` | Thorns | a landed hit on you deals 40x`th` in 120px and knocks attackers back 190 |
+| `S.kd` | Deflector Ring | `min(60%, 35% x kd)` chance to negate the hit entirely |
+| `S.sd` | Shadow Step | a dash deals 55 dmg to anything within 30px (0.35s per-target cd) |
+
+9.4 **Damage-over-time must bypass the hit pipeline.** `dotZ()` (Immolation, Venom) writes `z.hp` directly
+instead of calling `damageZ()`. Routing a per-frame tick through the hit pipeline would fire
+`combatImpactFX` (a spark burst) and floating damage numbers every frame, per zombie. Discrete hits
+(blades, missiles, meteors, thorns, bolts) do go through `damageZ()` as normal.
+
+9.5 **Barrier charge semantics.** A charge absorbs one hit of **>= 5** raw damage and then rebuilds after
+**12s** (the delay the perk text always promised), up to a cap of `S.bl`. The `>= 5` gate exists so that
+per-frame ticks (acid pools, ~18x`dt`) cannot silently eat a charge every frame.
+
+9.6 **Additional audit fixes in this pass.**
+  - **Camera shake honoured the wrong flag.** `draw()`, `fire()` and `skill()` (nova) read raw
+    `QUALITY_SETTINGS.screenShake`, bypassing `isShakeEnabled()` - so both the user's setting and
+    `prefers-reduced-motion` were ignored for camera shake. All shake sites now go through
+    `isShakeEnabled()`.
+  - **Bullets re-fired on overlapping walls.** The bullet x obstacle loop had no `break`, so a bullet
+    overlapping two obstacles called `boom()` twice; it now stops at the first impact.
+  - **Stale HUD pickup icons.** `HUD_FLYING_ICONS` was never cleared in `init()`, so icons from a previous
+    run could persist. `init()` now clears it alongside the other per-run pools.
+  - **Corrupt save hardening.** `sanitizeSV()` clamped `lvl/xp/cr/sp/best` but not the skill-tree ranks
+    (`mx/spd/dm/rof/crit/vamp/regen/cb/xpb/...`) or `cls`/`start`, so a hand-edited save could inject `NaN`
+    into `P.mx`/`S.dm` and make every run unwinnable. All numeric ranks and indices are now clamped.
+
+9.7 **Mandatory coverage (v2.5.0).** The `_deep.html` harness must report `DEEP PASS` with zero failures,
+including: that **every** skill in **every** `CL[].sk` list has a real `skill()` branch; that all 13
+formerly-inert `S.*` fields are consumed; that a barrier charge absorbs a real hit, ignores sub-5 ticks and
+rebuilds on schedule; that `cloak` decays and is broken by firing; that each new skill/passive produces its
+damage/chill/effect behaviourally; that `isShakeEnabled` gates the shake sites; and that a bullet stops at
+its first obstacle. Current run: **176 PASS / 0 FAIL**.

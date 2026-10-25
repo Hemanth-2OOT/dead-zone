@@ -28,6 +28,7 @@ const jsModules = [
   'engine_render_turret.js',
   'engine_depth.js',
   'engine_feel.js',
+  'engine_passives.js',
   'engine_world.js',
   'engine_director.js',
   'engine_meta.js',

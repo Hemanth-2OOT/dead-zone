@@ -40,6 +40,21 @@ Top-down zombie survival roguelite. Vanilla JS (no framework, no bundler deps), 
 - `drawEntityBand()` (`engine_depth.js`) pools its entries in `BAND_LIST` and culls entities outside the
   camera rect ±140 px; it must not allocate per frame.
 
+## Skills, passives & status effects
+- `engine_passives.js` owns every passive aura, summon and status effect (SPECIAL perks/relics) plus the
+  meteor/missile/soul-blast pools. `update()` calls `updatePassives(dt)`; `draw()` calls
+  `renderPassivesGround()` (aura rings + meteor telegraphs, under entities) and `renderPassives()`
+  (blades, drones, missiles, soul rings, venom haze, above entities). `init()` calls `clearPassives()`.
+- **Every skill in every `CL[].sk` list must have a real branch in `skill()`** (`engine_world.js`).
+  `BT[0..2]` bind directly to `CL[SV.cls].sk[0..2]`, so a missing branch silently burns the cooldown for
+  no effect. The harness asserts this for all classes — keep it green when adding a skill or class.
+- **Every perk/relic `S.*` field must have a consumer.** It is easy to add a row to `PKS`/`AR`/`SKL` and
+  never read the field; the harness asserts a known list of formerly-inert fields stays consumed.
+- Damage-over-time (Immolation, Venom) must NOT go through `damageZ()` — use `dotZ()`, which writes
+  `z.hp` directly. `damageZ()` fires FX and floating numbers, which is wrong for a per-frame tick.
+- Barrier charges (`S.bc` current / `S.bl` cap) absorb one hit of ≥ 5 raw damage and rebuild after 12s in
+  the `update()` loop; the ≥ 5 gate keeps per-frame acid ticks from eating a charge every frame.
+
 ## Balance contract
 `BALANCE_POLICY.md` is authoritative for caps and is updated every release. Hard ceilings that must
 never be exceeded: crit ≤ 75%, damage reduction ≤ 65% (armour floor 0.35), cooldown reduction ≤ 50%,
