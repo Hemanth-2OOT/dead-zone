@@ -5504,11 +5504,14 @@ function fire() {
     const effDm = rawDm > 3.0 ? (3.0 + Math.sqrt(rawDm - 3.0) * 0.8) : rawDm;
     const finalDmg = w.d * effDm * (S.dd > 0 ? 2 : 1) * (1 + (S.bk || 0) * 0.35 * (1 - P.hp / P.mx)) * (S.oc && S.shots % Math.max(4, 12 - S.oc * 3) === 0 ? 3 : 1) * (S.fo && S.stl > 1 ? 1 + 0.4 * S.fo : 1) * critMult;
 
+    const bSpeed = w.flm ? (360 + Math.random() * 70) : (w.rg > 1.2 ? 1050 : (w.sp === 0 ? 920 : 700));
+    const bLife = w.flm ? 0.24 : (w.rg || 0.7);
+
     B.push({
       x: sx, y: sy,
-      vx: Math.cos(a) * w.s, vy: Math.sin(a) * w.s,
+      vx: Math.cos(a) * bSpeed, vy: Math.sin(a) * bSpeed,
       d: finalDmg,
-      l: w.l,
+      l: bLife,
       c: bulletCol,
       pr: (w.pr || 0) + (S.pc || 0),
       ex: w.ex || (S.eb ? 1 : 0),
@@ -5517,6 +5520,16 @@ function fire() {
       flm: w.flm || 0,
       wi: P.cur,
       isCrit
+    });
+  }
+
+  // Flamethrower ambient flame billowing
+  if (w.flm && F.length < 240) {
+    F.push({
+      x: sx, y: sy,
+      vx: Math.cos(P.a) * 220 + (Math.random() - 0.5) * 70,
+      vy: Math.sin(P.a) * 220 + (Math.random() - 0.5) * 70,
+      l: 0.2, c: Math.random() < 0.5 ? '#ffcc00' : '#ff5500', s: 5
     });
   }
 }
