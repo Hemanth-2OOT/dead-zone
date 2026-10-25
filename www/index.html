@@ -310,17 +310,17 @@ button.eq {
   flex: 1;
   min-height: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
-  padding: 6px 4px;
-  mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent);
+  padding: 6px 4px 10px 4px;
 }
 #login-track {
   display: flex;
   gap: 8px;
   padding: 2px 8px;
+  min-height: 0;
 }
 
 .l-left {
@@ -2448,11 +2448,12 @@ function renderLoginTrackUI() {
   el.innerHTML = LOGIN_REWARDS.map(r => {
     const isClaimed = SV.loginClaimed[r.day];
     const isAvailable = r.day <= curDay && !isClaimed;
-    const isLocked = r.day > curDay;
-    return `<div style="flex:1;min-width:65px;background:${isClaimed?'rgba(143,174,74,.15)':isAvailable?'rgba(224,184,58,.15)':'rgba(255,255,255,.04)'};border:1px solid ${isClaimed?'#8fae4a':isAvailable?'#e0b83a':'rgba(255,255,255,.1)'};border-radius:6px;padding:6px 4px;text-align:center">
-      <div style="font-size:9.5px;font-weight:800;color:${isAvailable?'#e0b83a':'#aaa'}">DAY ${r.day}</div>
-      <div style="font-size:9px;margin:3px 0;opacity:.9">${r.txt}</div>
-      <button onclick="claimLoginDay(${r.day})" ${!isAvailable?'disabled':''} style="font-size:9px;padding:2px 4px;min-height:22px;width:100%">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'WAIT')}</button>
+    const label = r.label || (r.amt ? '+' + r.amt + ' CR' : 'REWARD');
+
+    return `<div class="login-card" style="flex:0 0 130px;min-width:130px;scroll-snap-align:start;background:${isClaimed?'rgba(143,174,74,.18)':isAvailable?'rgba(224,184,58,.18)':'rgba(255,255,255,.05)'};border:1.5px solid ${isClaimed?'#8fae4a':isAvailable?'#e0b83a':'rgba(255,255,255,.12)'};border-radius:8px;padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box">
+      <div style="font-size:10px;font-weight:900;letter-spacing:.5px;color:${isAvailable?'#ffd36b':'#aaa'}">DAY ${r.day}</div>
+      <div style="font-size:11px;font-weight:800;margin:4px 0;color:${isClaimed?'#8fae4a':isAvailable?'#f0ece1':'#888'}">${label}</div>
+      <button onclick="claimLoginDay(${r.day})" ${!isAvailable?'disabled':''} style="font-size:9.5px;padding:4px 6px;min-height:26px;width:100%;font-weight:700">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'LOCKED')}</button>
     </div>`;
   }).join('');
 }
@@ -2462,18 +2463,17 @@ function claimLoginDay(day) {
   if (!r || (SV.loginClaimed && SV.loginClaimed[day]) || day > (SV.loginDays || 1)) return;
   SV.loginClaimed = SV.loginClaimed || {};
   SV.loginClaimed[day] = true;
-  if (r.cr) SV.cr = (SV.cr || 0) + r.cr;
+  const cr = r.amt || r.cr || 0;
+  if (cr) SV.cr = (SV.cr || 0) + cr;
   if (r.sp) SV.sp = (SV.sp || 0) + r.sp;
   if (r.skin && SKINS[r.skin]) {
     SV.skins = SV.skins || {};
     SV.skins[r.skin] = 1;
   }
-  SV.rev = (SV.rev || 0) + 1;
-  SV.ts = Date.now();
   sv();
   lobby();
+  renderLoginTrackUI();
 }
-
 
 function toggleSkin(weapIdx) {
   const owned = Object.keys(SKINS).filter(k => SKINS[k].wi === weapIdx && (SV.skins && SV.skins[k]));

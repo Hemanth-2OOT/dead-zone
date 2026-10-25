@@ -303,17 +303,17 @@ button.eq {
   flex: 1;
   min-height: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
-  padding: 6px 4px;
-  mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent);
+  padding: 6px 4px 10px 4px;
 }
 #login-track {
   display: flex;
   gap: 8px;
   padding: 2px 8px;
+  min-height: 0;
 }
 
 .l-left {
