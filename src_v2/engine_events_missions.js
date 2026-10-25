@@ -7,6 +7,15 @@ function filterEvents(f) {
   renderEventsUI();
 }
 
+function getEventRewardSkinName(skinId) {
+  if (!skinId) return 'Mystery Skin';
+  if (typeof SKINS !== 'undefined' && SKINS[skinId]) {
+    return SKINS[skinId].name || SKINS[skinId].title || 'Mystery Skin';
+  }
+  console.warn('[DeadZone] Unknown skin reward ID:', skinId);
+  return 'Mystery Skin';
+}
+
 function renderEventsUI() {
   const el = $('ev-list'); if(!el) return;
   const evKeys = Object.keys(EVENTS);
@@ -25,16 +34,20 @@ function renderEventsUI() {
   el.innerHTML = filtered.map(k => {
     const ev = EVENTS[k], isDone = SV.evDone && SV.evDone[k];
     const diffStars = threatStars(ev.diff);
+    const skinName = getEventRewardSkinName(ev.rewardSkin);
+    const category = ev.category || 'OPERATION';
+    const desc = ev.desc || ev.brief || '';
+
     return `<div class="card" style="border:1.5px solid ${isDone?'#304820':ev.col+'55'};border-left:5px solid ${ev.col};display:flex;flex-direction:column;gap:8px;background:rgba(20,24,18,.96)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <b style="font-size:13.5px;color:${isDone?'#8fae4a':'#f0ece1'}">${ev.title}</b>
-        <span style="font-size:9px;font-weight:900;color:${ev.col};background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">${ev.category}</span>
+        <span style="font-size:9px;font-weight:900;color:${ev.col};background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">${category}</span>
       </div>
-      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${ev.desc}</div>
+      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${desc}</div>
       <div style="background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center;margin-top:2px">
         <div style="display:flex;flex-direction:column;gap:2px">
           <span style="display:inline-flex;align-items:center;gap:4px;color:#ffd36b;font-weight:800;font-size:11px"><img src="${getStatIcon('cr','#ffd36b')}" style="width:14px;height:14px"> REWARD: +${ev.rewardCr} CR</span>
-          <span style="display:inline-flex;align-items:center;gap:4px;color:${ev.col};font-weight:700;font-size:10.5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${ev.col}" stroke-width="2.2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><circle cx="7.5" cy="16.5" r="1.5"/></svg> SKIN: ${ev.skinName}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;color:${ev.col};font-weight:700;font-size:10.5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${ev.col}" stroke-width="2.2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><circle cx="7.5" cy="16.5" r="1.5"/></svg> SKIN: ${skinName}</span>
         </div>
         <span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:4px;background:${isDone?'rgba(143,174,74,.2)':'rgba(224,184,58,.2)'};color:${isDone?'#8fae4a':'#e0b83a'};border:1px solid ${isDone?'#8fae4a44':'#e0b83a44'}">${isDone?'CLAIMED':'FIRST CLEAR'}</span>
       </div>
@@ -52,14 +65,17 @@ function openEventBriefing(k) {
   const rulesList = ev.rules.map(r => `<li style="margin-bottom:4px">${r}</li>`).join('');
   const diffStars = threatStars(ev.diff);
   
+  const skinName = getEventRewardSkinName(ev.rewardSkin);
+  const desc = ev.desc || ev.brief || '';
+  
   $('ev-title').textContent = ev.title;
   $('ev-title').style.color = ev.col;
-  $('ev-desc').textContent = ev.desc;
+  $('ev-desc').textContent = desc;
   $('ev-rules').innerHTML = rulesList;
   $('ev-meta').innerHTML = `Sector: <b>${MP[ev.map].n}</b> &bull; Threat Level: <b style="color:#e0b83a">${diffStars}</b>`;
   $('ev-rew').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
     <span style="display:inline-flex;align-items:center;gap:5px;color:#ffd36b;font-weight:800;font-size:12px"><img src="${getStatIcon('cr','#ffd36b')}" style="width:15px;height:15px"> Bounty: +${ev.rewardCr} Credits</span>
-    <span style="display:inline-flex;align-items:center;gap:5px;color:${ev.col};font-weight:800;font-size:11.5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${ev.col}" stroke-width="2.2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><circle cx="7.5" cy="16.5" r="1.5"/></svg> Exclusive Skin: ${ev.skinName}</span>
+    <span style="display:inline-flex;align-items:center;gap:5px;color:${ev.col};font-weight:800;font-size:11.5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${ev.col}" stroke-width="2.2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><circle cx="7.5" cy="16.5" r="1.5"/></svg> Exclusive Skin: ${skinName}</span>
   </div>
   <div style="font-size:10px;opacity:.75;color:#ccc">One-time operational reward. Replaying operation awards standard sector XP and cash.</div>`;
   
@@ -153,7 +169,7 @@ function triggerEventVictory() {
     + `<div style="font-size:12px;opacity:.9;line-height:1.6;margin-bottom:8px">Operation Objectives Achieved!<br>`
     + (isFirstClear
         ? `Credits Awarded: <b style="color:#e0b83a">+${ev.rewardCr} CR</b><br>`
-          + (ev.rewardSkin ? `<span style="color:#00e5ff;font-weight:700">UNLOCKED SKIN: ${ev.skinName}</span><br>` : '')
+          + (ev.rewardSkin ? `<span style="color:#00e5ff;font-weight:700">UNLOCKED SKIN: ${getEventRewardSkinName(ev.rewardSkin)}</span><br>` : '')
         : `<span style="color:#8fae4a;font-weight:700">Operation already cleared. Reward already claimed.</span><br>`)
     + `</div>`;
   $('over').classList.add('on');
