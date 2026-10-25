@@ -711,14 +711,30 @@ button:active:not(:disabled) { transform: scale(0.96); }
   }
 }
 
-/* Short landscape phones: compact chrome so the DEPLOY button never scrolls away */
+/* Short landscape phones: the app is landscape-locked, so this IS the real
+   mobile layout. The arena is wide but only ~390px tall, which used to squash
+   the two lobby columns: the rewards panel collapsed to ~80px and the sector
+   picker to ~12px, and because #p0.pp.on has overflow:hidden there was no way
+   to scroll to them. The columns now scroll independently instead of
+   compressing their children to nothing. */
 @media (max-height: 460px) and (orientation: landscape) {
   .logo { font-size: 26px !important; }
   .tagline { font-size: 8px !important; }
   #play.go { min-height: 46px !important; font-size: 17px !important; }
   #nav button { min-height: 46px !important; }
-  #zone-preview { max-height: 120px; }
   .next-goal { padding: 5px 8px; }
+
+  /* Never let a lobby block shrink below its content height. */
+  .l-left > *, .l-right > *, .map-box > * { flex-shrink: 0 !important; }
+  .l-left, .l-right {
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rewards-box { flex: 0 0 auto !important; min-height: 200px; }
+  .rviews { min-height: 150px; }
+  #zone-preview { height: 112px !important; max-height: 112px !important; }
+  #maps { min-height: 74px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

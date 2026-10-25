@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.5.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **the new depth/retention layer (Section 6)**, **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** and **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
+> **Status:** Updated for **v2.5.1**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, the new depth/retention layer (Section 6), **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** and **the v2.5.1 landscape-phone lobby layout fix (Section 10)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
 
 ---
 
@@ -453,4 +453,47 @@ including: that **every** skill in **every** `CL[].sk` list has a real `skill()`
 formerly-inert `S.*` fields are consumed; that a barrier charge absorbs a real hit, ignores sub-5 ticks and
 rebuilds on schedule; that `cloak` decays and is broken by firing; that each new skill/passive produces its
 damage/chill/effect behaviourally; that `isShakeEnabled` gates the shake sites; and that a bullet stops at
-its first obstacle. Current run: **176 PASS / 0 FAIL**.
+its first obstacle. Current run: **184 PASS / 0 FAIL**.
+
+---
+
+## 10. v2.5.1 — Landscape-Phone Lobby Layout
+
+The Android build is **landscape-locked** (`android/app/src/main/AndroidManifest.xml`,
+`android:screenOrientation="landscape"`). Landscape on a phone is therefore *the* mobile layout, and it is
+the only orientation that ships. It was broken.
+
+10.1 **The bug.** `#p0.pp.on` is a flex **row** with `overflow: hidden`. The single scrolling-column
+override only matched `(max-width: 760px), (max-aspect-ratio: 1/1)`, so a landscape phone
+(844×390, or 640×360) fell through to the desktop two-column rules. With `#pn` only **264px** tall on a
+390px-high viewport, `.l-left`/`.l-right` stayed `height: 100%` and their children (flex items, default
+`flex-shrink: 1`) were compressed to fit instead of overflowing. Measured at 844×390:
+
+| element | before | after |
+|---|---|---|
+| `#maps` (sector picker) | **12px** | **74px** |
+| `.rewards-box` (missions/daily/career/record) | **80px** | **215px** |
+| `.l-left` scroll (scrollH / clientH) | 250 / 250 — not scrollable | 385 / 250 — scrollable |
+| `.l-right` scroll (scrollH / clientH) | 248 / 248 — not scrollable | 297 / 248 — scrollable |
+
+The sector picker was a 12px sliver and the rewards panel an 80px strip, and because `#p0` has
+`overflow: hidden` there was **no way to scroll to either**. The lobby was unusable on the only target
+device class.
+
+10.2 **The fix** (`src_v2/style.css`, inside `@media (max-height: 460px) and (orientation: landscape)`):
+- `.l-left > *, .l-right > *, .map-box > * { flex-shrink: 0 }` — a lobby block may never shrink below its
+  content height.
+- `.l-left, .l-right { overflow-y: auto }` — the two columns scroll independently so everything stays
+  reachable.
+- `.rewards-box { flex: 0 0 auto; min-height: 200px }` and `.rviews { min-height: 150px }` — the reward
+  panel keeps a usable, scrollable body.
+- `#maps { min-height: 74px }` — the sector carousel (a horizontal scroller) keeps its tap targets.
+- `#zone-preview { height: 112px }` — the decorative zone canvas yields vertical space to the controls.
+
+Portrait phones keep the existing single scrolling column (that path already worked). At widths that match
+both queries (e.g. 640×360) the stacked scrolling layout wins, which is also correct.
+
+10.3 **Mandatory coverage (v2.5.1).** The `_deep.html` harness asserts that the landscape-phone media
+query exists, that it sets `flex-shrink: 0` on the lobby blocks, that both columns become scrollable, and
+that the sector picker and rewards panel keep their minimum heights; plus that the portrait query still
+stacks into one scrolling column. Current run: **184 PASS / 0 FAIL** (was 176).

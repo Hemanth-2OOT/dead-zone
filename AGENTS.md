@@ -65,3 +65,16 @@ Version lives in: `package.json`, `android/app/build.gradle` (`versionCode`/`ver
 the `// DEAD ZONE vX.Y` headers in `src_v2/*.js`, `src_v2/build.js` banners and `src_v2/body.html`
 tagline. Bump all of them, rebuild `www/index.html`, then commit/tag/push. The Android release APK is
 produced by the GitHub Actions workflows in `.github/workflows/`.
+
+## Lobby / mobile layout
+
+* The Android app is **landscape-locked** (`AndroidManifest.xml`). Landscape on a phone *is* the mobile
+  layout — always check the lobby at ~844×390 and ~640×360, not just at 1920×1080.
+* `#p0.pp.on` (the PLAY page) is a flex row with `overflow: hidden`. Any block inside `.l-left`/`.l-right`
+  must be given `flex-shrink: 0` in short-landscape media queries, otherwise the flex algorithm compresses
+  it (the sector picker previously collapsed to 12px and the rewards panel to 80px, unreachable because the
+  parent cannot scroll).
+* Two lobby media queries exist and must both stay working:
+  * `@media (max-width: 760px), (max-aspect-ratio: 1/1)` — stacked, single scrolling column (portrait).
+  * `@media (max-height: 460px) and (orientation: landscape)` — two independently scrolling columns.
+* `_deep.html` (built by `/tmp/mkdeep3.py`) guards both queries. Run it after any lobby CSS change.

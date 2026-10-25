@@ -15,3 +15,7 @@ android/.navigation/
 android/captures/
 www/_deep.html
 www/_live.html
+*.zip
+www/_lobby*.html
+www/_mob.html
+www/_r.html
