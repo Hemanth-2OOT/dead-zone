@@ -345,24 +345,46 @@ function renderGunsUI() {
     const isHeavy = [4, 9, 12, 14, 17].includes(i);
     const tierCol = TIER_COLORS[w.tier || 1] || '#8fae4a';
 
-    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:10px;border-left:3.5px solid ${tierCol};background:rgba(20,24,18,0.95);border-radius:8px">
-      <img src="${gunIcon(i)}" style="width:72px;height:36px;object-fit:contain;background:rgba(0,0,0,0.3);border-radius:4px;padding:2px">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px">
-          <b style="font-size:13px;color:#f0ece1">${w.n}</b>
-          ${isHeavy ? '<span style="font-size:8px;font-weight:800;color:#ff5a3a;background:rgba(255,90,58,0.15);padding:1px 4px;border-radius:3px">HEAVY</span>' : ''}
-        </div>
-        <div style="font-size:10px;opacity:0.8;margin-top:2px;display:flex;gap:8px">
-          <span>DMG: <b>${w.d}</b></span>
-          <span>ROF: <b>${Math.round(1 / w.r * 10) / 10}/s</b></span>
-          <span>MAG: <b>${w.mag || 12}</b></span>
+    return `<div class="card" style="display:flex;flex-direction:column;gap:8px;padding:10px;border-left:3.5px solid ${tierCol};background:rgba(20,24,18,0.95);border-radius:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <canvas id="gun-prev-${i}" width="140" height="48" style="width:105px;height:42px;background:rgba(0,0,0,0.35);border-radius:6px;border:1px solid rgba(255,255,255,0.08);flex-shrink:0"></canvas>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <b style="font-size:13px;color:#f0ece1">${w.n}</b>
+            ${isHeavy ? '<span style="font-size:8px;font-weight:800;color:#ff5a3a;background:rgba(255,90,58,0.15);padding:1px 4px;border-radius:3px">HEAVY</span>' : ''}
+          </div>
+          <div style="font-size:10px;opacity:0.85;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px">
+            <span>DMG: <b style="color:#ffd36b">${w.d}</b></span>
+            <span>ROF: <b style="color:#ffd36b">${Math.round(1 / w.r * 10) / 10}/s</b></span>
+            <span>MAG: <b style="color:#ffd36b">${w.mag || 12}</b></span>
+          </div>
         </div>
       </div>
-      <button data-w="${i}" ${(!o && w.c > SV.cr) ? 'disabled' : ''} style="min-width:80px;padding:6px 10px;font-size:11px;font-weight:700">
-        ${o ? (isCur ? 'EQUIPPED' : 'EQUIP') : `BUY $${w.c}`}
-      </button>
+      <div style="display:flex;margin-top:auto;flex-shrink:0">
+        <button data-w="${i}" ${(!o && w.c > SV.cr) ? 'disabled' : ''} style="width:100%;min-height:30px;padding:4px 10px;font-size:11px;font-weight:700">
+          ${o ? (isCur ? 'EQUIPPED' : 'EQUIP') : `BUY $${w.c}`}
+        </button>
+      </div>
     </div>`;
   }).join('');
+
+  // Render high-fidelity procedural canvas preview for every gun card
+  WEAP.forEach((w, i) => {
+    const cv = document.getElementById('gun-prev-' + i);
+    if (!cv) return;
+    const cx = cv.getContext('2d');
+    const oldX = X; X = cx;
+    X.save();
+    X.translate(16, 22);
+    X.scale(1.35, 1.35);
+    try {
+      if (typeof gun === 'function') gun(i, 0);
+    } catch (e) {
+      console.warn('[DeadZone] Gun render error for index', i, e);
+    }
+    X.restore();
+    X = oldX;
+  });
 
   arm.onclick = e => {
     const b = e.target.closest('button');
