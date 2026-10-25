@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.3.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, and the Skill/Stat reference reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected.
+> **Status:** Updated for **v2.4.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **and the new depth/retention layer (Section 6)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected.
 
 ---
 
@@ -238,3 +238,49 @@ Before any update is committed or deployed, verify:
 - [ ] The perk draft never offers a perk already at max stacks, and REROLL spends run cash only.
 - [ ] Career Rank Milestone claims are idempotent and rank-gated (`SV.rankClaimed`).
 - [ ] All 7 wave modifiers remain reachable and mutually distinct, and the radar colours drops by `d.k`.
+- [ ] Wave modifiers may stack (max 2 per wave); `spMul` never exceeds 2 and `eliteBoost` never exceeds 0.8.
+- [ ] The wave-clear award is idempotent per wave (`S.clearedWave`): re-entering the clear branch cannot duplicate flawless bonuses or reopen the shop.
+- [ ] Every run boon declares `max` stacks and `ap()` cannot push a runtime stat past its Section 6 cap.
+- [ ] Weapon mastery XP is always attributed to the weapon that fired the shot (`b.wi`), never to the currently equipped weapon at kill time.
+- [ ] Ascension tiers are capped (5 per sector) and only raise enemy HP/roll chance plus a bounded reward multiplier (`1 + 0.12 x tier`).
+- [ ] Achievement credit claims are idempotent (`SV.ach`) and are never payable twice.
+- [ ] New save fields (`mast`, `ach`, `lt`, `pace`, `asc`, `runStreak`, `clearedWave`) upgrade cleanly from older saves via `sanitizeSV`.
+
+---
+
+## 6. v2.4.0 — Depth, Retention & Meta Systems
+
+v2.4.0 adds presentation depth and the long-tail retention layer. Each system has explicit caps so that "more content" never becomes "uncapped power".
+
+### 6.1 Between-Wave Boon Draft (`engine_meta.js` — `BOONS`)
+- Fires on every wave clear (`openShop` → `rollBoonOffer`); three distinct picks from `BOONS`, weighted by `BOON_RARITY_W` (`common 100 / rare 55 / epic 24`).
+- Every boon declares a hard `max` stack count; `takeBoon` refuses a fourth stack of a max-3 boon. Acquisitions are recorded in `S.boons` and surfaced in the HUD as a compact line (`boonHudLine`).
+- Boons are **run-scoped** and multiplicative only on their own axis (`S.dm`, `S.rf`, `S.ms`, `S.ar`, `S.cm`, `S.ct`, `S.ls`, `S.eb`, `S.cl`, `S.cdmg`).
+- `S.ar` (damage taken) is floored at 0.4, preserving the Rule 6 armour floor (damage reduction ≤ 65%).
+- DEADEYE (`deadeye`, +0.35 critical damage, max 3) is the replacement for the removed INCENDIARY boon; it feeds `critMult = 2 + S.cdmg` and therefore stacks with, but never bypasses, the 75% crit-chance cap.
+
+### 6.2 Weapon Mastery (`MAST_XP`, `masteryLevel`, `masteryDamageMult`)
+- Per-weapon XP (`SV.mast[wi]`) awarded at kill time: boss 40, elite 12, normal 3, attributed through the bullet's origin index so off-hand kills still credit the correct gun.
+- Six tiers (`MAST_XP = [0, 120, 340, 720, 1250, 2000]`); the damage bonus is deliberately small and additive in effect (`masteryDamageMult`, ~1 + 0.02 x level) so mastery rewards time invested without creating a dominant weapon (Rule 3).
+- Mastery is permanent meta progress and is displayed on every gun card and in the SERVICE RECORD grid.
+
+### 6.3 Ascension Tiers (`ASC_MAX`, `refreshAscension`, `ascRewardMult`, `ascRollChance`)
+- Clearing a sector at a deeper wave permanently raises that sector's tier (`SV.asc[mapIndex]`), capped at `ASC_MAX = 5`.
+- Each tier: +7% enemy HP per tier in `spawn`, a higher chance of a stacked wave modifier (`ascRollChance = min(1, 0.55 + 0.08 x tier)`), and a bounded payout multiplier (`ascRewardMult = 1 + 0.12 x tier`, max 1.6x).
+- None of these touch the crit / damage-reduction / cooldown caps: ascension changes *threat and payout*, never the Rule 4 ceilings.
+
+### 6.4 Achievement / Service Record Grid (`ACHIEVEMENTS`, `claimAchievement`)
+- Fourteen lifetime goals read from `SV.lt` (lifetime totals: kills, elites, bosses, waves, highest wave, best combo, power-ups, shots, flawless, maps, owned weapons, mastery, ascension).
+- Claims are one-shot (`SV.ach`) and pay a fixed credit reward; `transactMetaCredits` remains the single credits mutation point (Rule 6).
+
+### 6.5 Retained Habits: Ghost Pace, Supply Deal, Run Streak
+- **Ghost pace** records per-wave clear times (`SV.pace.times`) on a personal-best run and reports an AHEAD/BEHIND delta at wave clear and live in the HUD.
+- **Supply deal** features one randomly discounted shop entry per wave (`S.deal`, x0.6 cost), re-rolled when `S.deal.wave !== S.wave` and consumed on purchase.
+- **Run streak** (`SV.runStreak`, incremented on waves ≥ 10) adds a bounded cash multiplier via `runStreakBonus()`, keeping the risk-reward loop (Rule 5) without inflating the economy.
+
+### 6.6 Presentation Depth (no balance impact)
+- `engine_depth.js` adds the Y-sorted entity band, contact shadows, additive light pass, downsample bloom, per-sector colour grade and ambient weather. These are **quality-gated** presentation only: `QUALITY_SETTINGS` still governs `dynamicLights`, `shadowBlur`, decal/mist caps, and the low profile disables the light/bloom layers entirely (Rule 9).
+- The particle system (`F[]`) is now rendered through `renderParticles`, and per-frame gradient allocations were replaced with cached gradients; both are strictly performance wins.
+
+### 6.7 Mandatory Test Coverage (v2.4.0)
+The `_deep.html` bundle harness must report `DEEP PASS` with zero failures, including: boon stacks capped, modifier stacking caps, mastery XP attribution, achievement claim idempotency, ascension cap, reroll cost scaling, the rotating deal, and **wave-clear award idempotency** (an `update()` storm over an emptied horde must not inflate cash or stack flawless streaks).

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.4 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -194,11 +194,17 @@ function drawZombie(z) {
     X.globalAlpha = 1;
   }
 
-  // Layer 1: Directional ground drop shadow (casts bottom-right)
-  X.fillStyle = 'rgba(0,0,0,0.48)';
-  X.beginPath();
-  X.ellipse(z.x + 4, z.y + 6, T.r * sc * 1.15, T.r * sc * 0.8, a, 0, 6.28);
-  X.fill();
+  // Layer 1: Soft directional contact shadow (cached sprite, light-offset, and
+  // it lifts/fades when the body is knocked airborne by a hit or flinch).
+  if (typeof contactShadow === 'function') {
+    const lift = (z.air || 0) > 0 ? 0.85 : ((isHit || isFlinch) ? 0.35 : 0);
+    contactShadow(z.x, z.y + 3, T.r * sc * 1.12, lift);
+  } else {
+    X.fillStyle = 'rgba(0,0,0,0.48)';
+    X.beginPath();
+    X.ellipse(z.x + 4, z.y + 6, T.r * sc * 1.15, T.r * sc * 0.8, a, 0, 6.28);
+    X.fill();
+  }
 
   // Elite glowing orbital aura
   if (z.el) {

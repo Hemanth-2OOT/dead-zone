@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.4 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -213,8 +213,14 @@ function updateZoneMeta(mIndex) {
   }
   const bntyEl = document.getElementById('zone-bounty') || document.getElementById('zone-bounty-text');
   if (bntyEl) {
-    const bnty = mapDef.bountyMult || (MP[mIndex] && MP[mIndex].cm ? MP[mIndex].cm : 1.0);
-    bntyEl.textContent = `${bnty.toFixed(2)}x`;
+    const base = mapDef.bountyMult || (MP[mIndex] && MP[mIndex].cm ? MP[mIndex].cm : 1.0);
+    const asc = (typeof ascRewardMult === 'function') ? ascRewardMult(mIndex) : 1;
+    bntyEl.textContent = `${(base * asc).toFixed(2)}x`;
+  }
+  const ascEl = document.getElementById('zone-asc-tag');
+  if (ascEl) {
+    const tier = (typeof ascTier === 'function') ? ascTier(mIndex) : 0;
+    ascEl.textContent = tier > 0 ? `ASCENSION ${tier}` : '';
   }
 }
 
@@ -329,6 +335,7 @@ function lobby() {
   renderMissionsUI();
   renderLoginTrackUI();
   if (typeof renderRankRewards === 'function') renderRankRewards();
+  if (typeof renderAchievements === 'function') renderAchievements();
 
   renderGunsUI();
 }
@@ -373,6 +380,22 @@ function renderGunsUI() {
     const isHeavy = [4, 9, 12, 14, 17].includes(i);
     const tierCol = TIER_COLORS[w.tier || 1] || '#8fae4a';
 
+    // Weapon mastery: permanent per-gun XP that grants a damage tier bonus
+    const mLv = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
+    const mMax = (typeof MAST_MAX !== 'undefined') ? MAST_MAX : 6;
+    const mXp = (SV.mast && SV.mast[i]) || 0;
+    const mNext = (typeof MAST_XP !== 'undefined' && MAST_XP[mLv]) ? MAST_XP[mLv] : null;
+    const mPct = mNext ? Math.min(100, Math.round(100 * mXp / mNext)) : 100;
+    const mastBar = `<div style="margin-top:6px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:.5px">
+          <span style="color:#c084fc">MASTERY LV ${mLv}${mLv >= mMax ? ' (MAX)' : ''}</span>
+          <span style="color:#a8a29e">${mNext ? mXp + ' / ' + mNext : 'COMPLETE'}${mLv > 1 ? '  +' + Math.round((mLv - 1) * 2.5) + '% DMG' : ''}</span>
+        </div>
+        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden;margin-top:2px">
+          <div style="width:${mPct}%;height:100%;background:#c084fc"></div>
+        </div>
+      </div>`;
+
     return `<div class="card" style="display:flex;flex-direction:column;gap:8px;padding:10px;border-left:3.5px solid ${tierCol};background:rgba(20,24,18,0.95);border-radius:8px">
       <div style="display:flex;align-items:center;gap:10px">
         <canvas id="gun-prev-${i}" width="140" height="48" style="width:105px;height:42px;background:rgba(0,0,0,0.35);border-radius:6px;border:1px solid rgba(255,255,255,0.08);flex-shrink:0"></canvas>
@@ -386,6 +409,7 @@ function renderGunsUI() {
             <span>ROF: <b style="color:#ffd36b">${Math.round(1 / w.r * 10) / 10}/s</b></span>
             <span>MAG: <b style="color:#ffd36b">${w.mag || 12}</b></span>
           </div>
+          ${o ? mastBar : ''}
         </div>
       </div>
       <div style="display:flex;margin-top:auto;flex-shrink:0">

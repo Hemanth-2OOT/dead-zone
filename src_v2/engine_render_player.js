@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.4 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {

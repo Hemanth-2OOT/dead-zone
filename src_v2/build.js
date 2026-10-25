@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - BUNDLER & SYNTAX AUDITOR
+// DEAD ZONE v2.4 - BUNDLER & SYNTAX AUDITOR
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -6,7 +6,7 @@ const vm = require('vm');
 const baseDir = __dirname;
 const rootDir = path.resolve(baseDir, '..');
 
-console.log('--- DEAD ZONE v2.3 BUILD PIPELINE ---');
+console.log('--- DEAD ZONE v2.4 BUILD PIPELINE ---');
 
 // 1. Read Stylesheet
 const css = fs.readFileSync(path.join(baseDir, 'style.css'), 'utf8');
@@ -26,8 +26,10 @@ const jsModules = [
   'engine_render_player.js',
   'engine_render_zombies.js',
   'engine_render_turret.js',
+  'engine_depth.js',
   'engine_world.js',
   'engine_director.js',
+  'engine_meta.js',
   'engine_fx.js',
   'engine_lobby.js',
   'engine_bootstrap.js'

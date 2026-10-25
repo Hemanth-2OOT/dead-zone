@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.4 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -192,38 +192,65 @@ const WAVE_MODS = [
 ];
 
 function applyWaveModifier() {
-  S.wm = null; S.dark = 0; S.spMul = 1; S.wmCash = 1; S.eliteBoost = 0;
+  S.wm = null; S.wm2 = null; S.wmList = []; S.dark = 0; S.spMul = 1; S.wmCash = 1; S.eliteBoost = 0;
   S.hitWave = false;
   const w = S.wave;
   const isBoss = w % 5 === 0;
-  if (isBoss) {
-    announce('WAVE ' + w, '#ff5a3a', 'BOSS INBOUND');
-  } else if (w >= 2 && Math.random() < 0.55) {
-    const pool = WAVE_MODS.filter(m => m.min <= w && m.id !== S.lastWm);
-    if (pool.length) {
-      const m = pool[Math.floor(Math.random() * pool.length)];
-      S.wm = m; S.lastWm = m.id;
-      S.spMul = m.spMul; S.wmCash = m.cash; S.dark = m.dark || 0;
-      const q = S.q;
-      const conv = (from, to, pct) => { for (let i = 0; i < q.length; i++) if (from.includes(q[i]) && Math.random() < pct) q[i] = to(); };
-      if (m.id === 'rush') conv(['walk'], () => 'run', 0.6);
-      else if (m.id === 'iron') conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'tank' : 'charger'), 0.22);
-      else if (m.id === 'toxic') conv(['walk', 'run'], () => (Math.random() < 0.55 ? 'spit' : 'exp'), 0.4);
-      else if (m.id === 'shadow') conv(['walk', 'run'], () => 'stalker', 0.32);
-      else if (m.id === 'horde') {
-        const extra = Math.round(q.length * 0.5);
-        for (let i = 0; i < extra; i++) q.push(Math.random() < 0.7 ? 'walk' : 'run');
-      }
-      else if (m.id === 'blitz') {
-        const extra = Math.round(q.length * 0.8);
-        for (let i = 0; i < extra; i++) q.push(Math.random() < 0.6 ? 'run' : 'walk');
-      }
-      else if (m.id === 'elite') {
-        S.eliteBoost = 0.5;
-        conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'charger' : 'tank'), 0.35);
-      }
-      announce('WAVE ' + w + ' - ' + m.name, m.col, m.desc + '  (+' + Math.round((m.cash - 1) * 100) + '% CASH)');
+  const allowBoss = w >= 15; // boss waves carry a modifier from wave 15 onwards
+  const q = S.q;
+  const conv = (from, to, pct) => { for (let i = 0; i < q.length; i++) if (from.includes(q[i]) && Math.random() < pct) q[i] = to(); };
+
+  const applyOne = m => {
+    S.wmList.push(m);
+    S.spMul *= (m.spMul || 1);
+    S.wmCash *= (m.cash || 1);
+    if (m.dark) S.dark = Math.max(S.dark, m.dark);
+    if (m.id === 'rush') conv(['walk'], () => 'run', 0.6);
+    else if (m.id === 'iron') conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'tank' : 'charger'), 0.22);
+    else if (m.id === 'toxic') conv(['walk', 'run'], () => (Math.random() < 0.55 ? 'spit' : 'exp'), 0.4);
+    else if (m.id === 'shadow') conv(['walk', 'run'], () => 'stalker', 0.32);
+    else if (m.id === 'horde') {
+      const extra = Math.round(q.length * 0.5);
+      for (let i = 0; i < extra; i++) q.push(Math.random() < 0.7 ? 'walk' : 'run');
     }
+    else if (m.id === 'blitz') {
+      const extra = Math.round(q.length * 0.8);
+      for (let i = 0; i < extra; i++) q.push(Math.random() < 0.6 ? 'run' : 'walk');
+    }
+    else if (m.id === 'elite') {
+      S.eliteBoost += 0.5;
+      conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'charger' : 'tank'), 0.35);
+    }
+  };
+
+  const rollMod = exclude => {
+    const pool = WAVE_MODS.filter(m => m.min <= w && exclude.indexOf(m.id) < 0);
+    if (!pool.length) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+
+  const chance = (typeof waveModChance === 'function') ? waveModChance() : 0.55;
+  if ((!isBoss || allowBoss) && w >= 2 && Math.random() < chance) {
+    const m = rollMod(S.lastWm ? [S.lastWm] : []);
+    if (m) applyOne(m);
+  }
+  // Stacked modifiers from wave 10 for spiky, memorable waves.
+  if (S.wmList.length === 1 && w >= 10 && Math.random() < 0.35) {
+    const m2 = rollMod(S.wmList.map(x => x.id));
+    if (m2) applyOne(m2);
+  }
+
+  S.wm = S.wmList[0] || null;
+  S.wm2 = S.wmList[1] || null;
+  if (S.wm) S.lastWm = S.wm.id;
+  S.spMul = Math.min(2, S.spMul);
+  S.eliteBoost = Math.min(0.8, S.eliteBoost);
+
+  if (S.wmList.length) {
+    announce('WAVE ' + w + ' - ' + S.wmList.map(m => m.name).join(' + '), S.wmList[0].col,
+      S.wmList.map(m => m.desc).join('  |  ') + '  (+' + Math.round((S.wmCash - 1) * 100) + '% CASH)');
+  } else if (isBoss) {
+    announce('WAVE ' + w, '#ff5a3a', 'BOSS INBOUND');
   } else {
     announce('WAVE ' + w, '#e8e4cf', w === 1 ? 'SURVIVE THE OUTBREAK' : 'HOLD THE LINE');
   }

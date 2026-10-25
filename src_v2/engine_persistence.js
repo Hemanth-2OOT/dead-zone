@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.4 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -29,7 +29,13 @@ let SV = {
   evDone: {},
   dailyMissions: {},
   loginDays: 1,
-  loginClaimed: {}
+  loginClaimed: {},
+  mast: {},
+  ach: {},
+  lt: {},
+  pace: { times: {} },
+  asc: {},
+  runStreak: 0
 };
 
 function transactMetaCredits(cost, desc) {
@@ -67,6 +73,13 @@ function sanitizeSV(s) {
   if (!out.dailyMissions || typeof out.dailyMissions !== 'object') out.dailyMissions = {};
   if (!out.loginClaimed || typeof out.loginClaimed !== 'object') out.loginClaimed = {};
   if (!out.rankClaimed || typeof out.rankClaimed !== 'object') out.rankClaimed = {};
+  if (!out.mast || typeof out.mast !== 'object') out.mast = {};
+  if (!out.ach || typeof out.ach !== 'object') out.ach = {};
+  if (!out.lt || typeof out.lt !== 'object') out.lt = {};
+  if (!out.pace || typeof out.pace !== 'object') out.pace = { times: {} };
+  if (!out.pace.times || typeof out.pace.times !== 'object') out.pace.times = {};
+  if (!out.asc || typeof out.asc !== 'object') out.asc = {};
+  out.runStreak = Math.max(0, Math.floor(Number(out.runStreak) || 0));
   out.loginDays = Math.max(1, Math.min(10, Math.floor(Number(out.loginDays) || 1)));
   return out;
 }

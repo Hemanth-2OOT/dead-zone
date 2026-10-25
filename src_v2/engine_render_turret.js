@@ -1,4 +1,4 @@
-// DEAD ZONE v2.3 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v2.4 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -190,11 +190,16 @@ function drawTurret(t) {
   X.save();
   X.translate(t.x, t.y);
 
-  // 1. Ambient drop shadow (bottom-right: light from top-left)
-  X.fillStyle = 'rgba(0,0,0,0.48)';
-  X.beginPath();
-  X.ellipse(5, 7, 16 + lvl * 2, 12 + lvl * 1.5, 0.2, 0, 6.28);
-  X.fill();
+  // 1. Soft ambient contact shadow (cached sprite, offset along the light dir)
+  if (typeof contactShadow === 'function') {
+    // local space (already translated to t.x/t.y) - no rotation, so light offsets stay correct
+    contactShadow(0, 5, 17 + lvl * 2, 0);
+  } else {
+    X.fillStyle = 'rgba(0,0,0,0.48)';
+    X.beginPath();
+    X.ellipse(5, 7, 16 + lvl * 2, 12 + lvl * 1.5, 0.2, 0, 6.28);
+    X.fill();
+  }
 
   // 2. Heavy steel baseplate with corner anchor bolts
   X.fillStyle = '#222820';

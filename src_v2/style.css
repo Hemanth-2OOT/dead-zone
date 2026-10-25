@@ -500,7 +500,7 @@ button.eq {
 
 
 /* ===================================================================
-   v2.3 MOBILE-FIRST LOBBY, MOTION & TOUCH POLISH
+   v2.4 MOBILE-FIRST LOBBY, MOTION & TOUCH POLISH
    =================================================================== */
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:active:not(:disabled) { transform: scale(0.96); }
