@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8.1 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.9.0 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -565,8 +565,12 @@ function startReload() {
 }
 
 const CI_CACHE = {};
+// Keyed on the class AND everything the body renderer reads (equipped operative
+// skin, survivor suit tint). Keying on the class alone meant a card kept showing
+// the suit you had on when it was first drawn, so equipping an operative skin
+// never changed the HERO tab.
 function clsIcon(ci, wi = 0) {
-  const k = ci + '_' + wi;
+  const k = ci + '_' + wi + '_' + (SV && SV.eqOpSkin ? SV.eqOpSkin : '-') + '_' + (typeof PC !== 'undefined' ? PC : '');
   if (CI_CACHE[k]) return CI_CACHE[k];
   const cv = document.createElement('canvas');
   cv.width = 220;
@@ -583,5 +587,11 @@ function clsIcon(ci, wi = 0) {
   X.restore();
   X = oldX;
   return CI_CACHE[k] = cv.toDataURL();
+}
+
+// Drop the cached body sprites whenever the look changes. The cache key already
+// separates looks; this just stops it growing without bound over a long session.
+function resetCharacterIconCache() {
+  for (const key in CI_CACHE) delete CI_CACHE[key];
 }
 

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.9.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -358,7 +358,16 @@ function filterSkins(f){
   renderSkinsUI();
 }
 
+// Anything that caches a body or gun sprite has to be dropped when the player
+// changes what they are wearing, or the old finish keeps showing up.
+function invalidateLookCaches() {
+  if (typeof resetCharacterIconCache === 'function') resetCharacterIconCache();
+  if (typeof resetGunIconCache === 'function') resetGunIconCache();
+  if (typeof resetSkinIconCache === 'function') resetSkinIconCache();
+}
+
 const SKI_CACHE = {};
+function resetSkinIconCache() { for (const k in SKI_CACHE) delete SKI_CACHE[k]; }
 function skinIcon(skinKey) {
   if (SKI_CACHE[skinKey]) return SKI_CACHE[skinKey];
   const sk = SKINS[skinKey];
@@ -643,6 +652,7 @@ function renderSkinsUI(){
 
 function unequipOpSkinDirect(){
   SV.eqOpSkin = null;
+  invalidateLookCaches();
   sv(); lobby();
 }
 
@@ -656,6 +666,7 @@ function equipSkinDirect(skinId){
   }
   SV.rev = (SV.rev || 0) + 1;
   SV.ts = Date.now();
+  invalidateLookCaches();
   sv();
   snd(400, .15, 'sine', .05, 1.5);
   renderSkinsUI();

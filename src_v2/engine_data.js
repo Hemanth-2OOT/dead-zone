@@ -550,8 +550,11 @@ function threatStars(diff) {
 }
 
 const GI = {};
+// The weapon sprite reads SV.eqSkin[i], so the cache key has to include it or a
+// gun keeps showing the finish it had when the icon was first drawn.
 function gunIcon(i) {
-  if (GI[i]) return GI[i];
+  const key = i + '_' + ((typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[i]) ? SV.eqSkin[i] : '-');
+  if (GI[key]) return GI[key];
   const cv = document.createElement('canvas'); cv.width = 160; cv.height = 48;
   const cx = cv.getContext('2d');
   const oldX = X; X = cx;
@@ -559,7 +562,11 @@ function gunIcon(i) {
   gun(i, 0);
   X.restore();
   X = oldX;
-  return GI[i] = cv.toDataURL();
+  return GI[key] = cv.toDataURL();
+}
+
+function resetGunIconCache() {
+  for (const key in GI) delete GI[key];
 }
 
 const PI_CACHE = {};

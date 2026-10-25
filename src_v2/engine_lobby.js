@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.9.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -723,41 +723,118 @@ function relics() {
   };
 }
 
+// Live operator portrait for the HERO tab. Drawn with the real body/gun
+// renderer so the equipped operative skin, suit tint and starting weapon all
+// show exactly as they will in the arena.
+function drawHeroBand() {
+  const cv = document.getElementById('hero-preview');
+  const ci = SV.cls || 0;
+  const c = CL[ci] || CL[0] || { n: 'Infantry', hp: 100, spd: 175, dm: 1, sk: [], d: '' };
+  const prevX = (typeof X !== 'undefined') ? X : null;
+  if (cv) {
+    const cx = cv.getContext('2d');
+    if (prevX) X = cx;
+    try {
+      const w = cv.width, h = cv.height;
+      cx.clearRect(0, 0, w, h);
+      const g = cx.createRadialGradient(w * 0.5, h * 0.6, 6, w * 0.5, h * 0.6, w * 0.72);
+      g.addColorStop(0, 'rgba(62,80,44,0.95)');
+      g.addColorStop(0.55, 'rgba(24,31,18,0.98)');
+      g.addColorStop(1, 'rgba(8,11,7,1)');
+      cx.fillStyle = g;
+      cx.fillRect(0, 0, w, h);
+      // Floor grid, in the same pixel-art spirit as the arena
+      cx.strokeStyle = 'rgba(143,174,74,0.16)';
+      cx.lineWidth = 1;
+      for (let i = -3; i <= 3; i++) {
+        cx.beginPath();
+        cx.moveTo(w * 0.5 + i * 26, h * 0.72);
+        cx.lineTo(w * 0.5 + i * 74, h);
+        cx.stroke();
+      }
+      for (let j = 1; j <= 3; j++) {
+        cx.beginPath();
+        const yy = h * 0.72 + j * j * 6;
+        cx.moveTo(0, yy); cx.lineTo(w, yy); cx.stroke();
+      }
+      // Character, scaled up from the sprite's own 1.7x icon framing
+      cx.save();
+      cx.translate(w * 0.34, h * 0.56);
+      cx.scale(2.35, 2.35);
+      if (typeof bodyBack === 'function') bodyBack(ci);
+      if (typeof gun === 'function') gun(SV.start || 0, 0);
+      if (typeof bodyFront === 'function') bodyFront(ci);
+      cx.restore();
+    } catch (e) {
+      console.warn('[DeadZone] hero preview failed', e);
+    } finally {
+      if (prevX) X = prevX;
+    }
+  }
+  const nameEl = document.getElementById('hero-name');
+  if (nameEl) nameEl.textContent = (c.n || 'Infantry').toUpperCase();
+  const st = document.getElementById('hero-stats');
+  if (st) {
+    const dmgPct = Math.round((c.dm - 1) * 100);
+    st.innerHTML = `
+      <span class="hs-chip" style="border-color:#ff5a3a55;color:#ff8a6a">HP <b>${c.hp}</b></span>
+      <span class="hs-chip" style="border-color:#5ac8e855;color:#7fd6f0">SPD <b>${c.spd}</b></span>
+      <span class="hs-chip" style="border-color:#ffd36b55;color:#ffd36b">DMG <b>${dmgPct >= 0 ? '+' : ''}${dmgPct}%</b></span>
+      <span class="hs-chip" style="border-color:#c084fc55;color:#c084fc">CRIT <b>${Math.round((c.crit || 0) * 100)}%</b></span>`;
+  }
+  const skl = document.getElementById('hero-skills');
+  if (skl) {
+    skl.innerHTML = (c.sk || []).map(k => `<span class="hs-chip" style="gap:4px"><img src="${getSkillIcon(k, '#8fae4a')}" style="width:14px;height:14px" alt="">${SKN[k] || k.toUpperCase()}</span>`).join('');
+  }
+  const skinEl = document.getElementById('hero-skin');
+  if (skinEl) {
+    const key = SV.eqOpSkin;
+    const sk = (key && typeof SKINS !== 'undefined') ? SKINS[key] : null;
+    const tint = (typeof PC !== 'undefined' && PC) ? PC : '#d8c9a0';
+    skinEl.innerHTML = sk
+      ? `<span class="hs-skin-lbl">OPERATIVE SKIN</span> <b style="color:${sk.col || '#ffd36b'}">${sk.name}</b>`
+      : `<span class="hs-skin-lbl">OPERATIVE SKIN</span> <b style="color:#888">Default fatigues</b> &bull; <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${tint};vertical-align:middle"></span> suit tint`;
+  }
+}
+
 function lobby2() {
   relics();
 
-  // Class Selection in #pc
+  // Class Selection in #pc. The band renders the deployed operator live; the
+  // cards below are compact so the whole tab still fits a phone screen.
   const clsCont = document.getElementById('cls');
   if (clsCont) {
+    drawHeroBand();
     clsCont.innerHTML = CL.map((c, i) => {
       const o = SV.ucl && SV.ucl[i], cost = [0, 800, 1500, 2200, 2600][i];
       const isSelected = SV.cls === i;
-      const skillsHtml = (c.sk || []).map(k => `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.06);padding:2px 5px;border-radius:4px;font-size:9.5px;color:#ece7d5"><img src="${getSkillIcon(k, '#8fae4a')}" style="width:14px;height:14px">${SKN[k] || k.toUpperCase()}</span>`).join(' ');
-
-      return `<div class="card" style="display:flex;flex-direction:column;gap:8px;border:1.5px solid ${isSelected ? '#8fae4a' : '#303824'};background:rgba(18,22,14,.95);border-radius:8px;padding:10px 12px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <b style="font-size:14px;letter-spacing:.5px;color:${isSelected ? '#ffd36b' : '#f0ece1'}">${c.n}</b>
-          <span style="font-size:9px;font-weight:800;letter-spacing:1px;padding:2px 6px;border-radius:4px;background:${isSelected ? '#8fae4a33' : 'rgba(255,255,255,.08)'};color:${isSelected ? '#8fae4a' : '#888'}">${isSelected ? 'DEPLOYED' : (o ? 'READY' : 'LOCKED')}</span>
+      const dmgPct = Math.round((c.dm - 1) * 100);
+      const skillsHtml = (c.sk || []).map(k => `<span class="hc-sk"><img src="${getSkillIcon(k, '#8fae4a')}" alt="">${SKN[k] || k.toUpperCase()}</span>`).join('');
+      const btnLabel = isSelected ? 'CURRENT OPERATOR' : (o ? 'DEPLOY OPERATOR' : 'RECRUIT \u2022 ' + cost + ' CR');
+      return `<div class="card hero-card${isSelected ? ' on' : ''}">
+        <div class="hc-head">
+          <b>${c.n}</b>
+          <span class="hc-badge${isSelected ? ' on' : ''}">${isSelected ? 'DEPLOYED' : (o ? 'READY' : 'LOCKED')}</span>
         </div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <img src="${clsIcon(i, SV.start)}" style="width:68px;height:48px;object-fit:contain;background:rgba(0,0,0,.3);border-radius:6px;border:1px solid rgba(255,255,255,.08);flex-shrink:0">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:11px;opacity:.88;line-height:1.3;margin-bottom:5px;color:#d5d0c2">${c.d}</div>
-            <div style="display:flex;gap:8px;font-size:10px;opacity:.9;font-weight:700">
-              <span style="display:inline-flex;align-items:center;gap:3px"><img src="${getStatIcon('hp', '#ff5a3a')}" style="width:12px;height:12px">HP ${c.hp}</span>
-              <span style="display:inline-flex;align-items:center;gap:3px"><img src="${getStatIcon('spd', '#5ac8e8')}" style="width:12px;height:12px">SPD ${c.spd}</span>
-              <span style="display:inline-flex;align-items:center;gap:3px"><img src="${getStatIcon('dmg', '#ffd36b')}" style="width:12px;height:12px">DMG ${Math.round((c.dm - 1) * 100) >= 0 ? '+' : ''}${Math.round((c.dm - 1) * 100)}%</span>
+        <div class="hc-mid">
+          <img class="hc-art" src="${clsIcon(i, SV.start)}" alt="">
+          <div class="hc-body">
+            <div class="hc-desc">${c.d}</div>
+            <div class="hc-stats">
+              <span><img src="${getStatIcon('hp', '#ff5a3a')}" alt="">HP ${c.hp}</span>
+              <span><img src="${getStatIcon('spd', '#5ac8e8')}" alt="">SPD ${c.spd}</span>
+              <span><img src="${getStatIcon('dmg', '#ffd36b')}" alt="">DMG ${dmgPct >= 0 ? '+' : ''}${dmgPct}%</span>
             </div>
+            <div class="hc-skills">${skillsHtml}</div>
           </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px">${skillsHtml}</div>
-        <button data-c="${i}" ${(!o && cost > SV.cr) ? 'disabled' : ''} style="width:100%;margin-top:2px;min-height:34px;font-weight:700;letter-spacing:.5px;border-color:${isSelected ? '#8fae4a' : '#3a4128'}">${o ? (isSelected ? 'CURRENT OPERATOR' : 'DEPLOY OPERATOR') : 'RECRUIT • ' + cost + ' CR'}</button>
+        <button data-c="${i}" ${(!o && cost > SV.cr) ? 'disabled' : ''}>${btnLabel}</button>
       </div>`;
     }).join('');
 
     clsCont.onclick = e => {
       const b = e.target.closest('button');
-      if (!b) return;
+      if (!b || b.disabled) return;
       const i = +b.dataset.c;
       if (SV.ucl[i]) SV.cls = i;
       else {
@@ -766,8 +843,10 @@ function lobby2() {
         SV.ucl[i] = 1;
         SV.cls = i;
       }
+      snd(400, 0.12, 'square', 0.04, 1.3);
       sv();
-      lobby();
+      drawHeroBand();
+      lobby2();
     };
   }
 

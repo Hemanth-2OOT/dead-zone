@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8.1 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.9.0 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -15,18 +15,18 @@ const BOONS = [
   { id: 'dmg',  n: 'OVERSIZED ROUNDS', d: '+12% weapon damage',            col: '#ff5a3a', rar: 'common', max: 5, ap() { S.dm = (S.dm || 1) * 1.12; } },
   { id: 'rof',  n: 'HAIR TRIGGER',     d: '+8% fire rate',                 col: '#ffd36b', rar: 'common', max: 5, ap() { S.rf = (S.rf || 1) * 1.08; } },
   { id: 'spd',  n: 'LIGHT BOOTS',      d: '+7% move speed',                col: '#5ac8e8', rar: 'common', max: 4, ap() { S.ms = (S.ms || 1) * 1.07; } },
-  { id: 'arm',  n: 'PLATE CARRIER',    d: '-6% damage taken',              col: '#94a3b8', rar: 'common', max: 4, ap() { S.ar = Math.max(0.4, (S.ar != null ? S.ar : 1) * 0.94); } },
+  { id: 'arm',  n: 'PLATE CARRIER',    d: '-6% damage taken per stack',     col: '#94a3b8', rar: 'common', max: 4, ap() { S.ar = Math.max(0.4, (S.ar != null ? S.ar : 1) * 0.94); } },
   { id: 'cr',   n: 'SCRAP PERMIT',     d: '+15% credits earned',           col: '#ffd36b', rar: 'common', max: 4, ap() { S.cm = (S.cm || 1) * 1.15; } },
   { id: 'crit', n: 'HOLLOW POINTS',    d: '+5% crit chance',               col: '#fb923c', rar: 'rare',   max: 5, ap() { S.ct = (S.ct || 0) + 0.05; } },
   { id: 'pierce', n: 'PIERCING SLUGS', d: 'Bullets pierce +1 target',      col: '#e2e8f0', rar: 'rare',   max: 3, ap() { S.pc = (S.pc || 0) + 1; } },
   { id: 'vamp', n: 'VAMPIRIC EDGE',    d: 'Heal 0.6 HP per kill',          col: '#f43f5e', rar: 'rare',   max: 3, ap() { S.ls = (S.ls || 0) + 0.6; } },
   { id: 'magnet', n: 'MAG COIL',       d: '+35% pickup radius',            col: '#c084fc', rar: 'rare',   max: 3, ap() { S.mg = (S.mg || 1) * 1.35; } },
-  { id: 'slow', n: 'GRAVITY WELL',     d: 'Enemies move 8% slower',        col: '#a855f7', rar: 'rare',   max: 4, ap() { S.tw = (S.tw || 0) + 1; } },
+  { id: 'slow', n: 'GRAVITY WELL',     d: 'Enemies move 12% slower per stack (max -70%)', col: '#a855f7', rar: 'rare', max: 4, ap() { S.tw = (S.tw || 0) + 1; } },
   { id: 'gren', n: 'BOMBARDIER',       d: '+3 grenades immediately',       col: '#fb923c', rar: 'common', max: 3, ap() { S.gr = (S.gr || 0) + 3; } },
   { id: 'heal', n: 'COMBAT STIMM',     d: 'Heal 30% max health',           col: '#8fae4a', rar: 'common', max: 4, ap() { if (typeof healP === 'function') healP(P.mx * 0.3); } },
-  { id: 'shield', n: 'PHASE PLATING',  d: '+1 shield charge',              col: '#eab308', rar: 'rare',   max: 3, ap() { S.bl = (S.bl || 0) + 1; S.bc = (S.bc || 1) + 1; } },
-  { id: 'frag', n: 'FRAG TIPS',        d: 'Rounds explode on impact',      col: '#f97316', rar: 'epic',   max: 2, ap() { S.eb = (S.eb || 0) + 1; } },
-  { id: 'arc',  n: 'ARC CONDUCTOR',    d: 'Rounds chain to a nearby enemy', col: '#38bdf8', rar: 'epic',  max: 2, ap() { S.cl = (S.cl || 0) + 1; } },
+  { id: 'shield', n: 'PHASE PLATING',  d: '+1 shield charge',              col: '#eab308', rar: 'rare',   max: 3, ap() { S.bl = (S.bl || 0) + 1; S.bc = Math.min(S.bl, (S.bc || 0) + 1); } },
+  { id: 'frag', n: 'FRAG TIPS',        d: 'Rounds explode on impact',      col: '#f97316', rar: 'epic',   max: 1, ap() { S.eb = (S.eb || 0) + 1; } },
+  { id: 'arc',  n: 'ARC CONDUCTOR',    d: 'Rounds chain to +1 enemy',       col: '#38bdf8', rar: 'epic',   max: 2, ap() { S.cl = (S.cl || 0) + 1; } },
   { id: 'deadeye', n: 'DEADEYE',       d: '+35% critical damage',          col: '#ef4444', rar: 'epic',   max: 3, ap() { S.cdmg = (S.cdmg || 0) + 0.35; } }
 ];
 
@@ -34,9 +34,69 @@ const BOON_RARITY_W = { common: 100, rare: 55, epic: 24 };
 
 function boonOwned(id) { return (S && S.boons && S.boons[id]) || 0; }
 
+// What the boon has actually added up to in this run. Stacked multipliers are
+// opaque on their own, which is what made the draft feel off: the card said
+// "+12% damage" while the run was already at +60%.
+function effDmPreview(raw) {
+  // Mirrors the soft cap in fire(): raw > 3 grows sub-linearly from there.
+  return raw > 3.0 ? (3.0 + Math.sqrt(raw - 3.0) * 0.8) : raw;
+}
+
+function critChancePreview() {
+  const base = (typeof SV !== 'undefined' && SV) ? (0.04 * (SV.crit || 0) + (typeof CL !== 'undefined' && CL[SV.cls || 0] ? CL[SV.cls || 0].crit : 0)) : 0;
+  return Math.min(0.75, base + (S.ct || 0));
+}
+
+function boonTotal(b) {
+  if (!S) return '';
+  const pct = v => Math.round((v - 1) * 100);
+  switch (b.id) {
+    case 'dmg':    return 'NOW +' + pct(effDmPreview(S.dm || 1)) + '% DAMAGE';
+    case 'rof':    return 'NOW +' + pct(S.rf || 1) + '% FIRE RATE';
+    case 'spd':    return 'NOW +' + pct(S.ms || 1) + '% MOVE SPEED';
+    case 'arm':    return 'NOW -' + Math.round((1 - (S.ar != null ? S.ar : 1)) * 100) + '% DAMAGE TAKEN';
+    case 'cr':     return 'NOW +' + pct(S.cm || 1) + '% CREDITS';
+    case 'crit':   return 'NOW ' + Math.round(critChancePreview() * 100) + '% CRIT CHANCE';
+    case 'pierce': return 'NOW PIERCE ' + (S.pc || 0);
+    case 'vamp':   return 'NOW ' + (S.ls || 0).toFixed(1) + ' HP PER KILL';
+    case 'magnet': return 'NOW +' + pct(S.mg || 1) + '% PICKUP RADIUS';
+    case 'slow':   return 'NOW -' + Math.min(70, 12 * (S.tw || 0)) + '% ENEMY SPEED';
+    case 'gren':   return 'HOLDING ' + (S.gr || 0) + ' GRENADES';
+    case 'heal':   return 'HEALTH ' + Math.round(P.hp) + '/' + P.mx;
+    case 'shield': return 'SHIELD ' + (S.bc || 0) + '/' + (S.bl || 0) + ' CHARGES';
+    case 'frag':   return S.eb ? 'ACTIVE' : 'INACTIVE';
+    case 'arc':    return 'NOW CHAINS ' + (S.cl || 0);
+    case 'deadeye':return 'NOW +' + Math.round((S.cdmg || 0) * 100) + '% CRIT DAMAGE';
+  }
+  return '';
+}
+
+// Structured list for the in-run HUD chip row.
+function boonHudList() {
+  const out = [];
+  if (!S || !S.boons) return out;
+  for (const id in S.boons) {
+    if (!S.boons[id]) continue;
+    const b = BOONS.find(x => x.id === id);
+    if (b) out.push({ id: b.id, n: b.n, col: b.col, st: S.boons[id], short: b.n.split(' ')[0] });
+  }
+  return out;
+}
+
+// A pick that cannot do anything is a wasted wave reward: COMBAT STIMM at full
+// health and BOMBARDIER with a full pouch are dropped from the offer (but only
+// while something else is still available to offer).
+function boonWouldWaste(b) {
+  if (b.id === 'heal' && typeof P !== 'undefined' && P && P.hp >= P.mx * 0.98) return true;
+  if (b.id === 'gren' && typeof S !== 'undefined' && S && (S.gr || 0) >= 12) return true;
+  return false;
+}
+
 function rollBoonOffer() {
   if (!S) return;
-  const pool = BOONS.filter(b => boonOwned(b.id) < b.max);
+  let pool = BOONS.filter(b => boonOwned(b.id) < b.max);
+  const useful = pool.filter(b => !boonWouldWaste(b));
+  if (useful.length) pool = useful;
   S.boonOffer = [];
   const take = Math.min(3, pool.length);
   const bag = pool.slice();
@@ -91,11 +151,13 @@ function renderBoonBar() {
     + S.boonOffer.map(id => {
       const b = BOONS.find(x => x.id === id);
       if (!b) return '';
-      const lvl = boonOwned(id) + 1;
+      const owned = boonOwned(id), lvl = owned + 1;
+      const total = boonTotal(b);
       return `<button data-boon="${b.id}" style="flex:1;min-width:150px;text-align:left;padding:8px 10px;border-radius:8px;border:1.5px solid ${b.col};background:rgba(0,0,0,.45);color:#f0ece1;cursor:pointer">
-        <b style="display:block;font-size:11.5px;color:${b.col};letter-spacing:.4px">${b.n} &bull; LV${lvl}</b>
-        <span style="font-size:10.5px;opacity:.85">${b.d}</span>
-        <span style="display:block;font-size:9px;opacity:.6;margin-top:2px;text-transform:uppercase">${b.rar}</span>
+        <b style="display:block;font-size:11.5px;color:${b.col};letter-spacing:.4px">${b.n}</b>
+        <span style="display:block;font-size:9px;font-weight:800;letter-spacing:.5px;opacity:.75;margin:1px 0 3px;text-transform:uppercase">${b.rar} &bull; STACK ${lvl}/${b.max}${owned ? ' &bull; OWNED ' + owned : ''}</span>
+        <span style="font-size:10.5px;opacity:.9">${b.d}</span>
+        ${total ? `<span style="display:block;font-size:9.5px;font-weight:700;color:${b.col};opacity:.9;margin-top:4px">${total}</span>` : ''}
       </button>`;
     }).join('')
     + '</div>';
@@ -106,16 +168,9 @@ function renderBoonBar() {
   };
 }
 
-// Compact readout of acquired boons for the in-run HUD
+// Plain-text fallback for the acquired-boon readout.
 function boonHudLine() {
-  if (!S || !S.boons) return '';
-  const parts = [];
-  for (const id in S.boons) {
-    if (!S.boons[id]) continue;
-    const b = BOONS.find(x => x.id === id);
-    if (b) parts.push(b.n.split(' ')[0] + (S.boons[id] > 1 ? ' x' + S.boons[id] : ''));
-  }
-  return parts.join('  ');
+  return boonHudList().map(b => b.short + (b.st > 1 ? ' x' + b.st : '')).join('  ');
 }
 
 /* ================================================================== */

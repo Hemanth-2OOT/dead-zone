@@ -712,7 +712,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .ev-tab, .sk-tab { min-height: 36px !important; }
 
 /* Portrait / narrow phones: single scrolling column */
-@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+/* Portrait / narrow windows stack the hub into one column. This used to also
+   fire on short landscape phones (640x360), which stacked the hub on a device
+   the game is locked to landscape on, so the sector card fell below the fold. */
+@media (orientation: portrait) {
   #p0.pp.on {
     flex-direction: column !important;
     overflow-y: auto !important;
@@ -921,6 +924,179 @@ button:active:not(:disabled) { transform: scale(0.96); }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
+
+/* ===================================================================== */
+/* v2.9.0 - PHONE-FIT LOBBY, LIVE HERO BAND, WEAPON PICKER               */
+/* ===================================================================== */
+
+/* ---- HERO tab: the deployed operator, drawn live -------------------- */
+.hero-band {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border: 1.5px solid rgba(143, 174, 74, 0.32);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(26, 33, 20, 0.96), rgba(11, 14, 9, 0.99));
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+#hero-preview {
+  width: 168px;
+  height: 139px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #0a0d08;
+}
+.hero-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hs-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hs-title b { font-size: 16px; letter-spacing: 0.8px; color: #ffd36b; }
+.hs-badge {
+  font-size: 9px; font-weight: 900; letter-spacing: 1px; padding: 2px 7px; border-radius: 4px;
+  background: rgba(143, 174, 74, 0.22); color: #8fae4a; border: 1px solid rgba(143, 174, 74, 0.4);
+}
+.hs-stats, .hs-skills { display: flex; flex-wrap: wrap; gap: 5px; }
+.hs-chip {
+  display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.4px; padding: 2px 7px; border-radius: 5px; color: #d5d0c2;
+  background: rgba(0, 0, 0, 0.42); border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.hs-chip b { color: #f0ece1; }
+.hs-skin { font-size: 10px; opacity: 0.85; color: #d5d0c2; }
+.hs-skin-lbl { font-size: 8.5px; font-weight: 900; letter-spacing: 0.8px; opacity: 0.55; }
+.hs-btns { display: flex; gap: 6px; }
+.hs-btns button { flex: 1; min-height: 32px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }
+
+.hero-card {
+  display: flex; flex-direction: column; gap: 7px; padding: 9px 11px;
+  border: 1.5px solid #303824; border-radius: 8px; background: rgba(18, 22, 14, 0.95);
+}
+.hero-card.on { border-color: #8fae4a; box-shadow: 0 0 0 1px rgba(143, 174, 74, 0.25); }
+.hc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hc-head b { font-size: 13.5px; letter-spacing: 0.5px; color: #f0ece1; }
+.hero-card.on .hc-head b { color: #ffd36b; }
+.hc-badge {
+  font-size: 8.5px; font-weight: 900; letter-spacing: 0.8px; padding: 2px 6px; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08); color: #888; white-space: nowrap;
+}
+.hc-badge.on { background: rgba(143, 174, 74, 0.22); color: #8fae4a; }
+.hc-mid { display: flex; gap: 10px; align-items: flex-start; }
+.hc-art {
+  width: 64px; height: 44px; object-fit: contain; flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;
+}
+.hc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hc-desc { font-size: 10.5px; opacity: 0.88; line-height: 1.3; color: #d5d0c2; }
+.hc-stats { display: flex; flex-wrap: wrap; gap: 8px; font-size: 9.5px; font-weight: 700; color: #d5d0c2; }
+.hc-stats img { width: 12px; height: 12px; vertical-align: -2px; }
+.hc-skills { display: flex; flex-wrap: wrap; gap: 4px; }
+.hc-sk {
+  display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06); font-size: 9px; color: #ece7d5;
+}
+.hc-sk img { width: 13px; height: 13px; }
+.hero-card button { width: 100%; min-height: 32px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; }
+
+/* ---- Owned-weapon picker (in-run) ---------------------------------- */
+.gp-sheet { max-width: 760px; width: 100%; max-height: 94vh; }
+.gp-body { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; touch-action: pan-y; }
+.gp-hint { font-size: 9.5px; font-weight: 800; letter-spacing: 0.8px; opacity: 0.6; margin: 0; }
+.gp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.gun-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
+  padding: 8px 9px; border-radius: 9px; background: rgba(0, 0, 0, 0.42);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-top: 3px solid var(--tc, #8fae4a);
+  transition: border-color 0.14s, background 0.14s, transform 0.12s;
+}
+.gun-card:active { transform: scale(0.98); }
+.gun-card.on { border-color: var(--tc, #8fae4a); background: rgba(143, 174, 74, 0.13); }
+.gc-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.gc-top b { font-size: 11.5px; letter-spacing: 0.4px; color: #f0ece1; }
+.gc-tier { font-style: normal; font-size: 8px; font-weight: 900; letter-spacing: 0.6px; color: var(--tc, #8fae4a); }
+.gc-art {
+  display: flex; align-items: center; justify-content: center; height: 46px;
+  background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px;
+}
+.gc-art img { width: 96px; height: 30px; object-fit: contain; }
+.gc-stats { display: flex; gap: 8px; font-size: 9px; font-weight: 700; color: #d5d0c2; }
+.gc-stats b { color: #ffd36b; }
+.gc-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.gc-tags i {
+  font-style: normal; font-size: 7.5px; font-weight: 900; letter-spacing: 0.4px;
+  padding: 1px 4px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); color: #cfcabb;
+}
+.gc-foot { font-size: 8px; font-weight: 800; letter-spacing: 0.5px; opacity: 0.62; text-transform: uppercase; }
+.gp-foot { padding: 8px 14px 12px; flex-shrink: 0; }
+.gp-foot .go { width: 100%; min-height: 42px; }
+
+/* ---- Short landscape phones: fit the whole PLAY hub, no scrolling ---- */
+/* The game is landscape-locked, so this is the layout that matters. Every
+   block in the hub is sized so the sector card is on screen without a scroll;
+   only genuinely long lists (events, skins, skills, records) still scroll. */
+@media (max-height: 520px) and (orientation: landscape) {
+  #top { padding: 3px 10px !important; }
+  #lv { gap: 7px; }
+  #lvn { width: 26px !important; height: 26px !important; font-size: 12px !important; }
+  .bar { width: clamp(70px, 18vw, 110px) !important; height: 6px !important; }
+  #crd { padding: 2px 9px !important; font-size: 10.5px !important; }
+
+  #p0.pp.on { gap: 10px !important; padding: 4px 12px 4px !important; }
+  .l-left { gap: 4px !important; }
+  .logo-wrap { flex-direction: row !important; align-items: baseline !important; gap: 8px; flex-wrap: wrap; }
+  .logo { font-size: 21px !important; }
+  .tagline { font-size: 7.5px !important; letter-spacing: 0.4px !important; }
+  #best-badge { padding: 2px 7px !important; font-size: 9.5px !important; }
+  #play.go { min-height: 38px !important; font-size: 15px !important; }
+  #daily { min-height: 38px !important; font-size: 9px !important; padding: 3px 8px !important; }
+  .next-goal { padding: 4px 8px !important; }
+  .ng-row { font-size: 9.5px !important; }
+  .ng-lbl { font-size: 8.5px !important; }
+  .ng-val { font-size: 9px !important; }
+  .ng-bar { height: 5px !important; margin-top: 3px !important; }
+  .ng-hint { font-size: 8px !important; margin-top: 2px !important; }
+  /* Keep NEXT GOAL on one line: at 640px wide the goal name used to wrap and
+     push the sector card below the fold. */
+  #next-goal { min-width: 0 !important; }
+  .ng-row { flex-wrap: nowrap !important; min-width: 0; }
+  .ng-row > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+  .ng-lbl, .ng-val { flex: 0 0 auto; }
+  #hub-sector { padding: 5px 9px !important; gap: 2px !important; }
+  #zone-name { font-size: 11.5px !important; }
+  #mapd { font-size: 9px !important; line-height: 1.2 !important; }
+  /* Enemy tags live in the sector window; the hub keeps threat, level,
+     bounty and ascension instead of repeating them here. */
+  #zone-enemy-icons { display: none !important; }
+  #zone-preview { height: 148px !important; max-height: 148px !important; }
+  #nav button { min-height: 44px !important; font-size: 9px !important; min-width: 48px !important; }
+  #nav button .nav-ic { width: 18px !important; height: 18px !important; }
+
+  .hero-band { padding: 8px 10px; gap: 10px; }
+  #hero-preview { width: 132px; height: 109px; }
+  .hs-title b { font-size: 14px; }
+}
+
+/* Portrait phones: the band stacks above the cards. */
+@media (orientation: portrait) {
+  .hero-band { flex-direction: column; align-items: stretch; }
+  #hero-preview { width: 100%; height: auto; aspect-ratio: 252 / 208; }
+  .gp-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+/* Very small landscape phones (640x360 and under): drop the NEXT GOAL flavour
+   line and tighten the sector card so the hub still fits without scrolling. */
+@media (max-height: 400px) and (max-width: 860px) and (orientation: landscape) {
+  .ng-hint { display: none !important; }
+  /* Tighten the stack: at 360px tall the sector card used to clip by ~20px. */
+  .l-left { gap: 3px !important; }
+  #best-badge { margin-top: 0 !important; }
+  #hub-sector { padding: 3px 8px !important; gap: 1px !important; }
+  #nav button { min-height: 42px !important; }
+}
+
 </style>
 </head>
 <body>
@@ -945,9 +1121,26 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <h2 style="color:#8fae4a;margin:0">TACTICAL BOON DRAFT</h2>
     </div>
     <div class="modal-body">
-      <p style="font-size:11.5px;opacity:.8;margin:0 0 4px 0;letter-spacing:.6px">CHOOSE ONE FIELD MODIFICATION FOR THIS RUN</p>
+      <p style="font-size:11.5px;opacity:.8;margin:0 0 6px 0;letter-spacing:.6px">CHOOSE ONE FIELD MODIFICATION &bull; <b style="color:#ffd36b">RUN-ONLY, RESETS ON NEXT DEPLOY</b></p>
       <div id="boonbar"></div>
     </div>
+  </div>
+</div>
+
+<!-- OWNED-WEAPON PICKER. Opens from the weapon card on the HUD. Shows every gun
+     the account owns with a rendered preview, its numbers and its traits, so the
+     player picks a gun instead of cycling through a strip of chips. -->
+<div class="ov" id="gunpick">
+  <div class="modal-sheet gp-sheet">
+    <div class="modal-head">
+      <h2 style="color:#ffd36b;margin:0">SELECT WEAPON</h2>
+      <button class="modal-x" onclick="closeGunPicker()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body gp-body">
+      <p class="gp-hint">TAP A WEAPON TO EQUIP &bull; LOADOUT CARRIES FOR THE WHOLE RUN</p>
+      <div id="gunpick-grid" class="gp-grid"></div>
+    </div>
+    <div class="gp-foot"><button class="go" onclick="closeGunPicker()">BACK TO FIGHT</button></div>
   </div>
 </div>
 
@@ -972,7 +1165,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.8.1</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.0</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -1074,8 +1267,28 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div id="skin-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
     </div>
 
-    <!-- TAB 4: HERO / CLASSES -->
-    <div class="pp" id="pc"><div id="cls" class="grid"></div></div>
+    <!-- TAB 4: HERO / CLASSES. The band on top is the live operator: it is
+         rendered from the same body/gun renderer the arena uses, with the
+         equipped operative skin and suit tint, so a skin change shows here. -->
+    <div class="pp" id="pc">
+      <div class="hero-band">
+        <canvas id="hero-preview" width="252" height="208"></canvas>
+        <div class="hero-side">
+          <div class="hs-title">
+            <b id="hero-name">INFANTRY</b>
+            <span id="hero-state" class="hs-badge">DEPLOYED</span>
+          </div>
+          <div id="hero-stats" class="hs-stats"></div>
+          <div id="hero-skills" class="hs-skills"></div>
+          <div id="hero-skin" class="hs-skin"></div>
+          <div class="hs-btns">
+            <button onclick="tab(2)">CHANGE SKIN</button>
+            <button onclick="tab(4)">SKILL TREE</button>
+          </div>
+        </div>
+      </div>
+      <div id="cls" class="grid"></div>
+    </div>
 
     <!-- TAB 5: SKILLS -->
     <div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div>
@@ -2139,8 +2352,11 @@ function threatStars(diff) {
 }
 
 const GI = {};
+// The weapon sprite reads SV.eqSkin[i], so the cache key has to include it or a
+// gun keeps showing the finish it had when the icon was first drawn.
 function gunIcon(i) {
-  if (GI[i]) return GI[i];
+  const key = i + '_' + ((typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[i]) ? SV.eqSkin[i] : '-');
+  if (GI[key]) return GI[key];
   const cv = document.createElement('canvas'); cv.width = 160; cv.height = 48;
   const cx = cv.getContext('2d');
   const oldX = X; X = cx;
@@ -2148,7 +2364,11 @@ function gunIcon(i) {
   gun(i, 0);
   X.restore();
   X = oldX;
-  return GI[i] = cv.toDataURL();
+  return GI[key] = cv.toDataURL();
+}
+
+function resetGunIconCache() {
+  for (const key in GI) delete GI[key];
 }
 
 const PI_CACHE = {};
@@ -2373,7 +2593,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v2.8.1 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.9.0 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -3057,7 +3277,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v2.8.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.9.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -3417,7 +3637,16 @@ function filterSkins(f){
   renderSkinsUI();
 }
 
+// Anything that caches a body or gun sprite has to be dropped when the player
+// changes what they are wearing, or the old finish keeps showing up.
+function invalidateLookCaches() {
+  if (typeof resetCharacterIconCache === 'function') resetCharacterIconCache();
+  if (typeof resetGunIconCache === 'function') resetGunIconCache();
+  if (typeof resetSkinIconCache === 'function') resetSkinIconCache();
+}
+
 const SKI_CACHE = {};
+function resetSkinIconCache() { for (const k in SKI_CACHE) delete SKI_CACHE[k]; }
 function skinIcon(skinKey) {
   if (SKI_CACHE[skinKey]) return SKI_CACHE[skinKey];
   const sk = SKINS[skinKey];
@@ -3702,6 +3931,7 @@ function renderSkinsUI(){
 
 function unequipOpSkinDirect(){
   SV.eqOpSkin = null;
+  invalidateLookCaches();
   sv(); lobby();
 }
 
@@ -3715,6 +3945,7 @@ function equipSkinDirect(skinId){
   }
   SV.rev = (SV.rev || 0) + 1;
   SV.ts = Date.now();
+  invalidateLookCaches();
   sv();
   snd(400, .15, 'sine', .05, 1.5);
   renderSkinsUI();
@@ -4815,7 +5046,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v2.8.1 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.9.0 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -5382,8 +5613,12 @@ function startReload() {
 }
 
 const CI_CACHE = {};
+// Keyed on the class AND everything the body renderer reads (equipped operative
+// skin, survivor suit tint). Keying on the class alone meant a card kept showing
+// the suit you had on when it was first drawn, so equipping an operative skin
+// never changed the HERO tab.
 function clsIcon(ci, wi = 0) {
-  const k = ci + '_' + wi;
+  const k = ci + '_' + wi + '_' + (SV && SV.eqOpSkin ? SV.eqOpSkin : '-') + '_' + (typeof PC !== 'undefined' ? PC : '');
   if (CI_CACHE[k]) return CI_CACHE[k];
   const cv = document.createElement('canvas');
   cv.width = 220;
@@ -5402,10 +5637,16 @@ function clsIcon(ci, wi = 0) {
   return CI_CACHE[k] = cv.toDataURL();
 }
 
+// Drop the cached body sprites whenever the look changes. The cache key already
+// separates looks; this just stops it growing without bound over a long session.
+function resetCharacterIconCache() {
+  for (const key in CI_CACHE) delete CI_CACHE[key];
+}
+
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v2.8.1 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.9.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -6374,7 +6615,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v2.8.1 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v2.9.0 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -6752,7 +6993,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v2.8.1 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v2.9.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -7304,7 +7545,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v2.8.1 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v2.9.0 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -8524,7 +8765,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v2.8.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v2.9.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -8910,7 +9151,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v2.8.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.9.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -8966,8 +9207,9 @@ const BT = [
   },
   { n: 'GREN', k: 'gren', p: () => { const j = jPos('r'); return [j[0] - 74, j[1] + 16]; }, f: () => skill('gren') },
   { n: 'II', ar: 1, p: () => [W - 36, 32], f: () => pause() },
-  { n: '<', ar: 1, p: () => [W / 2 - 68, H - 25], f: () => swap(-1) },
-  { n: '>', ar: 1, p: () => [W / 2 + 68, H - 25], f: () => swap(1) }
+  // Reload sits beside the weapon card. Swapping is done in the weapon picker
+  // now: two tiny arrows flanking the card were easy to hit while dragging.
+  { n: '\u21bb', ar: 1, p: () => [weaponHudRect().x + weaponHudRect().w + 34, H - 29], f: () => { if (run) startReload(); } }
 ];
 
 function txt(x, y, s, c, b) {
@@ -9096,7 +9338,7 @@ function init() {
     evTargetWave: evTw, evWon: false,
     cmb: 0, cmt: 0, cmbMax: 0, puPity: 0, flawless: 0, flawlessBest: 0, hitWave: false, adr: 0, mgTime: 0,
     clearedWave: -1,
-    boons: {}, boonOffer: [], waveTimes: {}, deal: null, eliteKills: 0, bossKills: 0, ascMul: 1
+    boons: {}, boonOffer: [], waveTimes: {}, deal: null, eliteKills: 0, bossKills: 0, ascMul: 1, gp: 0
   };
   if (typeof fxReset === 'function') fxReset();
 
@@ -9198,6 +9440,11 @@ function startWave() {
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
   run = 1;
+  // Banked between-wave heal lands here, after the boon draft has been resolved.
+  if (S.waveHeal > 0 && P && P.hp > 0) {
+    P.hp = Math.min(P.mx, P.hp + S.waveHeal);
+    S.waveHeal = 0;
+  }
   S.wave++;
   S.bn = 2;
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
@@ -10151,6 +10398,7 @@ function update(dt) {
   S.dd -= dt;
   S.fz -= dt;
   S.sh2 -= dt;
+  if (S.bl2 > 0) S.bl2 -= dt; // Bloodlust fire-rate window used to latch on forever
   if (S.nukeFlash > 0) S.nukeFlash -= dt;
   if (S.mgTime > 0) S.mgTime -= dt;
   if (P.cloak > 0) P.cloak -= dt;
@@ -10329,7 +10577,7 @@ function update(dt) {
     const damage = (T.dm != null ? T.dm : (T.dmg != null ? T.dmg : 8)) * (z.buffT > 0 ? 1.3 : 1);
     const a = Math.atan2(P.y - z.y, P.x - z.x);
     if (z.fz > 0) z.fz -= dt;
-    const sl = (z.buffT > 0 ? 1.35 : 1) * (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - 0.12 * (S.tw || 0)) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
+    const sl = (z.buffT > 0 ? 1.35 : 1) * (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - Math.min(0.7, 0.12 * (S.tw || 0))) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
 
     const decay = Math.exp(-dt * 9);
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
@@ -10658,69 +10906,131 @@ function update(dt) {
   }
 }
 
-// Weapon strip. Shared by the HUD renderer and the touch handler so a tap
-// always lands on the chip it looks like it should. Shows a sliding window of
-// owned guns, pinned top-centre (clear of both thumb zones).
-function weaponBarLayout() {
-  const chips = [];
-  const owned = [];
-  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
-  if (!owned.length) return chips;
-
-  // Sliding window around the equipped gun. Long-serving accounts own 20+ guns,
-  // and one 22-chip row of 20px cells was unreadable and (positioned at the
-  // bottom centre) sat under the thumbs, so drags kept swapping weapons. A short
-  // row pinned to the top of the screen fixes both.
-  const MAXV = Math.min(7, owned.length);
-  let cur = owned.indexOf(P.cur);
-  if (cur < 0) cur = 0;
-  const lo = Math.max(0, Math.min(cur - Math.floor(MAXV / 2), owned.length - MAXV));
-  const visible = owned.slice(lo, lo + MAXV);
-
-  const n = visible.length, gap = 4;
-  const leftBound = 76, rightBound = Math.max(leftBound + 120, W - 196);
-  const avail = rightBound - leftBound;
-  const cw = Math.max(30, Math.min(58, Math.floor((avail - gap * (n - 1)) / n)));
-  const totalW = cw * n + gap * (n - 1);
-  const x0 = Math.round(leftBound + Math.max(0, (avail - totalW) / 2));
-  const y = 8, h = 20;
-  for (let k = 0; k < n; k++) {
-    chips.push({ i: visible[k], on: true, x: x0 + k * (cw + gap), y, w: cw, h });
-  }
-  chips.scrollHint = { lo, more: owned.length > MAXV, up: lo > 0, down: lo + MAXV < owned.length };
-  return chips;
+// Weapon HUD. The old sliding chip row is gone: on a phone the chips sat under
+// the thumbs, so drags kept swapping guns, and a 20px cell cannot show what a
+// gun is anyway. The bottom-centre card now shows the equipped gun and, when
+// tapped, opens a preview sheet of every gun the account owns.
+function weaponHudRect() {
+  const w = Math.min(132, Math.max(96, W * 0.16));
+  return { x: Math.round(W / 2 - w / 2 - 30), y: H - 52, w: Math.round(w), h: 46 };
 }
 
-function drawWeaponBar() {
+// True when the tap landed on the weapon card (the picker trigger).
+function weaponHudHit(x, y) {
+  const r = weaponHudRect();
+  return x >= r.x - 4 && x <= r.x + r.w + 4 && y >= r.y - 6 && y <= r.y + r.h + 6;
+}
+
+function drawWeaponHud() {
   if (!P || !P.w) return;
-  const chips = weaponBarLayout();
-  if (!chips.length) return;
-  X.textAlign = 'center'; X.textBaseline = 'middle';
-  for (const c of chips) {
-    const w = WEAP[c.i] || WEAP[0];
-    const cur = P.cur === c.i;
-    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
-    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 4);
-    X.fillStyle = cur ? tcol : 'rgba(14,18,12,0.82)';
-    X.fill();
-    X.strokeStyle = cur ? '#ffffff' : tcol + '88';
-    X.lineWidth = cur ? 1.6 : 1;
-    X.stroke();
-    X.fillStyle = cur ? '#0b0f08' : '#e8e4cf';
-    const label = (w.n || 'GUN').replace(/[^A-Za-z0-9]/g, '').slice(0, c.w >= 44 ? 3 : 2).toUpperCase();
-    X.font = '900 ' + (c.w >= 44 ? 10 : 9) + 'px Arial';
-    X.fillText(label || '?', c.x + c.w / 2, c.y + c.h / 2 + 0.5);
-  }
-  const hint = chips.scrollHint;
-  if (hint && hint.more) {
-    const first = chips[0], last = chips[chips.length - 1];
-    X.font = '900 11px Arial';
-    X.fillStyle = hint.up ? '#ffd36b' : 'rgba(255,255,255,0.18)';
-    X.fillText('\u2039', first.x - 9, first.y + first.h / 2);
-    X.fillStyle = hint.down ? '#ffd36b' : 'rgba(255,255,255,0.18)';
-    X.fillText('\u203a', last.x + last.w + 9, last.y + last.h / 2);
-  }
+  const r = weaponHudRect();
+  const wDef = WEAP[P.cur] || WEAP[0];
+  const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[wDef.tier]) ? TIER_COLORS[wDef.tier] : '#8fae4a';
+  X.save();
+  X.beginPath(); X.roundRect(r.x, r.y, r.w, r.h, 7);
+  X.fillStyle = 'rgba(16,20,15,0.88)'; X.fill();
+  X.strokeStyle = P.reloading ? '#ffd36b' : tcol + 'cc'; X.lineWidth = 1.6; X.stroke();
+  // Tier pip down the left edge so rarity reads at a glance
+  X.beginPath(); X.roundRect(r.x + 2, r.y + 3, 3, r.h - 6, 2);
+  X.fillStyle = tcol; X.fill();
+
+  X.save();
+  X.translate(r.x + 14, r.y + 15);
+  X.scale(0.56, 0.56);
+  if (typeof gun === 'function') gun(P.cur, 0);
+  X.restore();
+
+  const owned = (P.w || []).filter(Boolean).length;
+  X.textAlign = 'left'; X.textBaseline = 'middle';
+  X.fillStyle = tcol; X.font = '900 11px Arial';
+  X.fillText((wDef.n || 'GUN').toUpperCase(), r.x + 42, r.y + 14);
+  X.fillStyle = 'rgba(213,208,194,0.72)'; X.font = '700 8.5px Arial';
+  X.fillText('DMG ' + Math.round(wDef.d), r.x + 42, r.y + 27);
+  X.fillText('MAG ' + (wDef.mag || 12), r.x + 42 + 46, r.y + 27);
+
+  // Ammo, and the swap affordance
+  X.textAlign = 'right'; X.textBaseline = 'alphabetic';
+  const ammo = (P.ammo != null ? P.ammo : 12);
+  X.fillStyle = P.reloading ? '#ffd36b' : (ammo <= 3 ? '#ff5a3a' : '#e8e4cf');
+  X.font = '900 13px Arial';
+  X.fillText(P.reloading ? 'RLD' : String(ammo), r.x + r.w - 8, r.y + 22);
+  X.font = '700 8px Arial'; X.fillStyle = 'rgba(255,255,255,0.5)';
+  X.fillText('TAP \u25b8 ' + owned, r.x + r.w - 8, r.y + 38);
+  X.restore();
   X.textBaseline = 'alphabetic';
+}
+
+/* ---- Owned-weapon picker -------------------------------------------- */
+// Opens from the weapon card. The run is held while it is up so the player is
+// not being eaten while they read, and resumes exactly as it was on close.
+function openGunPicker() {
+  if (!S || !P || P.hp <= 0) return false;
+  if (S.po || S.bd) return false;
+  const el = document.getElementById('gunpick');
+  if (!el) return false;
+  renderGunPicker();
+  el.classList.add('on');
+  S.gp = 1;
+  run = 0;
+  if (typeof snd === 'function') snd(520, 0.06, 'square', 0.03, 1.1);
+  return true;
+}
+
+function closeGunPicker() {
+  const el = document.getElementById('gunpick');
+  if (el) el.classList.remove('on');
+  if (S) S.gp = 0;
+  if (P && P.hp > 0 && S && !S.po && !S.bd && !pendingNextWave) run = 1;
+}
+
+function pickWeapon(i) {
+  const ok = selectWeapon(i);
+  if (ok === false && P && P.cur === i) closeGunPicker();
+  else if (ok) closeGunPicker();
+  else renderGunPicker();
+}
+
+function gunTraitTags(w) {
+  const tags = [];
+  if (w.p > 1) tags.push(w.p + ' PELLETS');
+  if (w.pr) tags.push('PIERCE ' + w.pr);
+  if (w.cl) tags.push('CHAIN ' + w.cl);
+  if (w.ex) tags.push('EXPLOSIVE');
+  if (w.fz) tags.push('CRYO');
+  if (w.flm) tags.push('FLAME');
+  if (w.ls) tags.push('LIFESTEAL');
+  if (w.rng >= 800) tags.push('LONG RANGE');
+  else if (w.rng <= 120) tags.push('POINT BLANK');
+  return tags;
+}
+
+function renderGunPicker() {
+  const host = document.getElementById('gunpick-grid');
+  if (!host || !P) return;
+  const owned = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
+  host.innerHTML = owned.map(i => {
+    const w = WEAP[i] || WEAP[0];
+    const cur = P.cur === i;
+    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
+    const mast = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
+    const skKey = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[i]) ? SV.eqSkin[i] : null;
+    const sk = (skKey && typeof SKINS !== 'undefined' && SKINS[skKey]) ? SKINS[skKey] : null;
+    const rps = w.r > 0 ? Math.round(60 / w.r) : 0;
+    const tags = gunTraitTags(w);
+    return `<button data-gun="${i}" class="gun-card${cur ? ' on' : ''}" style="--tc:${tcol}">
+      <span class="gc-top"><b>${w.n}</b><i class="gc-tier">${w.tier}</i></span>
+      <span class="gc-art"><img src="${typeof gunIcon === 'function' ? gunIcon(i) : ''}" alt=""></span>
+      <span class="gc-stats"><span>DMG <b>${Math.round(w.d)}</b></span><span>RPM <b>${rps}</b></span><span>MAG <b>${w.mag || 12}</b></span></span>
+      <span class="gc-tags">${tags.map(t => `<i>${t}</i>`).join('')}</span>
+      <span class="gc-foot">MASTERY LV${mast}${sk ? ' &bull; ' + sk.name : ''}${cur ? ' &bull; EQUIPPED' : ''}</span>
+    </button>`;
+  }).join('') || '<p style="opacity:.7;font-size:12px">No weapons unlocked yet.</p>';
+  host.onclick = e => {
+    const b = e.target.closest('button[data-gun]');
+    if (!b) return;
+    pickWeapon(parseInt(b.dataset.gun, 10));
+  };
 }
 
 // MAIN 2D RENDERING PIPELINE
@@ -11406,7 +11716,7 @@ function renderHUD() {
     // Shield charges, if any
     if (S && S.bc > 0) {
       X.fillStyle = '#eab308'; X.font = '900 9.5px Arial';
-      X.fillText('SHIELD x' + S.bc, hpx, hpy + hph + 22);
+      X.fillText('SHIELD ' + S.bc + '/' + Math.max(S.bl || 0, S.bc), hpx, hpy + hph + 22);
     }
   }
 
@@ -11495,26 +11805,9 @@ function renderHUD() {
   // Combo multiplier
   if (typeof renderDirectorOverlay === 'function') renderDirectorOverlay(W, H);
 
-  // Active weapon card at bottom center
-  X.fillStyle = '#1c211bdd';
-  X.beginPath(); X.roundRect(W / 2 - 58, H - 48, 116, 42, 6); X.fill();
-  X.strokeStyle = P.reloading ? '#ffd36b' : '#3d4f34'; X.lineWidth = 1.5;
-  X.stroke();
-
-  // Draw equipped weapon sprite
-  X.save();
-  X.translate(W / 2 - 14, H - 24);
-  X.scale(0.68, 0.68);
-  if (typeof gun === 'function') gun(P.cur, 0);
-  X.restore();
-
-  X.textAlign = 'center'; X.fillStyle = WC[P.cur] || '#fff'; X.font = 'bold 11px Arial';
-  X.fillText((WEAP[P.cur] || WEAP[0]).n.toUpperCase(), W / 2, H - 35);
-  const ammoStr = P.reloading ? 'RELOADING' : ((P.ammo != null ? P.ammo : 12) + ' / ' + (WEAP[P.cur].mag || 12));
-  X.fillStyle = P.reloading ? '#ffd36b' : (P.ammo <= 3 ? '#ff5a3a' : '#d5d0c2');
-  X.font = 'bold 10px Arial';
-  X.fillText(ammoStr, W / 2, H - 9);
-  drawWeaponBar();
+  // Equipped weapon card. Tapping it opens the owned-weapon picker.
+  drawWeaponHud();
+  X.textAlign = 'left';
 
   // Screen-edge damage vignette
   if (HURT_VIGNETTE_TIMER > 0) {
@@ -11571,13 +11864,41 @@ function renderHUD() {
     }
   }
 
-  // Acquired boons from this run's draft picks
-  if (S && typeof boonHudLine === 'function') {
-    const bl = boonHudLine();
-    if (bl) {
-      X.textAlign = 'right'; X.textBaseline = 'alphabetic';
-      X.fillStyle = '#8fae4a'; X.font = '900 9px Arial';
-      X.fillText(bl, W - 50, 80);
+  // Run boons. These used to be a 9px green text string under the perk icons,
+  // which was unreadable on a phone and made the draft feel like it did nothing.
+  // They now get the same chip treatment as perks, coloured and stack-counted.
+  if (S && typeof boonHudList === 'function') {
+    const list = boonHudList();
+    if (list.length) {
+      const bw = 18, gap = 2, cap = 12;
+      const shown = list.slice(0, cap);
+      const extra = list.length - shown.length;
+      let sx0 = W - 50 - (shown.length + (extra > 0 ? 1 : 0)) * (bw + gap);
+      const ty = 84;
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      shown.forEach((b, i) => {
+        const x = sx0 + i * (bw + gap);
+        X.fillStyle = 'rgba(10,12,8,0.74)';
+        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
+        X.strokeStyle = b.col; X.lineWidth = 1.4; X.stroke();
+        X.fillStyle = b.col; X.font = '900 8.5px Arial';
+        X.fillText(b.short.slice(0, 3).toUpperCase(), x + bw / 2, ty);
+        if (b.st > 1) {
+          X.fillStyle = 'rgba(8,10,6,0.9)';
+          X.beginPath(); X.arc(x + bw - 3, ty + 6, 6, 0, 6.28); X.fill();
+          X.fillStyle = '#fff'; X.font = '900 8px Arial';
+          X.fillText(String(b.st), x + bw - 3, ty + 6.2);
+        }
+      });
+      if (extra > 0) {
+        const x = sx0 + shown.length * (bw + gap);
+        X.fillStyle = 'rgba(10,12,8,0.74)';
+        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
+        X.strokeStyle = 'rgba(255,255,255,0.25)'; X.lineWidth = 1.2; X.stroke();
+        X.fillStyle = '#d5d0c2'; X.font = '900 8.5px Arial';
+        X.fillText('+' + extra, x + bw / 2, ty);
+      }
+      X.textAlign = 'left'; X.textBaseline = 'alphabetic';
     }
   }
 
@@ -11707,7 +12028,7 @@ function loop(t) {
 
   // Between-wave beat. update() does not run while run is 0, so the countdown
   // has to live here; the perk draft holds it off until the player has chosen.
-  if (!run && pendingNextWave && S && !S.po && !S.bd && P && P.hp > 0) {
+  if (!run && pendingNextWave && S && !S.po && !S.bd && !S.gp && P && P.hp > 0) {
     WAVE_CLEAR_T -= dt;
     if (WAVE_CLEAR_T <= 0) startWave();
   }
@@ -11734,7 +12055,10 @@ function endWave() {
   }
 
   const healAmt = (S && S.isEvent && S.evDef && S.evDef.id === 'last_stand') ? 6 : 20;
-  P.hp = Math.min(P.mx, P.hp + healAmt);
+  // Defer the clear heal to the next wave. Healing here made COMBAT STIMM look
+  // like a wasted offer (the player was already topped up before the draft
+  // rolled), so the boon draft never showed the heal when it was needed.
+  S.waveHeal = (S.waveHeal || 0) + healAmt;
 
   // Retention hooks: ghost pace, the per-wave boon draft and a rotating supply deal
   if (typeof recordWavePace === 'function') recordWavePace();
@@ -11777,18 +12101,21 @@ function rebuild() {
 
 
 function begin() {
-  ['start', 'over', 'pause', 'perk', 'boondraft'].forEach(i => {
+  ['start', 'over', 'pause', 'perk', 'boondraft', 'gunpick'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
   if (typeof clearEventContext === 'function') clearEventContext();
   init();
+  if (S) S.gp = 0;
   if (typeof applySV === 'function') applySV();
   startWave();
 }
 
 function tch(e) {
   e.preventDefault();
+  // The picker is a DOM sheet over the canvas; ignore the world underneath.
+  if (S && S.gp) return;
   TCH = 1;
   for (const t of e.changedTouches) {
     if (e.type === 'touchstart') {
@@ -11797,18 +12124,9 @@ function tch(e) {
         return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38);
       });
       if (bi >= 0) { if (run) BT[bi].f(); continue; }
-      // Weapon strip chips first: they sit just above the reload/swap zones.
-      if (run && P && P.w) {
-        let hit = null;
-        for (const c of weaponBarLayout()) {
-          if (t.clientX >= c.x - 2 && t.clientX <= c.x + c.w + 2 && t.clientY >= c.y - 5 && t.clientY <= c.y + c.h + 5) { hit = c; break; }
-        }
-        if (hit) { selectWeapon(hit.i); continue; }
-      }
-      if (run && t.clientY > H - 65 && t.clientY < H - 5) {
-        if (Math.abs(t.clientX - W / 2) < 40) { startReload(); continue; }
-        if (Math.abs(t.clientX - W / 2) < 75) { swap(t.clientX > W / 2 ? 1 : -1); continue; }
-      }
+      // The weapon card opens the picker. Nothing else down here switches guns
+      // any more, so a stray thumb drag can never change the equipped weapon.
+      if (run && P && weaponHudHit(t.clientX, t.clientY)) { openGunPicker(); continue; }
       const k = t.clientX < W / 2 ? 'l' : 'r';
       if (!J[k] && t.clientY > H * 0.25) {
         const [bx, by] = jPos(k);
@@ -11963,7 +12281,7 @@ function drawPlayerEntity() {
 }
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v2.8.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.9.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -12392,7 +12710,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v2.8.1 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.9.0 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -12409,18 +12727,18 @@ const BOONS = [
   { id: 'dmg',  n: 'OVERSIZED ROUNDS', d: '+12% weapon damage',            col: '#ff5a3a', rar: 'common', max: 5, ap() { S.dm = (S.dm || 1) * 1.12; } },
   { id: 'rof',  n: 'HAIR TRIGGER',     d: '+8% fire rate',                 col: '#ffd36b', rar: 'common', max: 5, ap() { S.rf = (S.rf || 1) * 1.08; } },
   { id: 'spd',  n: 'LIGHT BOOTS',      d: '+7% move speed',                col: '#5ac8e8', rar: 'common', max: 4, ap() { S.ms = (S.ms || 1) * 1.07; } },
-  { id: 'arm',  n: 'PLATE CARRIER',    d: '-6% damage taken',              col: '#94a3b8', rar: 'common', max: 4, ap() { S.ar = Math.max(0.4, (S.ar != null ? S.ar : 1) * 0.94); } },
+  { id: 'arm',  n: 'PLATE CARRIER',    d: '-6% damage taken per stack',     col: '#94a3b8', rar: 'common', max: 4, ap() { S.ar = Math.max(0.4, (S.ar != null ? S.ar : 1) * 0.94); } },
   { id: 'cr',   n: 'SCRAP PERMIT',     d: '+15% credits earned',           col: '#ffd36b', rar: 'common', max: 4, ap() { S.cm = (S.cm || 1) * 1.15; } },
   { id: 'crit', n: 'HOLLOW POINTS',    d: '+5% crit chance',               col: '#fb923c', rar: 'rare',   max: 5, ap() { S.ct = (S.ct || 0) + 0.05; } },
   { id: 'pierce', n: 'PIERCING SLUGS', d: 'Bullets pierce +1 target',      col: '#e2e8f0', rar: 'rare',   max: 3, ap() { S.pc = (S.pc || 0) + 1; } },
   { id: 'vamp', n: 'VAMPIRIC EDGE',    d: 'Heal 0.6 HP per kill',          col: '#f43f5e', rar: 'rare',   max: 3, ap() { S.ls = (S.ls || 0) + 0.6; } },
   { id: 'magnet', n: 'MAG COIL',       d: '+35% pickup radius',            col: '#c084fc', rar: 'rare',   max: 3, ap() { S.mg = (S.mg || 1) * 1.35; } },
-  { id: 'slow', n: 'GRAVITY WELL',     d: 'Enemies move 8% slower',        col: '#a855f7', rar: 'rare',   max: 4, ap() { S.tw = (S.tw || 0) + 1; } },
+  { id: 'slow', n: 'GRAVITY WELL',     d: 'Enemies move 12% slower per stack (max -70%)', col: '#a855f7', rar: 'rare', max: 4, ap() { S.tw = (S.tw || 0) + 1; } },
   { id: 'gren', n: 'BOMBARDIER',       d: '+3 grenades immediately',       col: '#fb923c', rar: 'common', max: 3, ap() { S.gr = (S.gr || 0) + 3; } },
   { id: 'heal', n: 'COMBAT STIMM',     d: 'Heal 30% max health',           col: '#8fae4a', rar: 'common', max: 4, ap() { if (typeof healP === 'function') healP(P.mx * 0.3); } },
-  { id: 'shield', n: 'PHASE PLATING',  d: '+1 shield charge',              col: '#eab308', rar: 'rare',   max: 3, ap() { S.bl = (S.bl || 0) + 1; S.bc = (S.bc || 1) + 1; } },
-  { id: 'frag', n: 'FRAG TIPS',        d: 'Rounds explode on impact',      col: '#f97316', rar: 'epic',   max: 2, ap() { S.eb = (S.eb || 0) + 1; } },
-  { id: 'arc',  n: 'ARC CONDUCTOR',    d: 'Rounds chain to a nearby enemy', col: '#38bdf8', rar: 'epic',  max: 2, ap() { S.cl = (S.cl || 0) + 1; } },
+  { id: 'shield', n: 'PHASE PLATING',  d: '+1 shield charge',              col: '#eab308', rar: 'rare',   max: 3, ap() { S.bl = (S.bl || 0) + 1; S.bc = Math.min(S.bl, (S.bc || 0) + 1); } },
+  { id: 'frag', n: 'FRAG TIPS',        d: 'Rounds explode on impact',      col: '#f97316', rar: 'epic',   max: 1, ap() { S.eb = (S.eb || 0) + 1; } },
+  { id: 'arc',  n: 'ARC CONDUCTOR',    d: 'Rounds chain to +1 enemy',       col: '#38bdf8', rar: 'epic',   max: 2, ap() { S.cl = (S.cl || 0) + 1; } },
   { id: 'deadeye', n: 'DEADEYE',       d: '+35% critical damage',          col: '#ef4444', rar: 'epic',   max: 3, ap() { S.cdmg = (S.cdmg || 0) + 0.35; } }
 ];
 
@@ -12428,9 +12746,69 @@ const BOON_RARITY_W = { common: 100, rare: 55, epic: 24 };
 
 function boonOwned(id) { return (S && S.boons && S.boons[id]) || 0; }
 
+// What the boon has actually added up to in this run. Stacked multipliers are
+// opaque on their own, which is what made the draft feel off: the card said
+// "+12% damage" while the run was already at +60%.
+function effDmPreview(raw) {
+  // Mirrors the soft cap in fire(): raw > 3 grows sub-linearly from there.
+  return raw > 3.0 ? (3.0 + Math.sqrt(raw - 3.0) * 0.8) : raw;
+}
+
+function critChancePreview() {
+  const base = (typeof SV !== 'undefined' && SV) ? (0.04 * (SV.crit || 0) + (typeof CL !== 'undefined' && CL[SV.cls || 0] ? CL[SV.cls || 0].crit : 0)) : 0;
+  return Math.min(0.75, base + (S.ct || 0));
+}
+
+function boonTotal(b) {
+  if (!S) return '';
+  const pct = v => Math.round((v - 1) * 100);
+  switch (b.id) {
+    case 'dmg':    return 'NOW +' + pct(effDmPreview(S.dm || 1)) + '% DAMAGE';
+    case 'rof':    return 'NOW +' + pct(S.rf || 1) + '% FIRE RATE';
+    case 'spd':    return 'NOW +' + pct(S.ms || 1) + '% MOVE SPEED';
+    case 'arm':    return 'NOW -' + Math.round((1 - (S.ar != null ? S.ar : 1)) * 100) + '% DAMAGE TAKEN';
+    case 'cr':     return 'NOW +' + pct(S.cm || 1) + '% CREDITS';
+    case 'crit':   return 'NOW ' + Math.round(critChancePreview() * 100) + '% CRIT CHANCE';
+    case 'pierce': return 'NOW PIERCE ' + (S.pc || 0);
+    case 'vamp':   return 'NOW ' + (S.ls || 0).toFixed(1) + ' HP PER KILL';
+    case 'magnet': return 'NOW +' + pct(S.mg || 1) + '% PICKUP RADIUS';
+    case 'slow':   return 'NOW -' + Math.min(70, 12 * (S.tw || 0)) + '% ENEMY SPEED';
+    case 'gren':   return 'HOLDING ' + (S.gr || 0) + ' GRENADES';
+    case 'heal':   return 'HEALTH ' + Math.round(P.hp) + '/' + P.mx;
+    case 'shield': return 'SHIELD ' + (S.bc || 0) + '/' + (S.bl || 0) + ' CHARGES';
+    case 'frag':   return S.eb ? 'ACTIVE' : 'INACTIVE';
+    case 'arc':    return 'NOW CHAINS ' + (S.cl || 0);
+    case 'deadeye':return 'NOW +' + Math.round((S.cdmg || 0) * 100) + '% CRIT DAMAGE';
+  }
+  return '';
+}
+
+// Structured list for the in-run HUD chip row.
+function boonHudList() {
+  const out = [];
+  if (!S || !S.boons) return out;
+  for (const id in S.boons) {
+    if (!S.boons[id]) continue;
+    const b = BOONS.find(x => x.id === id);
+    if (b) out.push({ id: b.id, n: b.n, col: b.col, st: S.boons[id], short: b.n.split(' ')[0] });
+  }
+  return out;
+}
+
+// A pick that cannot do anything is a wasted wave reward: COMBAT STIMM at full
+// health and BOMBARDIER with a full pouch are dropped from the offer (but only
+// while something else is still available to offer).
+function boonWouldWaste(b) {
+  if (b.id === 'heal' && typeof P !== 'undefined' && P && P.hp >= P.mx * 0.98) return true;
+  if (b.id === 'gren' && typeof S !== 'undefined' && S && (S.gr || 0) >= 12) return true;
+  return false;
+}
+
 function rollBoonOffer() {
   if (!S) return;
-  const pool = BOONS.filter(b => boonOwned(b.id) < b.max);
+  let pool = BOONS.filter(b => boonOwned(b.id) < b.max);
+  const useful = pool.filter(b => !boonWouldWaste(b));
+  if (useful.length) pool = useful;
   S.boonOffer = [];
   const take = Math.min(3, pool.length);
   const bag = pool.slice();
@@ -12485,11 +12863,13 @@ function renderBoonBar() {
     + S.boonOffer.map(id => {
       const b = BOONS.find(x => x.id === id);
       if (!b) return '';
-      const lvl = boonOwned(id) + 1;
+      const owned = boonOwned(id), lvl = owned + 1;
+      const total = boonTotal(b);
       return `<button data-boon="${b.id}" style="flex:1;min-width:150px;text-align:left;padding:8px 10px;border-radius:8px;border:1.5px solid ${b.col};background:rgba(0,0,0,.45);color:#f0ece1;cursor:pointer">
-        <b style="display:block;font-size:11.5px;color:${b.col};letter-spacing:.4px">${b.n} &bull; LV${lvl}</b>
-        <span style="font-size:10.5px;opacity:.85">${b.d}</span>
-        <span style="display:block;font-size:9px;opacity:.6;margin-top:2px;text-transform:uppercase">${b.rar}</span>
+        <b style="display:block;font-size:11.5px;color:${b.col};letter-spacing:.4px">${b.n}</b>
+        <span style="display:block;font-size:9px;font-weight:800;letter-spacing:.5px;opacity:.75;margin:1px 0 3px;text-transform:uppercase">${b.rar} &bull; STACK ${lvl}/${b.max}${owned ? ' &bull; OWNED ' + owned : ''}</span>
+        <span style="font-size:10.5px;opacity:.9">${b.d}</span>
+        ${total ? `<span style="display:block;font-size:9.5px;font-weight:700;color:${b.col};opacity:.9;margin-top:4px">${total}</span>` : ''}
       </button>`;
     }).join('')
     + '</div>';
@@ -12500,16 +12880,9 @@ function renderBoonBar() {
   };
 }
 
-// Compact readout of acquired boons for the in-run HUD
+// Plain-text fallback for the acquired-boon readout.
 function boonHudLine() {
-  if (!S || !S.boons) return '';
-  const parts = [];
-  for (const id in S.boons) {
-    if (!S.boons[id]) continue;
-    const b = BOONS.find(x => x.id === id);
-    if (b) parts.push(b.n.split(' ')[0] + (S.boons[id] > 1 ? ' x' + S.boons[id] : ''));
-  }
-  return parts.join('  ');
+  return boonHudList().map(b => b.short + (b.st > 1 ? ' x' + b.st : '')).join('  ');
 }
 
 /* ================================================================== */
@@ -12783,7 +13156,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v2.8.1 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v2.9.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 let ANN = [];          // announcer queue (screen-space banners)
 let FX_STEP_T = 0;
@@ -13132,7 +13505,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v2.8.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.9.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -13857,41 +14230,118 @@ function relics() {
   };
 }
 
+// Live operator portrait for the HERO tab. Drawn with the real body/gun
+// renderer so the equipped operative skin, suit tint and starting weapon all
+// show exactly as they will in the arena.
+function drawHeroBand() {
+  const cv = document.getElementById('hero-preview');
+  const ci = SV.cls || 0;
+  const c = CL[ci] || CL[0] || { n: 'Infantry', hp: 100, spd: 175, dm: 1, sk: [], d: '' };
+  const prevX = (typeof X !== 'undefined') ? X : null;
+  if (cv) {
+    const cx = cv.getContext('2d');
+    if (prevX) X = cx;
+    try {
+      const w = cv.width, h = cv.height;
+      cx.clearRect(0, 0, w, h);
+      const g = cx.createRadialGradient(w * 0.5, h * 0.6, 6, w * 0.5, h * 0.6, w * 0.72);
+      g.addColorStop(0, 'rgba(62,80,44,0.95)');
+      g.addColorStop(0.55, 'rgba(24,31,18,0.98)');
+      g.addColorStop(1, 'rgba(8,11,7,1)');
+      cx.fillStyle = g;
+      cx.fillRect(0, 0, w, h);
+      // Floor grid, in the same pixel-art spirit as the arena
+      cx.strokeStyle = 'rgba(143,174,74,0.16)';
+      cx.lineWidth = 1;
+      for (let i = -3; i <= 3; i++) {
+        cx.beginPath();
+        cx.moveTo(w * 0.5 + i * 26, h * 0.72);
+        cx.lineTo(w * 0.5 + i * 74, h);
+        cx.stroke();
+      }
+      for (let j = 1; j <= 3; j++) {
+        cx.beginPath();
+        const yy = h * 0.72 + j * j * 6;
+        cx.moveTo(0, yy); cx.lineTo(w, yy); cx.stroke();
+      }
+      // Character, scaled up from the sprite's own 1.7x icon framing
+      cx.save();
+      cx.translate(w * 0.34, h * 0.56);
+      cx.scale(2.35, 2.35);
+      if (typeof bodyBack === 'function') bodyBack(ci);
+      if (typeof gun === 'function') gun(SV.start || 0, 0);
+      if (typeof bodyFront === 'function') bodyFront(ci);
+      cx.restore();
+    } catch (e) {
+      console.warn('[DeadZone] hero preview failed', e);
+    } finally {
+      if (prevX) X = prevX;
+    }
+  }
+  const nameEl = document.getElementById('hero-name');
+  if (nameEl) nameEl.textContent = (c.n || 'Infantry').toUpperCase();
+  const st = document.getElementById('hero-stats');
+  if (st) {
+    const dmgPct = Math.round((c.dm - 1) * 100);
+    st.innerHTML = `
+      <span class="hs-chip" style="border-color:#ff5a3a55;color:#ff8a6a">HP <b>${c.hp}</b></span>
+      <span class="hs-chip" style="border-color:#5ac8e855;color:#7fd6f0">SPD <b>${c.spd}</b></span>
+      <span class="hs-chip" style="border-color:#ffd36b55;color:#ffd36b">DMG <b>${dmgPct >= 0 ? '+' : ''}${dmgPct}%</b></span>
+      <span class="hs-chip" style="border-color:#c084fc55;color:#c084fc">CRIT <b>${Math.round((c.crit || 0) * 100)}%</b></span>`;
+  }
+  const skl = document.getElementById('hero-skills');
+  if (skl) {
+    skl.innerHTML = (c.sk || []).map(k => `<span class="hs-chip" style="gap:4px"><img src="${getSkillIcon(k, '#8fae4a')}" style="width:14px;height:14px" alt="">${SKN[k] || k.toUpperCase()}</span>`).join('');
+  }
+  const skinEl = document.getElementById('hero-skin');
+  if (skinEl) {
+    const key = SV.eqOpSkin;
+    const sk = (key && typeof SKINS !== 'undefined') ? SKINS[key] : null;
+    const tint = (typeof PC !== 'undefined' && PC) ? PC : '#d8c9a0';
+    skinEl.innerHTML = sk
+      ? `<span class="hs-skin-lbl">OPERATIVE SKIN</span> <b style="color:${sk.col || '#ffd36b'}">${sk.name}</b>`
+      : `<span class="hs-skin-lbl">OPERATIVE SKIN</span> <b style="color:#888">Default fatigues</b> &bull; <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${tint};vertical-align:middle"></span> suit tint`;
+  }
+}
+
 function lobby2() {
   relics();
 
-  // Class Selection in #pc
+  // Class Selection in #pc. The band renders the deployed operator live; the
+  // cards below are compact so the whole tab still fits a phone screen.
   const clsCont = document.getElementById('cls');
   if (clsCont) {
+    drawHeroBand();
     clsCont.innerHTML = CL.map((c, i) => {
       const o = SV.ucl && SV.ucl[i], cost = [0, 800, 1500, 2200, 2600][i];
       const isSelected = SV.cls === i;
-      const skillsHtml = (c.sk || []).map(k => `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.06);padding:2px 5px;border-radius:4px;font-size:9.5px;color:#ece7d5"><img src="${getSkillIcon(k, '#8fae4a')}" style="width:14px;height:14px">${SKN[k] || k.toUpperCase()}</span>`).join(' ');
-
-      return `<div class="card" style="display:flex;flex-direction:column;gap:8px;border:1.5px solid ${isSelected ? '#8fae4a' : '#303824'};background:rgba(18,22,14,.95);border-radius:8px;padding:10px 12px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <b style="font-size:14px;letter-spacing:.5px;color:${isSelected ? '#ffd36b' : '#f0ece1'}">${c.n}</b>
-          <span style="font-size:9px;font-weight:800;letter-spacing:1px;padding:2px 6px;border-radius:4px;background:${isSelected ? '#8fae4a33' : 'rgba(255,255,255,.08)'};color:${isSelected ? '#8fae4a' : '#888'}">${isSelected ? 'DEPLOYED' : (o ? 'READY' : 'LOCKED')}</span>
+      const dmgPct = Math.round((c.dm - 1) * 100);
+      const skillsHtml = (c.sk || []).map(k => `<span class="hc-sk"><img src="${getSkillIcon(k, '#8fae4a')}" alt="">${SKN[k] || k.toUpperCase()}</span>`).join('');
+      const btnLabel = isSelected ? 'CURRENT OPERATOR' : (o ? 'DEPLOY OPERATOR' : 'RECRUIT \u2022 ' + cost + ' CR');
+      return `<div class="card hero-card${isSelected ? ' on' : ''}">
+        <div class="hc-head">
+          <b>${c.n}</b>
+          <span class="hc-badge${isSelected ? ' on' : ''}">${isSelected ? 'DEPLOYED' : (o ? 'READY' : 'LOCKED')}</span>
         </div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <img src="${clsIcon(i, SV.start)}" style="width:68px;height:48px;object-fit:contain;background:rgba(0,0,0,.3);border-radius:6px;border:1px solid rgba(255,255,255,.08);flex-shrink:0">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:11px;opacity:.88;line-height:1.3;margin-bottom:5px;color:#d5d0c2">${c.d}</div>
-            <div style="display:flex;gap:8px;font-size:10px;opacity:.9;font-weight:700">
-              <span style="display:inline-flex;align-items:center;gap:3px"><img src="${getStatIcon('hp', '#ff5a3a')}" style="width:12px;height:12px">HP ${c.hp}</span>
-              <span style="display:inline-flex;align-items:center;gap:3px"><img src="${getStatIcon('spd', '#5ac8e8')}" style="width:12px;height:12px">SPD ${c.spd}</span>
-              <span style="display:inline-flex;align-items:center;gap:3px"><img src="${getStatIcon('dmg', '#ffd36b')}" style="width:12px;height:12px">DMG ${Math.round((c.dm - 1) * 100) >= 0 ? '+' : ''}${Math.round((c.dm - 1) * 100)}%</span>
+        <div class="hc-mid">
+          <img class="hc-art" src="${clsIcon(i, SV.start)}" alt="">
+          <div class="hc-body">
+            <div class="hc-desc">${c.d}</div>
+            <div class="hc-stats">
+              <span><img src="${getStatIcon('hp', '#ff5a3a')}" alt="">HP ${c.hp}</span>
+              <span><img src="${getStatIcon('spd', '#5ac8e8')}" alt="">SPD ${c.spd}</span>
+              <span><img src="${getStatIcon('dmg', '#ffd36b')}" alt="">DMG ${dmgPct >= 0 ? '+' : ''}${dmgPct}%</span>
             </div>
+            <div class="hc-skills">${skillsHtml}</div>
           </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px">${skillsHtml}</div>
-        <button data-c="${i}" ${(!o && cost > SV.cr) ? 'disabled' : ''} style="width:100%;margin-top:2px;min-height:34px;font-weight:700;letter-spacing:.5px;border-color:${isSelected ? '#8fae4a' : '#3a4128'}">${o ? (isSelected ? 'CURRENT OPERATOR' : 'DEPLOY OPERATOR') : 'RECRUIT • ' + cost + ' CR'}</button>
+        <button data-c="${i}" ${(!o && cost > SV.cr) ? 'disabled' : ''}>${btnLabel}</button>
       </div>`;
     }).join('');
 
     clsCont.onclick = e => {
       const b = e.target.closest('button');
-      if (!b) return;
+      if (!b || b.disabled) return;
       const i = +b.dataset.c;
       if (SV.ucl[i]) SV.cls = i;
       else {
@@ -13900,8 +14350,10 @@ function lobby2() {
         SV.ucl[i] = 1;
         SV.cls = i;
       }
+      snd(400, 0.12, 'square', 0.04, 1.3);
       sv();
-      lobby();
+      drawHeroBand();
+      lobby2();
     };
   }
 
@@ -14054,7 +14506,7 @@ function initGameAssets() {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v2.8.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.9.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;

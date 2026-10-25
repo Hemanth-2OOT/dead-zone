@@ -705,7 +705,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .ev-tab, .sk-tab { min-height: 36px !important; }
 
 /* Portrait / narrow phones: single scrolling column */
-@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+/* Portrait / narrow windows stack the hub into one column. This used to also
+   fire on short landscape phones (640x360), which stacked the hub on a device
+   the game is locked to landscape on, so the sector card fell below the fold. */
+@media (orientation: portrait) {
   #p0.pp.on {
     flex-direction: column !important;
     overflow-y: auto !important;
@@ -912,4 +915,177 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+
+/* ===================================================================== */
+/* v2.9.0 - PHONE-FIT LOBBY, LIVE HERO BAND, WEAPON PICKER               */
+/* ===================================================================== */
+
+/* ---- HERO tab: the deployed operator, drawn live -------------------- */
+.hero-band {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border: 1.5px solid rgba(143, 174, 74, 0.32);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(26, 33, 20, 0.96), rgba(11, 14, 9, 0.99));
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+#hero-preview {
+  width: 168px;
+  height: 139px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #0a0d08;
+}
+.hero-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hs-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hs-title b { font-size: 16px; letter-spacing: 0.8px; color: #ffd36b; }
+.hs-badge {
+  font-size: 9px; font-weight: 900; letter-spacing: 1px; padding: 2px 7px; border-radius: 4px;
+  background: rgba(143, 174, 74, 0.22); color: #8fae4a; border: 1px solid rgba(143, 174, 74, 0.4);
+}
+.hs-stats, .hs-skills { display: flex; flex-wrap: wrap; gap: 5px; }
+.hs-chip {
+  display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.4px; padding: 2px 7px; border-radius: 5px; color: #d5d0c2;
+  background: rgba(0, 0, 0, 0.42); border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.hs-chip b { color: #f0ece1; }
+.hs-skin { font-size: 10px; opacity: 0.85; color: #d5d0c2; }
+.hs-skin-lbl { font-size: 8.5px; font-weight: 900; letter-spacing: 0.8px; opacity: 0.55; }
+.hs-btns { display: flex; gap: 6px; }
+.hs-btns button { flex: 1; min-height: 32px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }
+
+.hero-card {
+  display: flex; flex-direction: column; gap: 7px; padding: 9px 11px;
+  border: 1.5px solid #303824; border-radius: 8px; background: rgba(18, 22, 14, 0.95);
+}
+.hero-card.on { border-color: #8fae4a; box-shadow: 0 0 0 1px rgba(143, 174, 74, 0.25); }
+.hc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hc-head b { font-size: 13.5px; letter-spacing: 0.5px; color: #f0ece1; }
+.hero-card.on .hc-head b { color: #ffd36b; }
+.hc-badge {
+  font-size: 8.5px; font-weight: 900; letter-spacing: 0.8px; padding: 2px 6px; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08); color: #888; white-space: nowrap;
+}
+.hc-badge.on { background: rgba(143, 174, 74, 0.22); color: #8fae4a; }
+.hc-mid { display: flex; gap: 10px; align-items: flex-start; }
+.hc-art {
+  width: 64px; height: 44px; object-fit: contain; flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;
+}
+.hc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hc-desc { font-size: 10.5px; opacity: 0.88; line-height: 1.3; color: #d5d0c2; }
+.hc-stats { display: flex; flex-wrap: wrap; gap: 8px; font-size: 9.5px; font-weight: 700; color: #d5d0c2; }
+.hc-stats img { width: 12px; height: 12px; vertical-align: -2px; }
+.hc-skills { display: flex; flex-wrap: wrap; gap: 4px; }
+.hc-sk {
+  display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06); font-size: 9px; color: #ece7d5;
+}
+.hc-sk img { width: 13px; height: 13px; }
+.hero-card button { width: 100%; min-height: 32px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; }
+
+/* ---- Owned-weapon picker (in-run) ---------------------------------- */
+.gp-sheet { max-width: 760px; width: 100%; max-height: 94vh; }
+.gp-body { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; touch-action: pan-y; }
+.gp-hint { font-size: 9.5px; font-weight: 800; letter-spacing: 0.8px; opacity: 0.6; margin: 0; }
+.gp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.gun-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
+  padding: 8px 9px; border-radius: 9px; background: rgba(0, 0, 0, 0.42);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-top: 3px solid var(--tc, #8fae4a);
+  transition: border-color 0.14s, background 0.14s, transform 0.12s;
+}
+.gun-card:active { transform: scale(0.98); }
+.gun-card.on { border-color: var(--tc, #8fae4a); background: rgba(143, 174, 74, 0.13); }
+.gc-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.gc-top b { font-size: 11.5px; letter-spacing: 0.4px; color: #f0ece1; }
+.gc-tier { font-style: normal; font-size: 8px; font-weight: 900; letter-spacing: 0.6px; color: var(--tc, #8fae4a); }
+.gc-art {
+  display: flex; align-items: center; justify-content: center; height: 46px;
+  background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px;
+}
+.gc-art img { width: 96px; height: 30px; object-fit: contain; }
+.gc-stats { display: flex; gap: 8px; font-size: 9px; font-weight: 700; color: #d5d0c2; }
+.gc-stats b { color: #ffd36b; }
+.gc-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.gc-tags i {
+  font-style: normal; font-size: 7.5px; font-weight: 900; letter-spacing: 0.4px;
+  padding: 1px 4px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); color: #cfcabb;
+}
+.gc-foot { font-size: 8px; font-weight: 800; letter-spacing: 0.5px; opacity: 0.62; text-transform: uppercase; }
+.gp-foot { padding: 8px 14px 12px; flex-shrink: 0; }
+.gp-foot .go { width: 100%; min-height: 42px; }
+
+/* ---- Short landscape phones: fit the whole PLAY hub, no scrolling ---- */
+/* The game is landscape-locked, so this is the layout that matters. Every
+   block in the hub is sized so the sector card is on screen without a scroll;
+   only genuinely long lists (events, skins, skills, records) still scroll. */
+@media (max-height: 520px) and (orientation: landscape) {
+  #top { padding: 3px 10px !important; }
+  #lv { gap: 7px; }
+  #lvn { width: 26px !important; height: 26px !important; font-size: 12px !important; }
+  .bar { width: clamp(70px, 18vw, 110px) !important; height: 6px !important; }
+  #crd { padding: 2px 9px !important; font-size: 10.5px !important; }
+
+  #p0.pp.on { gap: 10px !important; padding: 4px 12px 4px !important; }
+  .l-left { gap: 4px !important; }
+  .logo-wrap { flex-direction: row !important; align-items: baseline !important; gap: 8px; flex-wrap: wrap; }
+  .logo { font-size: 21px !important; }
+  .tagline { font-size: 7.5px !important; letter-spacing: 0.4px !important; }
+  #best-badge { padding: 2px 7px !important; font-size: 9.5px !important; }
+  #play.go { min-height: 38px !important; font-size: 15px !important; }
+  #daily { min-height: 38px !important; font-size: 9px !important; padding: 3px 8px !important; }
+  .next-goal { padding: 4px 8px !important; }
+  .ng-row { font-size: 9.5px !important; }
+  .ng-lbl { font-size: 8.5px !important; }
+  .ng-val { font-size: 9px !important; }
+  .ng-bar { height: 5px !important; margin-top: 3px !important; }
+  .ng-hint { font-size: 8px !important; margin-top: 2px !important; }
+  /* Keep NEXT GOAL on one line: at 640px wide the goal name used to wrap and
+     push the sector card below the fold. */
+  #next-goal { min-width: 0 !important; }
+  .ng-row { flex-wrap: nowrap !important; min-width: 0; }
+  .ng-row > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+  .ng-lbl, .ng-val { flex: 0 0 auto; }
+  #hub-sector { padding: 5px 9px !important; gap: 2px !important; }
+  #zone-name { font-size: 11.5px !important; }
+  #mapd { font-size: 9px !important; line-height: 1.2 !important; }
+  /* Enemy tags live in the sector window; the hub keeps threat, level,
+     bounty and ascension instead of repeating them here. */
+  #zone-enemy-icons { display: none !important; }
+  #zone-preview { height: 148px !important; max-height: 148px !important; }
+  #nav button { min-height: 44px !important; font-size: 9px !important; min-width: 48px !important; }
+  #nav button .nav-ic { width: 18px !important; height: 18px !important; }
+
+  .hero-band { padding: 8px 10px; gap: 10px; }
+  #hero-preview { width: 132px; height: 109px; }
+  .hs-title b { font-size: 14px; }
+}
+
+/* Portrait phones: the band stacks above the cards. */
+@media (orientation: portrait) {
+  .hero-band { flex-direction: column; align-items: stretch; }
+  #hero-preview { width: 100%; height: auto; aspect-ratio: 252 / 208; }
+  .gp-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+/* Very small landscape phones (640x360 and under): drop the NEXT GOAL flavour
+   line and tighten the sector card so the hub still fits without scrolling. */
+@media (max-height: 400px) and (max-width: 860px) and (orientation: landscape) {
+  .ng-hint { display: none !important; }
+  /* Tighten the stack: at 360px tall the sector card used to clip by ~20px. */
+  .l-left { gap: 3px !important; }
+  #best-badge { margin-top: 0 !important; }
+  #hub-sector { padding: 3px 8px !important; gap: 1px !important; }
+  #nav button { min-height: 42px !important; }
 }

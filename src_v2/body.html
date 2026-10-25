@@ -19,9 +19,26 @@
       <h2 style="color:#8fae4a;margin:0">TACTICAL BOON DRAFT</h2>
     </div>
     <div class="modal-body">
-      <p style="font-size:11.5px;opacity:.8;margin:0 0 4px 0;letter-spacing:.6px">CHOOSE ONE FIELD MODIFICATION FOR THIS RUN</p>
+      <p style="font-size:11.5px;opacity:.8;margin:0 0 6px 0;letter-spacing:.6px">CHOOSE ONE FIELD MODIFICATION &bull; <b style="color:#ffd36b">RUN-ONLY, RESETS ON NEXT DEPLOY</b></p>
       <div id="boonbar"></div>
     </div>
+  </div>
+</div>
+
+<!-- OWNED-WEAPON PICKER. Opens from the weapon card on the HUD. Shows every gun
+     the account owns with a rendered preview, its numbers and its traits, so the
+     player picks a gun instead of cycling through a strip of chips. -->
+<div class="ov" id="gunpick">
+  <div class="modal-sheet gp-sheet">
+    <div class="modal-head">
+      <h2 style="color:#ffd36b;margin:0">SELECT WEAPON</h2>
+      <button class="modal-x" onclick="closeGunPicker()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body gp-body">
+      <p class="gp-hint">TAP A WEAPON TO EQUIP &bull; LOADOUT CARRIES FOR THE WHOLE RUN</p>
+      <div id="gunpick-grid" class="gp-grid"></div>
+    </div>
+    <div class="gp-foot"><button class="go" onclick="closeGunPicker()">BACK TO FIGHT</button></div>
   </div>
 </div>
 
@@ -46,7 +63,7 @@
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.8.1</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.0</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -148,8 +165,28 @@
       <div id="skin-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
     </div>
 
-    <!-- TAB 4: HERO / CLASSES -->
-    <div class="pp" id="pc"><div id="cls" class="grid"></div></div>
+    <!-- TAB 4: HERO / CLASSES. The band on top is the live operator: it is
+         rendered from the same body/gun renderer the arena uses, with the
+         equipped operative skin and suit tint, so a skin change shows here. -->
+    <div class="pp" id="pc">
+      <div class="hero-band">
+        <canvas id="hero-preview" width="252" height="208"></canvas>
+        <div class="hero-side">
+          <div class="hs-title">
+            <b id="hero-name">INFANTRY</b>
+            <span id="hero-state" class="hs-badge">DEPLOYED</span>
+          </div>
+          <div id="hero-stats" class="hs-stats"></div>
+          <div id="hero-skills" class="hs-skills"></div>
+          <div id="hero-skin" class="hs-skin"></div>
+          <div class="hs-btns">
+            <button onclick="tab(2)">CHANGE SKIN</button>
+            <button onclick="tab(4)">SKILL TREE</button>
+          </div>
+        </div>
+      </div>
+      <div id="cls" class="grid"></div>
+    </div>
 
     <!-- TAB 5: SKILLS -->
     <div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div>

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.9.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -54,8 +54,9 @@ const BT = [
   },
   { n: 'GREN', k: 'gren', p: () => { const j = jPos('r'); return [j[0] - 74, j[1] + 16]; }, f: () => skill('gren') },
   { n: 'II', ar: 1, p: () => [W - 36, 32], f: () => pause() },
-  { n: '<', ar: 1, p: () => [W / 2 - 68, H - 25], f: () => swap(-1) },
-  { n: '>', ar: 1, p: () => [W / 2 + 68, H - 25], f: () => swap(1) }
+  // Reload sits beside the weapon card. Swapping is done in the weapon picker
+  // now: two tiny arrows flanking the card were easy to hit while dragging.
+  { n: '\u21bb', ar: 1, p: () => [weaponHudRect().x + weaponHudRect().w + 34, H - 29], f: () => { if (run) startReload(); } }
 ];
 
 function txt(x, y, s, c, b) {
@@ -184,7 +185,7 @@ function init() {
     evTargetWave: evTw, evWon: false,
     cmb: 0, cmt: 0, cmbMax: 0, puPity: 0, flawless: 0, flawlessBest: 0, hitWave: false, adr: 0, mgTime: 0,
     clearedWave: -1,
-    boons: {}, boonOffer: [], waveTimes: {}, deal: null, eliteKills: 0, bossKills: 0, ascMul: 1
+    boons: {}, boonOffer: [], waveTimes: {}, deal: null, eliteKills: 0, bossKills: 0, ascMul: 1, gp: 0
   };
   if (typeof fxReset === 'function') fxReset();
 
@@ -286,6 +287,11 @@ function startWave() {
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
   run = 1;
+  // Banked between-wave heal lands here, after the boon draft has been resolved.
+  if (S.waveHeal > 0 && P && P.hp > 0) {
+    P.hp = Math.min(P.mx, P.hp + S.waveHeal);
+    S.waveHeal = 0;
+  }
   S.wave++;
   S.bn = 2;
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
@@ -1239,6 +1245,7 @@ function update(dt) {
   S.dd -= dt;
   S.fz -= dt;
   S.sh2 -= dt;
+  if (S.bl2 > 0) S.bl2 -= dt; // Bloodlust fire-rate window used to latch on forever
   if (S.nukeFlash > 0) S.nukeFlash -= dt;
   if (S.mgTime > 0) S.mgTime -= dt;
   if (P.cloak > 0) P.cloak -= dt;
@@ -1417,7 +1424,7 @@ function update(dt) {
     const damage = (T.dm != null ? T.dm : (T.dmg != null ? T.dmg : 8)) * (z.buffT > 0 ? 1.3 : 1);
     const a = Math.atan2(P.y - z.y, P.x - z.x);
     if (z.fz > 0) z.fz -= dt;
-    const sl = (z.buffT > 0 ? 1.35 : 1) * (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - 0.12 * (S.tw || 0)) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
+    const sl = (z.buffT > 0 ? 1.35 : 1) * (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - Math.min(0.7, 0.12 * (S.tw || 0))) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
 
     const decay = Math.exp(-dt * 9);
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
@@ -1746,69 +1753,131 @@ function update(dt) {
   }
 }
 
-// Weapon strip. Shared by the HUD renderer and the touch handler so a tap
-// always lands on the chip it looks like it should. Shows a sliding window of
-// owned guns, pinned top-centre (clear of both thumb zones).
-function weaponBarLayout() {
-  const chips = [];
-  const owned = [];
-  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
-  if (!owned.length) return chips;
-
-  // Sliding window around the equipped gun. Long-serving accounts own 20+ guns,
-  // and one 22-chip row of 20px cells was unreadable and (positioned at the
-  // bottom centre) sat under the thumbs, so drags kept swapping weapons. A short
-  // row pinned to the top of the screen fixes both.
-  const MAXV = Math.min(7, owned.length);
-  let cur = owned.indexOf(P.cur);
-  if (cur < 0) cur = 0;
-  const lo = Math.max(0, Math.min(cur - Math.floor(MAXV / 2), owned.length - MAXV));
-  const visible = owned.slice(lo, lo + MAXV);
-
-  const n = visible.length, gap = 4;
-  const leftBound = 76, rightBound = Math.max(leftBound + 120, W - 196);
-  const avail = rightBound - leftBound;
-  const cw = Math.max(30, Math.min(58, Math.floor((avail - gap * (n - 1)) / n)));
-  const totalW = cw * n + gap * (n - 1);
-  const x0 = Math.round(leftBound + Math.max(0, (avail - totalW) / 2));
-  const y = 8, h = 20;
-  for (let k = 0; k < n; k++) {
-    chips.push({ i: visible[k], on: true, x: x0 + k * (cw + gap), y, w: cw, h });
-  }
-  chips.scrollHint = { lo, more: owned.length > MAXV, up: lo > 0, down: lo + MAXV < owned.length };
-  return chips;
+// Weapon HUD. The old sliding chip row is gone: on a phone the chips sat under
+// the thumbs, so drags kept swapping guns, and a 20px cell cannot show what a
+// gun is anyway. The bottom-centre card now shows the equipped gun and, when
+// tapped, opens a preview sheet of every gun the account owns.
+function weaponHudRect() {
+  const w = Math.min(132, Math.max(96, W * 0.16));
+  return { x: Math.round(W / 2 - w / 2 - 30), y: H - 52, w: Math.round(w), h: 46 };
 }
 
-function drawWeaponBar() {
+// True when the tap landed on the weapon card (the picker trigger).
+function weaponHudHit(x, y) {
+  const r = weaponHudRect();
+  return x >= r.x - 4 && x <= r.x + r.w + 4 && y >= r.y - 6 && y <= r.y + r.h + 6;
+}
+
+function drawWeaponHud() {
   if (!P || !P.w) return;
-  const chips = weaponBarLayout();
-  if (!chips.length) return;
-  X.textAlign = 'center'; X.textBaseline = 'middle';
-  for (const c of chips) {
-    const w = WEAP[c.i] || WEAP[0];
-    const cur = P.cur === c.i;
-    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
-    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 4);
-    X.fillStyle = cur ? tcol : 'rgba(14,18,12,0.82)';
-    X.fill();
-    X.strokeStyle = cur ? '#ffffff' : tcol + '88';
-    X.lineWidth = cur ? 1.6 : 1;
-    X.stroke();
-    X.fillStyle = cur ? '#0b0f08' : '#e8e4cf';
-    const label = (w.n || 'GUN').replace(/[^A-Za-z0-9]/g, '').slice(0, c.w >= 44 ? 3 : 2).toUpperCase();
-    X.font = '900 ' + (c.w >= 44 ? 10 : 9) + 'px Arial';
-    X.fillText(label || '?', c.x + c.w / 2, c.y + c.h / 2 + 0.5);
-  }
-  const hint = chips.scrollHint;
-  if (hint && hint.more) {
-    const first = chips[0], last = chips[chips.length - 1];
-    X.font = '900 11px Arial';
-    X.fillStyle = hint.up ? '#ffd36b' : 'rgba(255,255,255,0.18)';
-    X.fillText('\u2039', first.x - 9, first.y + first.h / 2);
-    X.fillStyle = hint.down ? '#ffd36b' : 'rgba(255,255,255,0.18)';
-    X.fillText('\u203a', last.x + last.w + 9, last.y + last.h / 2);
-  }
+  const r = weaponHudRect();
+  const wDef = WEAP[P.cur] || WEAP[0];
+  const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[wDef.tier]) ? TIER_COLORS[wDef.tier] : '#8fae4a';
+  X.save();
+  X.beginPath(); X.roundRect(r.x, r.y, r.w, r.h, 7);
+  X.fillStyle = 'rgba(16,20,15,0.88)'; X.fill();
+  X.strokeStyle = P.reloading ? '#ffd36b' : tcol + 'cc'; X.lineWidth = 1.6; X.stroke();
+  // Tier pip down the left edge so rarity reads at a glance
+  X.beginPath(); X.roundRect(r.x + 2, r.y + 3, 3, r.h - 6, 2);
+  X.fillStyle = tcol; X.fill();
+
+  X.save();
+  X.translate(r.x + 14, r.y + 15);
+  X.scale(0.56, 0.56);
+  if (typeof gun === 'function') gun(P.cur, 0);
+  X.restore();
+
+  const owned = (P.w || []).filter(Boolean).length;
+  X.textAlign = 'left'; X.textBaseline = 'middle';
+  X.fillStyle = tcol; X.font = '900 11px Arial';
+  X.fillText((wDef.n || 'GUN').toUpperCase(), r.x + 42, r.y + 14);
+  X.fillStyle = 'rgba(213,208,194,0.72)'; X.font = '700 8.5px Arial';
+  X.fillText('DMG ' + Math.round(wDef.d), r.x + 42, r.y + 27);
+  X.fillText('MAG ' + (wDef.mag || 12), r.x + 42 + 46, r.y + 27);
+
+  // Ammo, and the swap affordance
+  X.textAlign = 'right'; X.textBaseline = 'alphabetic';
+  const ammo = (P.ammo != null ? P.ammo : 12);
+  X.fillStyle = P.reloading ? '#ffd36b' : (ammo <= 3 ? '#ff5a3a' : '#e8e4cf');
+  X.font = '900 13px Arial';
+  X.fillText(P.reloading ? 'RLD' : String(ammo), r.x + r.w - 8, r.y + 22);
+  X.font = '700 8px Arial'; X.fillStyle = 'rgba(255,255,255,0.5)';
+  X.fillText('TAP \u25b8 ' + owned, r.x + r.w - 8, r.y + 38);
+  X.restore();
   X.textBaseline = 'alphabetic';
+}
+
+/* ---- Owned-weapon picker -------------------------------------------- */
+// Opens from the weapon card. The run is held while it is up so the player is
+// not being eaten while they read, and resumes exactly as it was on close.
+function openGunPicker() {
+  if (!S || !P || P.hp <= 0) return false;
+  if (S.po || S.bd) return false;
+  const el = document.getElementById('gunpick');
+  if (!el) return false;
+  renderGunPicker();
+  el.classList.add('on');
+  S.gp = 1;
+  run = 0;
+  if (typeof snd === 'function') snd(520, 0.06, 'square', 0.03, 1.1);
+  return true;
+}
+
+function closeGunPicker() {
+  const el = document.getElementById('gunpick');
+  if (el) el.classList.remove('on');
+  if (S) S.gp = 0;
+  if (P && P.hp > 0 && S && !S.po && !S.bd && !pendingNextWave) run = 1;
+}
+
+function pickWeapon(i) {
+  const ok = selectWeapon(i);
+  if (ok === false && P && P.cur === i) closeGunPicker();
+  else if (ok) closeGunPicker();
+  else renderGunPicker();
+}
+
+function gunTraitTags(w) {
+  const tags = [];
+  if (w.p > 1) tags.push(w.p + ' PELLETS');
+  if (w.pr) tags.push('PIERCE ' + w.pr);
+  if (w.cl) tags.push('CHAIN ' + w.cl);
+  if (w.ex) tags.push('EXPLOSIVE');
+  if (w.fz) tags.push('CRYO');
+  if (w.flm) tags.push('FLAME');
+  if (w.ls) tags.push('LIFESTEAL');
+  if (w.rng >= 800) tags.push('LONG RANGE');
+  else if (w.rng <= 120) tags.push('POINT BLANK');
+  return tags;
+}
+
+function renderGunPicker() {
+  const host = document.getElementById('gunpick-grid');
+  if (!host || !P) return;
+  const owned = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
+  host.innerHTML = owned.map(i => {
+    const w = WEAP[i] || WEAP[0];
+    const cur = P.cur === i;
+    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
+    const mast = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
+    const skKey = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[i]) ? SV.eqSkin[i] : null;
+    const sk = (skKey && typeof SKINS !== 'undefined' && SKINS[skKey]) ? SKINS[skKey] : null;
+    const rps = w.r > 0 ? Math.round(60 / w.r) : 0;
+    const tags = gunTraitTags(w);
+    return `<button data-gun="${i}" class="gun-card${cur ? ' on' : ''}" style="--tc:${tcol}">
+      <span class="gc-top"><b>${w.n}</b><i class="gc-tier">${w.tier}</i></span>
+      <span class="gc-art"><img src="${typeof gunIcon === 'function' ? gunIcon(i) : ''}" alt=""></span>
+      <span class="gc-stats"><span>DMG <b>${Math.round(w.d)}</b></span><span>RPM <b>${rps}</b></span><span>MAG <b>${w.mag || 12}</b></span></span>
+      <span class="gc-tags">${tags.map(t => `<i>${t}</i>`).join('')}</span>
+      <span class="gc-foot">MASTERY LV${mast}${sk ? ' &bull; ' + sk.name : ''}${cur ? ' &bull; EQUIPPED' : ''}</span>
+    </button>`;
+  }).join('') || '<p style="opacity:.7;font-size:12px">No weapons unlocked yet.</p>';
+  host.onclick = e => {
+    const b = e.target.closest('button[data-gun]');
+    if (!b) return;
+    pickWeapon(parseInt(b.dataset.gun, 10));
+  };
 }
 
 // MAIN 2D RENDERING PIPELINE
@@ -2494,7 +2563,7 @@ function renderHUD() {
     // Shield charges, if any
     if (S && S.bc > 0) {
       X.fillStyle = '#eab308'; X.font = '900 9.5px Arial';
-      X.fillText('SHIELD x' + S.bc, hpx, hpy + hph + 22);
+      X.fillText('SHIELD ' + S.bc + '/' + Math.max(S.bl || 0, S.bc), hpx, hpy + hph + 22);
     }
   }
 
@@ -2583,26 +2652,9 @@ function renderHUD() {
   // Combo multiplier
   if (typeof renderDirectorOverlay === 'function') renderDirectorOverlay(W, H);
 
-  // Active weapon card at bottom center
-  X.fillStyle = '#1c211bdd';
-  X.beginPath(); X.roundRect(W / 2 - 58, H - 48, 116, 42, 6); X.fill();
-  X.strokeStyle = P.reloading ? '#ffd36b' : '#3d4f34'; X.lineWidth = 1.5;
-  X.stroke();
-
-  // Draw equipped weapon sprite
-  X.save();
-  X.translate(W / 2 - 14, H - 24);
-  X.scale(0.68, 0.68);
-  if (typeof gun === 'function') gun(P.cur, 0);
-  X.restore();
-
-  X.textAlign = 'center'; X.fillStyle = WC[P.cur] || '#fff'; X.font = 'bold 11px Arial';
-  X.fillText((WEAP[P.cur] || WEAP[0]).n.toUpperCase(), W / 2, H - 35);
-  const ammoStr = P.reloading ? 'RELOADING' : ((P.ammo != null ? P.ammo : 12) + ' / ' + (WEAP[P.cur].mag || 12));
-  X.fillStyle = P.reloading ? '#ffd36b' : (P.ammo <= 3 ? '#ff5a3a' : '#d5d0c2');
-  X.font = 'bold 10px Arial';
-  X.fillText(ammoStr, W / 2, H - 9);
-  drawWeaponBar();
+  // Equipped weapon card. Tapping it opens the owned-weapon picker.
+  drawWeaponHud();
+  X.textAlign = 'left';
 
   // Screen-edge damage vignette
   if (HURT_VIGNETTE_TIMER > 0) {
@@ -2659,13 +2711,41 @@ function renderHUD() {
     }
   }
 
-  // Acquired boons from this run's draft picks
-  if (S && typeof boonHudLine === 'function') {
-    const bl = boonHudLine();
-    if (bl) {
-      X.textAlign = 'right'; X.textBaseline = 'alphabetic';
-      X.fillStyle = '#8fae4a'; X.font = '900 9px Arial';
-      X.fillText(bl, W - 50, 80);
+  // Run boons. These used to be a 9px green text string under the perk icons,
+  // which was unreadable on a phone and made the draft feel like it did nothing.
+  // They now get the same chip treatment as perks, coloured and stack-counted.
+  if (S && typeof boonHudList === 'function') {
+    const list = boonHudList();
+    if (list.length) {
+      const bw = 18, gap = 2, cap = 12;
+      const shown = list.slice(0, cap);
+      const extra = list.length - shown.length;
+      let sx0 = W - 50 - (shown.length + (extra > 0 ? 1 : 0)) * (bw + gap);
+      const ty = 84;
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      shown.forEach((b, i) => {
+        const x = sx0 + i * (bw + gap);
+        X.fillStyle = 'rgba(10,12,8,0.74)';
+        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
+        X.strokeStyle = b.col; X.lineWidth = 1.4; X.stroke();
+        X.fillStyle = b.col; X.font = '900 8.5px Arial';
+        X.fillText(b.short.slice(0, 3).toUpperCase(), x + bw / 2, ty);
+        if (b.st > 1) {
+          X.fillStyle = 'rgba(8,10,6,0.9)';
+          X.beginPath(); X.arc(x + bw - 3, ty + 6, 6, 0, 6.28); X.fill();
+          X.fillStyle = '#fff'; X.font = '900 8px Arial';
+          X.fillText(String(b.st), x + bw - 3, ty + 6.2);
+        }
+      });
+      if (extra > 0) {
+        const x = sx0 + shown.length * (bw + gap);
+        X.fillStyle = 'rgba(10,12,8,0.74)';
+        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
+        X.strokeStyle = 'rgba(255,255,255,0.25)'; X.lineWidth = 1.2; X.stroke();
+        X.fillStyle = '#d5d0c2'; X.font = '900 8.5px Arial';
+        X.fillText('+' + extra, x + bw / 2, ty);
+      }
+      X.textAlign = 'left'; X.textBaseline = 'alphabetic';
     }
   }
 
@@ -2795,7 +2875,7 @@ function loop(t) {
 
   // Between-wave beat. update() does not run while run is 0, so the countdown
   // has to live here; the perk draft holds it off until the player has chosen.
-  if (!run && pendingNextWave && S && !S.po && !S.bd && P && P.hp > 0) {
+  if (!run && pendingNextWave && S && !S.po && !S.bd && !S.gp && P && P.hp > 0) {
     WAVE_CLEAR_T -= dt;
     if (WAVE_CLEAR_T <= 0) startWave();
   }
@@ -2822,7 +2902,10 @@ function endWave() {
   }
 
   const healAmt = (S && S.isEvent && S.evDef && S.evDef.id === 'last_stand') ? 6 : 20;
-  P.hp = Math.min(P.mx, P.hp + healAmt);
+  // Defer the clear heal to the next wave. Healing here made COMBAT STIMM look
+  // like a wasted offer (the player was already topped up before the draft
+  // rolled), so the boon draft never showed the heal when it was needed.
+  S.waveHeal = (S.waveHeal || 0) + healAmt;
 
   // Retention hooks: ghost pace, the per-wave boon draft and a rotating supply deal
   if (typeof recordWavePace === 'function') recordWavePace();
@@ -2865,18 +2948,21 @@ function rebuild() {
 
 
 function begin() {
-  ['start', 'over', 'pause', 'perk', 'boondraft'].forEach(i => {
+  ['start', 'over', 'pause', 'perk', 'boondraft', 'gunpick'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
   if (typeof clearEventContext === 'function') clearEventContext();
   init();
+  if (S) S.gp = 0;
   if (typeof applySV === 'function') applySV();
   startWave();
 }
 
 function tch(e) {
   e.preventDefault();
+  // The picker is a DOM sheet over the canvas; ignore the world underneath.
+  if (S && S.gp) return;
   TCH = 1;
   for (const t of e.changedTouches) {
     if (e.type === 'touchstart') {
@@ -2885,18 +2971,9 @@ function tch(e) {
         return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38);
       });
       if (bi >= 0) { if (run) BT[bi].f(); continue; }
-      // Weapon strip chips first: they sit just above the reload/swap zones.
-      if (run && P && P.w) {
-        let hit = null;
-        for (const c of weaponBarLayout()) {
-          if (t.clientX >= c.x - 2 && t.clientX <= c.x + c.w + 2 && t.clientY >= c.y - 5 && t.clientY <= c.y + c.h + 5) { hit = c; break; }
-        }
-        if (hit) { selectWeapon(hit.i); continue; }
-      }
-      if (run && t.clientY > H - 65 && t.clientY < H - 5) {
-        if (Math.abs(t.clientX - W / 2) < 40) { startReload(); continue; }
-        if (Math.abs(t.clientX - W / 2) < 75) { swap(t.clientX > W / 2 ? 1 : -1); continue; }
-      }
+      // The weapon card opens the picker. Nothing else down here switches guns
+      // any more, so a stray thumb drag can never change the equipped weapon.
+      if (run && P && weaponHudHit(t.clientX, t.clientY)) { openGunPicker(); continue; }
       const k = t.clientX < W / 2 ? 'l' : 'r';
       if (!J[k] && t.clientY > H * 0.25) {
         const [bx, by] = jPos(k);
