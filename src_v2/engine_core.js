@@ -87,6 +87,7 @@ const $ = id => document.getElementById(id);
 let MUTE = 0, PC = '#d8c9a0';
 let run = 0, SH = 0, HIT_STOP = 0, HIT_STOP_TIMER = 0, HURT_VIGNETTE_TIMER = 0;
 let HUD_BOUNCE = 1;
+let SK = {}; // skill cooldown table; fully populated when a run starts
 
 // Global Lighting Vector (Top-Left Light Source, all shadows cast to bottom-right)
 const LIGHT_DIR = { x: 0.7071, y: 0.7071 };
@@ -241,14 +242,6 @@ function sndPickup(type) {
   setTimeout(() => { snd(baseFreq * 1.5 * pitchMult, 0.07, 'sine', 0.05, 1.5); }, 45);
 }
 
-function sndReloadStart() {
-  snd(380, 0.09, 'triangle', 0.08, 0.4);
-  setTimeout(() => { snd(220, 0.12, 'square', 0.06, 0.5); }, 110);
-}
-function sndReloadEnd() {
-  snd(460, 0.08, 'triangle', 0.07, 1.4);
-  setTimeout(() => { snd(640, 0.1, 'sawtooth', 0.08, 0.8); }, 80);
-}
 function sndTurretFire() {
   noise(0.08, 0.07);
   snd(260, 0.06, 'sawtooth', 0.05, 0.3);

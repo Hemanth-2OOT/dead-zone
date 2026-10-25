@@ -323,28 +323,32 @@ function skinIcon(skinKey) {
   cv.width = 180; cv.height = 54;
   const cx = cv.getContext('2d');
   const prevX = X;
-  X = cx;
-  X.save();
-  X.fillStyle = '#10140c';
-  X.fillRect(0, 0, 180, 54);
-  X.strokeStyle = 'rgba(255,255,255,0.04)';
-  X.lineWidth = 1;
-  for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
-  for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
-  const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
-  rg.addColorStop(0, sk.col + '33');
-  rg.addColorStop(1, 'rgba(0,0,0,0)');
-  X.fillStyle = rg;
-  X.fillRect(0, 0, 180, 54);
-  X.translate(26, 27);
-  X.scale(1.6, 1.6);
-  const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
   SV.eqSkin = SV.eqSkin || {};
-  SV.eqSkin[sk.wi] = skinKey;
-  gun(sk.wi, 0);
-  if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
-  X.restore();
-  X = (typeof X0 !== 'undefined' ? X0 : prevX);
+  const origEq = SV.eqSkin[sk.wi];
+  X = cx;
+  try {
+    X.save();
+    X.fillStyle = '#10140c';
+    X.fillRect(0, 0, 180, 54);
+    X.strokeStyle = 'rgba(255,255,255,0.04)';
+    X.lineWidth = 1;
+    for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
+    for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
+    const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
+    rg.addColorStop(0, sk.col + '33');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    X.fillStyle = rg;
+    X.fillRect(0, 0, 180, 54);
+    X.translate(26, 27);
+    X.scale(1.6, 1.6);
+    SV.eqSkin[sk.wi] = skinKey;
+    gun(sk.wi, 0);
+    X.restore();
+  } finally {
+    // always hand the shared canvas context back, even if gun() throws
+    if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
+    X = prevX;
+  }
   return SKI_CACHE[skinKey] = cv.toDataURL();
 }
 

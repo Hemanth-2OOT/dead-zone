@@ -335,18 +335,6 @@ function gunIcon(i) {
   return GI[i] = cv.toDataURL();
 }
 
-function skinIcon(skinKey) {
-  const sk = SKINS[skinKey]; if (!sk) return gunIcon(0);
-  const cv = document.createElement('canvas'); cv.width = 160; cv.height = 48;
-  const cx = cv.getContext('2d');
-  const oldX = X; X = cx;
-  X.save(); X.translate(22, 24); X.scale(1.6, 1.6);
-  gun(sk.wi, 0);
-  X.restore();
-  X = oldX;
-  return cv.toDataURL();
-}
-
 const PI_CACHE = {};
 function getPerkIcon(name, col) {
   const cleanName = name.replace(/^✦\s*/, '');

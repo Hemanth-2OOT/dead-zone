@@ -146,9 +146,8 @@ button.eq {
   padding: 0;
   background: radial-gradient(ellipse at 50% 120%, #45150c 0%, #161b11 50%, #0a0d07 100%);
   z-index: 20;
-  height: 100dvh;
   height: 100vh;
-  overflow: hidden;
+  height: 100dvh;  overflow: hidden;
   display: none;
   flex-direction: column;
 }

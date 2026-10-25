@@ -1926,11 +1926,6 @@ function renderHUD() {
     X.fillRect(0, 0, W, H);
   }
 
-  // Flying coin HUD particle benchmark
-  if (typeof renderHUDPayoutParticles === 'function') {
-    renderHUDPayoutParticles();
-  }
-
   // Virtual Joysticks, Action Buttons, and Combat Overlay
   drawControls();
 }

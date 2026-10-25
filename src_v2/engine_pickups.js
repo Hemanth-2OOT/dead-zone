@@ -98,8 +98,8 @@ function updatePickups(dt) {
         txt(d.x, d.y - 12, '+$' + d.v, '#ffd36b', true);
         // Fly particle to top HUD credit counter
         HUD_FLYING_ICONS.push({
-          x: d.x - cx,
-          y: d.y - cy,
+          x: d.x - CX,
+          y: d.y - CY,
           progress: 0,
           val: d.v,
           type: 'c'
@@ -132,7 +132,7 @@ function updatePickups(dt) {
 
     if (t >= 1) {
       HUD_BOUNCE = 1.35; // Trigger bounce on credit HUD
-      burst(targetX, targetY, '#ffd36b', 5, 2, 60);
+      burst(targetX + CX, targetY + CY, '#ffd36b', 5, 2, 60);
     }
   }
   HUD_FLYING_ICONS = HUD_FLYING_ICONS.filter(h => h.progress < 1);
@@ -244,15 +244,18 @@ function renderPickupsPass(cx, cy, W, H) {
   }
 
   // Draw HUD flying coins / icons in screen coordinates
+  // (this pass runs inside the camera transform, so convert screen -> world)
   for (const h of HUD_FLYING_ICONS) {
+    if (!isFinite(h.curX) || !isFinite(h.curY)) continue;
+    const sx = h.curX + CX, sy = h.curY + CY;
     X.save();
     X.fillStyle = '#ffd36b';
     X.beginPath();
-    X.arc(h.curX, h.curY, 6, 0, 6.28);
+    X.arc(sx, sy, 6, 0, 6.28);
     X.fill();
     X.fillStyle = '#fff';
     X.beginPath();
-    X.arc(h.curX - 1.5, h.curY - 1.5, 2, 0, 6.28);
+    X.arc(sx - 1.5, sy - 1.5, 2, 0, 6.28);
     X.fill();
     X.restore();
   }

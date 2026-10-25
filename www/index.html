@@ -153,9 +153,8 @@ button.eq {
   padding: 0;
   background: radial-gradient(ellipse at 50% 120%, #45150c 0%, #161b11 50%, #0a0d07 100%);
   z-index: 20;
-  height: 100dvh;
   height: 100vh;
-  overflow: hidden;
+  height: 100dvh;  overflow: hidden;
   display: none;
   flex-direction: column;
 }
@@ -541,7 +540,7 @@ button.eq {
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v1.9.3</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.0.1</div>
         </div>
 
         <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -843,6 +842,7 @@ const $ = id => document.getElementById(id);
 let MUTE = 0, PC = '#d8c9a0';
 let run = 0, SH = 0, HIT_STOP = 0, HIT_STOP_TIMER = 0, HURT_VIGNETTE_TIMER = 0;
 let HUD_BOUNCE = 1;
+let SK = {}; // skill cooldown table; fully populated when a run starts
 
 // Global Lighting Vector (Top-Left Light Source, all shadows cast to bottom-right)
 const LIGHT_DIR = { x: 0.7071, y: 0.7071 };
@@ -997,14 +997,6 @@ function sndPickup(type) {
   setTimeout(() => { snd(baseFreq * 1.5 * pitchMult, 0.07, 'sine', 0.05, 1.5); }, 45);
 }
 
-function sndReloadStart() {
-  snd(380, 0.09, 'triangle', 0.08, 0.4);
-  setTimeout(() => { snd(220, 0.12, 'square', 0.06, 0.5); }, 110);
-}
-function sndReloadEnd() {
-  snd(460, 0.08, 'triangle', 0.07, 1.4);
-  setTimeout(() => { snd(640, 0.1, 'sawtooth', 0.08, 0.8); }, 80);
-}
 function sndTurretFire() {
   noise(0.08, 0.07);
   snd(260, 0.06, 'sawtooth', 0.05, 0.3);
@@ -1420,18 +1412,6 @@ function gunIcon(i) {
   X.restore();
   X = oldX;
   return GI[i] = cv.toDataURL();
-}
-
-function skinIcon(skinKey) {
-  const sk = SKINS[skinKey]; if (!sk) return gunIcon(0);
-  const cv = document.createElement('canvas'); cv.width = 160; cv.height = 48;
-  const cx = cv.getContext('2d');
-  const oldX = X; X = cx;
-  X.save(); X.translate(22, 24); X.scale(1.6, 1.6);
-  gun(sk.wi, 0);
-  X.restore();
-  X = oldX;
-  return cv.toDataURL();
 }
 
 const PI_CACHE = {};
@@ -2517,28 +2497,32 @@ function skinIcon(skinKey) {
   cv.width = 180; cv.height = 54;
   const cx = cv.getContext('2d');
   const prevX = X;
-  X = cx;
-  X.save();
-  X.fillStyle = '#10140c';
-  X.fillRect(0, 0, 180, 54);
-  X.strokeStyle = 'rgba(255,255,255,0.04)';
-  X.lineWidth = 1;
-  for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
-  for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
-  const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
-  rg.addColorStop(0, sk.col + '33');
-  rg.addColorStop(1, 'rgba(0,0,0,0)');
-  X.fillStyle = rg;
-  X.fillRect(0, 0, 180, 54);
-  X.translate(26, 27);
-  X.scale(1.6, 1.6);
-  const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
   SV.eqSkin = SV.eqSkin || {};
-  SV.eqSkin[sk.wi] = skinKey;
-  gun(sk.wi, 0);
-  if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
-  X.restore();
-  X = (typeof X0 !== 'undefined' ? X0 : prevX);
+  const origEq = SV.eqSkin[sk.wi];
+  X = cx;
+  try {
+    X.save();
+    X.fillStyle = '#10140c';
+    X.fillRect(0, 0, 180, 54);
+    X.strokeStyle = 'rgba(255,255,255,0.04)';
+    X.lineWidth = 1;
+    for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
+    for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
+    const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
+    rg.addColorStop(0, sk.col + '33');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    X.fillStyle = rg;
+    X.fillRect(0, 0, 180, 54);
+    X.translate(26, 27);
+    X.scale(1.6, 1.6);
+    SV.eqSkin[sk.wi] = skinKey;
+    gun(sk.wi, 0);
+    X.restore();
+  } finally {
+    // always hand the shared canvas context back, even if gun() throws
+    if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
+    X = prevX;
+  }
   return SKI_CACHE[skinKey] = cv.toDataURL();
 }
 
@@ -3314,8 +3298,8 @@ function updatePickups(dt) {
         txt(d.x, d.y - 12, '+$' + d.v, '#ffd36b', true);
         // Fly particle to top HUD credit counter
         HUD_FLYING_ICONS.push({
-          x: d.x - cx,
-          y: d.y - cy,
+          x: d.x - CX,
+          y: d.y - CY,
           progress: 0,
           val: d.v,
           type: 'c'
@@ -3348,7 +3332,7 @@ function updatePickups(dt) {
 
     if (t >= 1) {
       HUD_BOUNCE = 1.35; // Trigger bounce on credit HUD
-      burst(targetX, targetY, '#ffd36b', 5, 2, 60);
+      burst(targetX + CX, targetY + CY, '#ffd36b', 5, 2, 60);
     }
   }
   HUD_FLYING_ICONS = HUD_FLYING_ICONS.filter(h => h.progress < 1);
@@ -3460,15 +3444,18 @@ function renderPickupsPass(cx, cy, W, H) {
   }
 
   // Draw HUD flying coins / icons in screen coordinates
+  // (this pass runs inside the camera transform, so convert screen -> world)
   for (const h of HUD_FLYING_ICONS) {
+    if (!isFinite(h.curX) || !isFinite(h.curY)) continue;
+    const sx = h.curX + CX, sy = h.curY + CY;
     X.save();
     X.fillStyle = '#ffd36b';
     X.beginPath();
-    X.arc(h.curX, h.curY, 6, 0, 6.28);
+    X.arc(sx, sy, 6, 0, 6.28);
     X.fill();
     X.fillStyle = '#fff';
     X.beginPath();
-    X.arc(h.curX - 1.5, h.curY - 1.5, 2, 0, 6.28);
+    X.arc(sx - 1.5, sy - 1.5, 2, 0, 6.28);
     X.fill();
     X.restore();
   }
@@ -7089,11 +7076,6 @@ function renderHUD() {
     vig.addColorStop(1, `rgba(239,68,68,${vAlpha})`);
     X.fillStyle = vig;
     X.fillRect(0, 0, W, H);
-  }
-
-  // Flying coin HUD particle benchmark
-  if (typeof renderHUDPayoutParticles === 'function') {
-    renderHUDPayoutParticles();
   }
 
   // Virtual Joysticks, Action Buttons, and Combat Overlay
