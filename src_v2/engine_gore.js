@@ -199,37 +199,30 @@ function spawnGroundDecal(x, y, vx, vy, r, col, rimCol, type) {
     ang,
     col,
     rimCol,
-    l: 18,
-    maxL: 18,
+    l: 12,
+    maxL: 12,
     type: type || 'blood'
   });
 
-  // Check decal baking threshold to keep active array small and fast
+  // Strictly enforce max active decals by fading oldest out cleanly
   const maxDecals = getQualityProfile().maxDecals;
   if (DEC.length > maxDecals) {
-    bakeDecalsToBackground(20);
+    const overflow = DEC.length - maxDecals;
+    for (let i = 0; i < overflow; i++) {
+      if (DEC[i]) DEC[i].l = Math.min(DEC[i].l, 1.2);
+    }
+    if (DEC.length > maxDecals + 30) {
+      DEC.splice(0, DEC.length - maxDecals);
+    }
   }
 }
 
-// Bakes oldest settled decals onto offscreen canvas BG_DEC_CANVAS
+// Bakes or recycles oldest settled decals smoothly without permanent clutter
 function bakeDecalsToBackground(count) {
-  if (!BG_DEC_CTX) return;
-  const toBake = DEC.splice(0, count);
-  for (const d of toBake) {
-    BG_DEC_CTX.save();
-    BG_DEC_CTX.translate(d.x, d.y);
-    BG_DEC_CTX.rotate(d.ang || 0);
-    // Thin outer rim
-    BG_DEC_CTX.fillStyle = d.rimCol || '#dc2626';
-    BG_DEC_CTX.beginPath();
-    BG_DEC_CTX.ellipse(0, 0, d.r * (d.stretch || 1.2), d.r * 0.9, 0, 0, 6.28);
-    BG_DEC_CTX.fill();
-    // Thick darker core
-    BG_DEC_CTX.fillStyle = d.col || '#7f1d1d';
-    BG_DEC_CTX.beginPath();
-    BG_DEC_CTX.ellipse(0, 0, d.r * 0.65 * (d.stretch || 1.2), d.r * 0.6, 0, 0, 6.28);
-    BG_DEC_CTX.fill();
-    BG_DEC_CTX.restore();
+  if (DEC.length > count) {
+    for (let i = 0; i < count; i++) {
+      if (DEC[i]) DEC[i].l = Math.min(DEC[i].l, 1.0);
+    }
   }
 }
 
@@ -333,9 +326,11 @@ function renderGoreGroundPass(cx, cy, W, H) {
   // 2. Draw drying/expanding blood pools
   for (const p of POOLS) {
     if (p.x < cx - 40 || p.x > cx + W + 40 || p.y < cy - 40 || p.y > cy + H + 40) continue;
-    // Darken and dry over lifespan
-    const dryPct = Math.min(1, p.age / 12);
-    const alpha = Math.max(0.15, 1 - (p.age / p.maxAge));
+    // Darken and dry over lifespan, then fade to zero opacity
+    const dryPct = Math.min(1, p.age / 10);
+    const timeLeft = Math.max(0, (p.maxAge || 18) - p.age);
+    const alpha = Math.max(0, Math.min(0.85, timeLeft / 3.0));
+    if (alpha <= 0.005) continue;
     X.save();
     X.globalAlpha = alpha;
     // Outer thin rim
@@ -354,7 +349,8 @@ function renderGoreGroundPass(cx, cy, W, H) {
   // 3. Draw active dynamic decals
   for (const d of DEC) {
     if (d.x < cx - 30 || d.x > cx + W + 30 || d.y < cy - 30 || d.y > cy + H + 30) continue;
-    const alpha = Math.min(0.85, d.l / 4);
+    const alpha = Math.max(0, Math.min(0.85, d.l / 2.5));
+    if (alpha <= 0.005) continue;
     X.save();
     X.globalAlpha = alpha;
     X.translate(d.x, d.y);

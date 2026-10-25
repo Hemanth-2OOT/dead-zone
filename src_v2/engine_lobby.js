@@ -267,6 +267,11 @@ function tab(i) {
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
 
+  if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
+    cancelAnimationFrame(TURNTABLE_RAF);
+    TURNTABLE_RAF = null;
+  }
+
   if (i === 0) { mapsUI(); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
   else if (i === 2) renderGunsUI();

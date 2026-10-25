@@ -221,7 +221,7 @@ function drawZombie(z) {
   X.scale(sc * hitSquash, sc / hitSquash);
 
   const r = T.r;
-  const fc = isHit ? '#ffffff' : null;
+  const fc = (isHit && z.hit > 0.035) ? '#ffffff' : null;
 
   // ARCHETYPE 1: WALKER (Shambling Rotten Corpse)
   if (z.t === 'walk' || z.t === 'walker') {
@@ -649,6 +649,14 @@ function drawZombie(z) {
       X.fillRect(-r * 0.2, -r * 0.2, 6, 4);
       X.fillRect(r * 0.1, r * 0.3, 5, 4);
     }
+  }
+
+  // Brief impact flash overlay that fades smoothly within 80ms
+  if (isHit && z.hit > 0) {
+    X.fillStyle = 'rgba(255, 255, 255, ' + Math.min(0.65, (z.hit / 0.08) * 0.65) + ')';
+    X.beginPath();
+    X.arc(0, 0, r * 1.05, 0, 6.28);
+    X.fill();
   }
 
   X.restore();

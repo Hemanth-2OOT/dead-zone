@@ -310,7 +310,11 @@ function switchLobbyRewards(t){
 let activeSkinFilter = 'all';
 function filterSkins(f){
   activeSkinFilter = f;
-  document.querySelectorAll('.sk-tab').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase().includes(f)));
+  const filterMap = { all: 'all', weap: 'weapon', op: 'operative', unlocked: 'unlocked' };
+  const target = filterMap[f] || f;
+  document.querySelectorAll('.sk-tab').forEach(b => {
+    b.classList.toggle('on', b.textContent.toLowerCase().includes(target));
+  });
   renderSkinsUI();
 }
 
@@ -370,6 +374,7 @@ function inspectSkin(skinKey) {
   if (title) title.textContent = sk.name.toUpperCase();
   if (sub) sub.textContent = (sk.type === 'op' ? 'OPERATIVE CAMO' : ((WEAP[sk.wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH')) + ' • 360° TURNTABLE';
   if (desc) desc.textContent = sk.desc;
+  renderTurntable();
 }
 
 function renderTurntable() {
@@ -379,48 +384,93 @@ function renderTurntable() {
   const sk = SKINS[TURNTABLE_SKIN] || SKINS.volt_railgun;
   if (!sk) return;
 
-  TURNTABLE_ROT += 0.025;
+  TURNTABLE_ROT += 0.024;
   const tw = cv.width, th = cv.height;
 
   cx.clearRect(0, 0, tw, th);
 
   // Background radial pedestal glow
-  const bgGrad = cx.createRadialGradient(tw / 2, th / 2, 10, tw / 2, th / 2, 70);
-  bgGrad.addColorStop(0, (sk.col || '#38bdf8') + '33');
+  const bgGrad = cx.createRadialGradient(tw / 2, th / 2, 8, tw / 2, th / 2, 75);
+  bgGrad.addColorStop(0, (sk.col || '#38bdf8') + '3a');
   bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = bgGrad;
   cx.fillRect(0, 0, tw, th);
 
   // Rotating pedestal oval shadow
-  cx.fillStyle = 'rgba(0,0,0,0.55)';
+  cx.fillStyle = 'rgba(0,0,0,0.58)';
   cx.beginPath();
-  cx.ellipse(tw / 2, th / 2 + 28, 48, 14, 0, 0, 6.28);
+  cx.ellipse(tw / 2, th / 2 + 30, 52, 14, 0, 0, 6.28);
   cx.fill();
 
-  // Pedestal rim
-  cx.strokeStyle = (sk.col || '#38bdf8') + '55';
-  cx.lineWidth = 1.5;
+  // Pedestal rim & metallic shine
+  cx.strokeStyle = (sk.col || '#38bdf8') + '66';
+  cx.lineWidth = 1.8;
   cx.beginPath();
-  cx.ellipse(tw / 2, th / 2 + 28, 48, 14, 0, 0, 6.28);
+  cx.ellipse(tw / 2, th / 2 + 30, 52, 14, 0, 0, 6.28);
   cx.stroke();
 
+  // Tier escalating effects: Legendary orbiting energy particles & Epic aura
+  const tier = sk.tier || 'RARE';
+  if (tier === 'LEGENDARY') {
+    const t = performance.now() * 0.003;
+    for (let i = 0; i < 4; i++) {
+      const ang = t + i * 1.57;
+      const px = tw / 2 + Math.cos(ang) * 48;
+      const py = th / 2 + 20 + Math.sin(ang) * 13;
+      cx.fillStyle = '#f59e0b';
+      cx.beginPath(); cx.arc(px, py, 2.2, 0, 6.28); cx.fill();
+      cx.fillStyle = '#fef08a';
+      cx.beginPath(); cx.arc(px, py, 1.2, 0, 6.28); cx.fill();
+    }
+  } else if (tier === 'EPIC') {
+    const pulse = 0.5 + Math.sin(performance.now() * 0.005) * 0.3;
+    cx.strokeStyle = 'rgba(192, 132, 252, ' + (pulse * 0.45) + ')';
+    cx.lineWidth = 2.2;
+    cx.beginPath(); cx.ellipse(tw / 2, th / 2 + 30, 56, 16, 0, 0, 6.28); cx.stroke();
+  }
+
   cx.save();
-  cx.translate(tw / 2, th / 2 + 4);
+  cx.translate(tw / 2, th / 2 + 6);
   const cosRot = Math.cos(TURNTABLE_ROT);
-  cx.scale(cosRot, 1.0); // 360-degree turntable perspective projection
 
   const prevX = X;
   X = cx;
 
   if (sk.type === 'op') {
-    // Draw operative
-    const cDef = (typeof CL !== 'undefined' && CL[sk.ci || 0]) ? CL[sk.ci || 0] : { col: sk.col };
+    // High-fidelity 4-layer operative turntable model
+    cx.scale(cosRot * 1.85, 1.85);
+
+    // Drop shadow
+    cx.fillStyle = 'rgba(0,0,0,0.42)';
+    cx.beginPath(); cx.ellipse(0, 13, 12, 5, 0, 0, 6.28); cx.fill();
+
+    // Combat boots
+    cx.fillStyle = '#181b16';
+    cx.fillRect(-8, 5, 5.5, 9);
+    cx.fillRect(2.5, 5, 5.5, 9);
+
+    // Tactical gear backpack
+    cx.fillStyle = sk.pk || '#252e20';
+    cx.fillRect(-10, -8, 20, 13);
+    cx.strokeStyle = '#10140d'; cx.lineWidth = 1; cx.strokeRect(-10, -8, 20, 13);
+
+    // Torso armor with camouflage accent
     cx.fillStyle = sk.col;
-    cx.beginPath(); cx.arc(0, 0, 16, 0, 6.28); cx.fill();
+    cx.beginPath(); cx.roundRect(-8, -12, 16, 17, 3.5); cx.fill();
+    cx.strokeStyle = sk.ac || '#10140d'; cx.lineWidth = 1.6; cx.stroke();
+
+    // Helmet & Visor
+    cx.fillStyle = sk.hm || '#1e293b';
+    cx.beginPath(); cx.arc(0, -15, 7.5, 0, 6.28); cx.fill();
     cx.fillStyle = sk.vz || '#00e5ff';
-    cx.fillRect(4, -5, 6, 10);
+    cx.beginPath(); cx.roundRect(-4, -17, 8, 3.5, 1.5); cx.fill();
+    cx.fillStyle = 'rgba(255,255,255,0.7)';
+    cx.fillRect(-2, -16.5, 3, 1.5);
   } else {
-    // Draw weapon with skin
+    // High-resolution scaled weapon preview centered on turntable pedestal
+    cx.scale(cosRot * 2.35, 2.35);
+    cx.translate(-14, 0);
+
     const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
     SV.eqSkin = SV.eqSkin || {};
     SV.eqSkin[sk.wi] = TURNTABLE_SKIN;
@@ -431,7 +481,7 @@ function renderTurntable() {
   X = prevX;
   cx.restore();
 
-  // Specular reflection sweep across the turntable
+  // Specular reflection sweep across the pedestal
   const sweep = (TURNTABLE_ROT * 1.5) % 6.28;
   if (sweep < 1.2) {
     cx.save();
@@ -440,8 +490,11 @@ function renderTurntable() {
     cx.restore();
   }
 
-  if ($('psk') && $('psk').classList.contains('active')) {
+  // Loop requestAnimationFrame while skins tab is on
+  if ($('psk') && $('psk').classList.contains('on')) {
     TURNTABLE_RAF = requestAnimationFrame(renderTurntable);
+  } else {
+    TURNTABLE_RAF = null;
   }
 }
 

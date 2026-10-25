@@ -48,7 +48,7 @@ const BT = [
     f() { skill(this.k); }
   },
   { n: 'GREN', k: 'gren', p: () => { const j = jPos('r'); return [j[0] - 74, j[1] + 16]; }, f: () => skill('gren') },
-  { n: 'II', ar: 1, p: () => [W - 22, 22], f: () => pause() },
+  { n: 'II', ar: 1, p: () => [W - 36, 32], f: () => pause() },
   { n: '<', ar: 1, p: () => [W / 2 - 68, H - 25], f: () => swap(-1) },
   { n: '>', ar: 1, p: () => [W / 2 + 68, H - 25], f: () => swap(1) }
 ];
@@ -308,7 +308,7 @@ function fire() {
   }
 
   S.shots = (S.shots || 0) + 1;
-  P.cd = w.r / ((SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1) * (S.adr > 0 ? 1.45 : 1));
+  P.cd = w.r / ((SK && SK.rage && SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1) * (S.adr > 0 ? 1.45 : 1));
   P.fl = 0.07;
   sfx(P.cur);
 
@@ -409,8 +409,8 @@ function damageZ(z, rawDmg, src, isCrit) {
   const arm = (z.t === 'tank' ? 0.85 : (z.t === 'charger' ? 0.90 : 1)) * (z.el ? 0.88 : 1);
   const finalD = Math.max(1, dmg * arm);
   z.hp -= finalD;
-  z.hit = 0.12;
-  z.flinch = 0.12;
+  z.hit = 0.08;
+  z.flinch = 0.08;
 
   // Surface-aware & archetype-aware blood splatter physics
   if (typeof spawnBloodHit === 'function') {
@@ -586,14 +586,30 @@ function boom(b, y0, r0, c0) {
 }
 
 function push(z, r) {
+  if (!z || !isFinite(z.x) || !isFinite(z.y) || !O || !O.length) return;
   for (const o of O) {
     const cx = Math.max(o.x, Math.min(z.x, o.x + o.w));
     const cy = Math.max(o.y, Math.min(z.y, o.y + o.h));
-    const dx = z.x - cx, dy = z.y - cy, d = Math.hypot(dx, dy);
-    if (d < r) {
-      if (d === 0) { z.x += 1; continue; }
-      z.x += (dx / d) * (r - d);
-      z.y += (dy / d) * (r - d);
+    const dx = z.x - cx;
+    const dy = z.y - cy;
+    const dSq = dx * dx + dy * dy;
+
+    if (dSq < r * r) {
+      const d = Math.sqrt(dSq);
+      if (d > 0.001) {
+        z.x += (dx / d) * (r - d);
+        z.y += (dy / d) * (r - d);
+      } else {
+        const dl = z.x - o.x;
+        const dr = (o.x + o.w) - z.x;
+        const dt = z.y - o.y;
+        const db = (o.y + o.h) - z.y;
+        const minD = Math.min(dl, dr, dt, db);
+        if (minD === dl) z.x = o.x - r;
+        else if (minD === dr) z.x = o.x + o.w + r;
+        else if (minD === dt) z.y = o.y - r;
+        else z.y = o.y + o.h + r;
+      }
     }
   }
 }
@@ -818,12 +834,14 @@ function update(dt) {
 
   if (Math.hypot(vx, vy) > 0.1) P.st = (P.st || 0) + dt * 14;
   P.x += vx * sp * dt;
+  push(P, 14);
   P.y += vy * sp * dt;
+  push(P, 14);
   sanitizePlayer();
 
   // Skill cooldowns
-  for (const k in SK) SK[k].cd -= dt * (1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
-  SK.rage.on -= dt;
+  for (const k in SK) if (SK[k] && SK[k].cd > 0) SK[k].cd -= dt * (1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
+  if (SK && SK.rage && SK.rage.on > 0) SK.rage.on -= dt;
   P.fl -= dt;
   SH *= 0.88;
   S.t += dt;
@@ -860,7 +878,7 @@ function update(dt) {
   if (firing && P.cd <= 0) fire();
 
   // Wave spawn queue
-  if (S.q.length) {
+  if (S && S.q && S.q.length) {
     S.sp -= dt;
     const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
     if (S.sp <= 0 && Z.length < 55) {
@@ -935,6 +953,8 @@ function update(dt) {
       continue;
     }
     if (z.flinch > 0) z.flinch = Math.max(0, z.flinch - dt);
+    if (z.hit > 0) z.hit = Math.max(0, z.hit - dt);
+    if (z.cd > 0) z.cd = Math.max(0, z.cd - dt);
 
     const T = ZT[z.t] || ZT.walk;
     const speed = T.s || T.spd || 55;
@@ -963,8 +983,8 @@ function update(dt) {
 
     // Zombie melee attack
     const dd = Math.hypot(P.x - z.x, P.y - z.y);
-    if (dd < zRadius + 12 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
-      if (hasLOS(z.x, z.y, P.x, P.y)) {
+    if (dd <= zRadius + 18 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
+      if (dd < 30 || hasLOS(z.x, z.y, P.x, P.y)) {
         z.cd = 0.8;
         hurtP(damage, z.x, z.y);
       }
@@ -1118,7 +1138,7 @@ function update(dt) {
     }
     if (typeof metaHooksHTML === 'function' && !S.isEvent) document.getElementById('sum').innerHTML += metaHooksHTML(prevBest);
     document.getElementById('over').classList.add('on');
-  } else if (!S.q.length && !Z.length && !S.po) {
+  } else if (S && S.q && !S.q.length && !Z.length && !S.po) {
     run = 0;
     if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
     openShop();
@@ -2089,6 +2109,7 @@ function loop(t) {
 }
 
 function openShop() {
+  if (typeof clearGoreDecals === 'function') clearGoreDecals();
   commitXP();
   if (S.wave > 0) SV.best = Math.max(SV.best, S.wave);
   if (typeof sv === 'function') sv();

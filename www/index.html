@@ -600,6 +600,33 @@ button:active:not(:disabled) { transform: scale(0.96); }
   #zone-preview { width: 100% !important; height: auto !important; aspect-ratio: 460 / 240; }
   #maps button { flex-basis: 42% !important; }
   .rewards-box { max-height: 300px; overflow-y: auto; }
+
+  #skin-turntable-card {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
+  #skin-turntable-card > div {
+    width: 100% !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #skin-list {
+    grid-template-columns: 1fr !important;
+  }
+  #sk-filter {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    padding-bottom: 4px !important;
+  }
+  #sk-filter button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
 }
 
 /* Short landscape phones: compact chrome so the DEPLOY button never scrolls away */
@@ -2675,7 +2702,11 @@ function switchLobbyRewards(t){
 let activeSkinFilter = 'all';
 function filterSkins(f){
   activeSkinFilter = f;
-  document.querySelectorAll('.sk-tab').forEach(b => b.classList.toggle('on', b.textContent.toLowerCase().includes(f)));
+  const filterMap = { all: 'all', weap: 'weapon', op: 'operative', unlocked: 'unlocked' };
+  const target = filterMap[f] || f;
+  document.querySelectorAll('.sk-tab').forEach(b => {
+    b.classList.toggle('on', b.textContent.toLowerCase().includes(target));
+  });
   renderSkinsUI();
 }
 
@@ -2735,6 +2766,7 @@ function inspectSkin(skinKey) {
   if (title) title.textContent = sk.name.toUpperCase();
   if (sub) sub.textContent = (sk.type === 'op' ? 'OPERATIVE CAMO' : ((WEAP[sk.wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH')) + ' • 360° TURNTABLE';
   if (desc) desc.textContent = sk.desc;
+  renderTurntable();
 }
 
 function renderTurntable() {
@@ -2744,48 +2776,93 @@ function renderTurntable() {
   const sk = SKINS[TURNTABLE_SKIN] || SKINS.volt_railgun;
   if (!sk) return;
 
-  TURNTABLE_ROT += 0.025;
+  TURNTABLE_ROT += 0.024;
   const tw = cv.width, th = cv.height;
 
   cx.clearRect(0, 0, tw, th);
 
   // Background radial pedestal glow
-  const bgGrad = cx.createRadialGradient(tw / 2, th / 2, 10, tw / 2, th / 2, 70);
-  bgGrad.addColorStop(0, (sk.col || '#38bdf8') + '33');
+  const bgGrad = cx.createRadialGradient(tw / 2, th / 2, 8, tw / 2, th / 2, 75);
+  bgGrad.addColorStop(0, (sk.col || '#38bdf8') + '3a');
   bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = bgGrad;
   cx.fillRect(0, 0, tw, th);
 
   // Rotating pedestal oval shadow
-  cx.fillStyle = 'rgba(0,0,0,0.55)';
+  cx.fillStyle = 'rgba(0,0,0,0.58)';
   cx.beginPath();
-  cx.ellipse(tw / 2, th / 2 + 28, 48, 14, 0, 0, 6.28);
+  cx.ellipse(tw / 2, th / 2 + 30, 52, 14, 0, 0, 6.28);
   cx.fill();
 
-  // Pedestal rim
-  cx.strokeStyle = (sk.col || '#38bdf8') + '55';
-  cx.lineWidth = 1.5;
+  // Pedestal rim & metallic shine
+  cx.strokeStyle = (sk.col || '#38bdf8') + '66';
+  cx.lineWidth = 1.8;
   cx.beginPath();
-  cx.ellipse(tw / 2, th / 2 + 28, 48, 14, 0, 0, 6.28);
+  cx.ellipse(tw / 2, th / 2 + 30, 52, 14, 0, 0, 6.28);
   cx.stroke();
 
+  // Tier escalating effects: Legendary orbiting energy particles & Epic aura
+  const tier = sk.tier || 'RARE';
+  if (tier === 'LEGENDARY') {
+    const t = performance.now() * 0.003;
+    for (let i = 0; i < 4; i++) {
+      const ang = t + i * 1.57;
+      const px = tw / 2 + Math.cos(ang) * 48;
+      const py = th / 2 + 20 + Math.sin(ang) * 13;
+      cx.fillStyle = '#f59e0b';
+      cx.beginPath(); cx.arc(px, py, 2.2, 0, 6.28); cx.fill();
+      cx.fillStyle = '#fef08a';
+      cx.beginPath(); cx.arc(px, py, 1.2, 0, 6.28); cx.fill();
+    }
+  } else if (tier === 'EPIC') {
+    const pulse = 0.5 + Math.sin(performance.now() * 0.005) * 0.3;
+    cx.strokeStyle = 'rgba(192, 132, 252, ' + (pulse * 0.45) + ')';
+    cx.lineWidth = 2.2;
+    cx.beginPath(); cx.ellipse(tw / 2, th / 2 + 30, 56, 16, 0, 0, 6.28); cx.stroke();
+  }
+
   cx.save();
-  cx.translate(tw / 2, th / 2 + 4);
+  cx.translate(tw / 2, th / 2 + 6);
   const cosRot = Math.cos(TURNTABLE_ROT);
-  cx.scale(cosRot, 1.0); // 360-degree turntable perspective projection
 
   const prevX = X;
   X = cx;
 
   if (sk.type === 'op') {
-    // Draw operative
-    const cDef = (typeof CL !== 'undefined' && CL[sk.ci || 0]) ? CL[sk.ci || 0] : { col: sk.col };
+    // High-fidelity 4-layer operative turntable model
+    cx.scale(cosRot * 1.85, 1.85);
+
+    // Drop shadow
+    cx.fillStyle = 'rgba(0,0,0,0.42)';
+    cx.beginPath(); cx.ellipse(0, 13, 12, 5, 0, 0, 6.28); cx.fill();
+
+    // Combat boots
+    cx.fillStyle = '#181b16';
+    cx.fillRect(-8, 5, 5.5, 9);
+    cx.fillRect(2.5, 5, 5.5, 9);
+
+    // Tactical gear backpack
+    cx.fillStyle = sk.pk || '#252e20';
+    cx.fillRect(-10, -8, 20, 13);
+    cx.strokeStyle = '#10140d'; cx.lineWidth = 1; cx.strokeRect(-10, -8, 20, 13);
+
+    // Torso armor with camouflage accent
     cx.fillStyle = sk.col;
-    cx.beginPath(); cx.arc(0, 0, 16, 0, 6.28); cx.fill();
+    cx.beginPath(); cx.roundRect(-8, -12, 16, 17, 3.5); cx.fill();
+    cx.strokeStyle = sk.ac || '#10140d'; cx.lineWidth = 1.6; cx.stroke();
+
+    // Helmet & Visor
+    cx.fillStyle = sk.hm || '#1e293b';
+    cx.beginPath(); cx.arc(0, -15, 7.5, 0, 6.28); cx.fill();
     cx.fillStyle = sk.vz || '#00e5ff';
-    cx.fillRect(4, -5, 6, 10);
+    cx.beginPath(); cx.roundRect(-4, -17, 8, 3.5, 1.5); cx.fill();
+    cx.fillStyle = 'rgba(255,255,255,0.7)';
+    cx.fillRect(-2, -16.5, 3, 1.5);
   } else {
-    // Draw weapon with skin
+    // High-resolution scaled weapon preview centered on turntable pedestal
+    cx.scale(cosRot * 2.35, 2.35);
+    cx.translate(-14, 0);
+
     const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
     SV.eqSkin = SV.eqSkin || {};
     SV.eqSkin[sk.wi] = TURNTABLE_SKIN;
@@ -2796,7 +2873,7 @@ function renderTurntable() {
   X = prevX;
   cx.restore();
 
-  // Specular reflection sweep across the turntable
+  // Specular reflection sweep across the pedestal
   const sweep = (TURNTABLE_ROT * 1.5) % 6.28;
   if (sweep < 1.2) {
     cx.save();
@@ -2805,8 +2882,11 @@ function renderTurntable() {
     cx.restore();
   }
 
-  if ($('psk') && $('psk').classList.contains('active')) {
+  // Loop requestAnimationFrame while skins tab is on
+  if ($('psk') && $('psk').classList.contains('on')) {
     TURNTABLE_RAF = requestAnimationFrame(renderTurntable);
+  } else {
+    TURNTABLE_RAF = null;
   }
 }
 
@@ -3133,37 +3213,30 @@ function spawnGroundDecal(x, y, vx, vy, r, col, rimCol, type) {
     ang,
     col,
     rimCol,
-    l: 18,
-    maxL: 18,
+    l: 12,
+    maxL: 12,
     type: type || 'blood'
   });
 
-  // Check decal baking threshold to keep active array small and fast
+  // Strictly enforce max active decals by fading oldest out cleanly
   const maxDecals = getQualityProfile().maxDecals;
   if (DEC.length > maxDecals) {
-    bakeDecalsToBackground(20);
+    const overflow = DEC.length - maxDecals;
+    for (let i = 0; i < overflow; i++) {
+      if (DEC[i]) DEC[i].l = Math.min(DEC[i].l, 1.2);
+    }
+    if (DEC.length > maxDecals + 30) {
+      DEC.splice(0, DEC.length - maxDecals);
+    }
   }
 }
 
-// Bakes oldest settled decals onto offscreen canvas BG_DEC_CANVAS
+// Bakes or recycles oldest settled decals smoothly without permanent clutter
 function bakeDecalsToBackground(count) {
-  if (!BG_DEC_CTX) return;
-  const toBake = DEC.splice(0, count);
-  for (const d of toBake) {
-    BG_DEC_CTX.save();
-    BG_DEC_CTX.translate(d.x, d.y);
-    BG_DEC_CTX.rotate(d.ang || 0);
-    // Thin outer rim
-    BG_DEC_CTX.fillStyle = d.rimCol || '#dc2626';
-    BG_DEC_CTX.beginPath();
-    BG_DEC_CTX.ellipse(0, 0, d.r * (d.stretch || 1.2), d.r * 0.9, 0, 0, 6.28);
-    BG_DEC_CTX.fill();
-    // Thick darker core
-    BG_DEC_CTX.fillStyle = d.col || '#7f1d1d';
-    BG_DEC_CTX.beginPath();
-    BG_DEC_CTX.ellipse(0, 0, d.r * 0.65 * (d.stretch || 1.2), d.r * 0.6, 0, 0, 6.28);
-    BG_DEC_CTX.fill();
-    BG_DEC_CTX.restore();
+  if (DEC.length > count) {
+    for (let i = 0; i < count; i++) {
+      if (DEC[i]) DEC[i].l = Math.min(DEC[i].l, 1.0);
+    }
   }
 }
 
@@ -3267,9 +3340,11 @@ function renderGoreGroundPass(cx, cy, W, H) {
   // 2. Draw drying/expanding blood pools
   for (const p of POOLS) {
     if (p.x < cx - 40 || p.x > cx + W + 40 || p.y < cy - 40 || p.y > cy + H + 40) continue;
-    // Darken and dry over lifespan
-    const dryPct = Math.min(1, p.age / 12);
-    const alpha = Math.max(0.15, 1 - (p.age / p.maxAge));
+    // Darken and dry over lifespan, then fade to zero opacity
+    const dryPct = Math.min(1, p.age / 10);
+    const timeLeft = Math.max(0, (p.maxAge || 18) - p.age);
+    const alpha = Math.max(0, Math.min(0.85, timeLeft / 3.0));
+    if (alpha <= 0.005) continue;
     X.save();
     X.globalAlpha = alpha;
     // Outer thin rim
@@ -3288,7 +3363,8 @@ function renderGoreGroundPass(cx, cy, W, H) {
   // 3. Draw active dynamic decals
   for (const d of DEC) {
     if (d.x < cx - 30 || d.x > cx + W + 30 || d.y < cy - 30 || d.y > cy + H + 30) continue;
-    const alpha = Math.min(0.85, d.l / 4);
+    const alpha = Math.max(0, Math.min(0.85, d.l / 2.5));
+    if (alpha <= 0.005) continue;
     X.save();
     X.globalAlpha = alpha;
     X.translate(d.x, d.y);
@@ -4457,7 +4533,7 @@ function drawZombie(z) {
   X.scale(sc * hitSquash, sc / hitSquash);
 
   const r = T.r;
-  const fc = isHit ? '#ffffff' : null;
+  const fc = (isHit && z.hit > 0.035) ? '#ffffff' : null;
 
   // ARCHETYPE 1: WALKER (Shambling Rotten Corpse)
   if (z.t === 'walk' || z.t === 'walker') {
@@ -4885,6 +4961,14 @@ function drawZombie(z) {
       X.fillRect(-r * 0.2, -r * 0.2, 6, 4);
       X.fillRect(r * 0.1, r * 0.3, 5, 4);
     }
+  }
+
+  // Brief impact flash overlay that fades smoothly within 80ms
+  if (isHit && z.hit > 0) {
+    X.fillStyle = 'rgba(255, 255, 255, ' + Math.min(0.65, (z.hit / 0.08) * 0.65) + ')';
+    X.beginPath();
+    X.arc(0, 0, r * 1.05, 0, 6.28);
+    X.fill();
   }
 
   X.restore();
@@ -5436,7 +5520,7 @@ const BT = [
     f() { skill(this.k); }
   },
   { n: 'GREN', k: 'gren', p: () => { const j = jPos('r'); return [j[0] - 74, j[1] + 16]; }, f: () => skill('gren') },
-  { n: 'II', ar: 1, p: () => [W - 22, 22], f: () => pause() },
+  { n: 'II', ar: 1, p: () => [W - 36, 32], f: () => pause() },
   { n: '<', ar: 1, p: () => [W / 2 - 68, H - 25], f: () => swap(-1) },
   { n: '>', ar: 1, p: () => [W / 2 + 68, H - 25], f: () => swap(1) }
 ];
@@ -5696,7 +5780,7 @@ function fire() {
   }
 
   S.shots = (S.shots || 0) + 1;
-  P.cd = w.r / ((SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1) * (S.adr > 0 ? 1.45 : 1));
+  P.cd = w.r / ((SK && SK.rage && SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1) * (S.adr > 0 ? 1.45 : 1));
   P.fl = 0.07;
   sfx(P.cur);
 
@@ -5797,8 +5881,8 @@ function damageZ(z, rawDmg, src, isCrit) {
   const arm = (z.t === 'tank' ? 0.85 : (z.t === 'charger' ? 0.90 : 1)) * (z.el ? 0.88 : 1);
   const finalD = Math.max(1, dmg * arm);
   z.hp -= finalD;
-  z.hit = 0.12;
-  z.flinch = 0.12;
+  z.hit = 0.08;
+  z.flinch = 0.08;
 
   // Surface-aware & archetype-aware blood splatter physics
   if (typeof spawnBloodHit === 'function') {
@@ -5974,14 +6058,30 @@ function boom(b, y0, r0, c0) {
 }
 
 function push(z, r) {
+  if (!z || !isFinite(z.x) || !isFinite(z.y) || !O || !O.length) return;
   for (const o of O) {
     const cx = Math.max(o.x, Math.min(z.x, o.x + o.w));
     const cy = Math.max(o.y, Math.min(z.y, o.y + o.h));
-    const dx = z.x - cx, dy = z.y - cy, d = Math.hypot(dx, dy);
-    if (d < r) {
-      if (d === 0) { z.x += 1; continue; }
-      z.x += (dx / d) * (r - d);
-      z.y += (dy / d) * (r - d);
+    const dx = z.x - cx;
+    const dy = z.y - cy;
+    const dSq = dx * dx + dy * dy;
+
+    if (dSq < r * r) {
+      const d = Math.sqrt(dSq);
+      if (d > 0.001) {
+        z.x += (dx / d) * (r - d);
+        z.y += (dy / d) * (r - d);
+      } else {
+        const dl = z.x - o.x;
+        const dr = (o.x + o.w) - z.x;
+        const dt = z.y - o.y;
+        const db = (o.y + o.h) - z.y;
+        const minD = Math.min(dl, dr, dt, db);
+        if (minD === dl) z.x = o.x - r;
+        else if (minD === dr) z.x = o.x + o.w + r;
+        else if (minD === dt) z.y = o.y - r;
+        else z.y = o.y + o.h + r;
+      }
     }
   }
 }
@@ -6206,12 +6306,14 @@ function update(dt) {
 
   if (Math.hypot(vx, vy) > 0.1) P.st = (P.st || 0) + dt * 14;
   P.x += vx * sp * dt;
+  push(P, 14);
   P.y += vy * sp * dt;
+  push(P, 14);
   sanitizePlayer();
 
   // Skill cooldowns
-  for (const k in SK) SK[k].cd -= dt * (1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
-  SK.rage.on -= dt;
+  for (const k in SK) if (SK[k] && SK[k].cd > 0) SK[k].cd -= dt * (1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
+  if (SK && SK.rage && SK.rage.on > 0) SK.rage.on -= dt;
   P.fl -= dt;
   SH *= 0.88;
   S.t += dt;
@@ -6248,7 +6350,7 @@ function update(dt) {
   if (firing && P.cd <= 0) fire();
 
   // Wave spawn queue
-  if (S.q.length) {
+  if (S && S.q && S.q.length) {
     S.sp -= dt;
     const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
     if (S.sp <= 0 && Z.length < 55) {
@@ -6323,6 +6425,8 @@ function update(dt) {
       continue;
     }
     if (z.flinch > 0) z.flinch = Math.max(0, z.flinch - dt);
+    if (z.hit > 0) z.hit = Math.max(0, z.hit - dt);
+    if (z.cd > 0) z.cd = Math.max(0, z.cd - dt);
 
     const T = ZT[z.t] || ZT.walk;
     const speed = T.s || T.spd || 55;
@@ -6351,8 +6455,8 @@ function update(dt) {
 
     // Zombie melee attack
     const dd = Math.hypot(P.x - z.x, P.y - z.y);
-    if (dd < zRadius + 12 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
-      if (hasLOS(z.x, z.y, P.x, P.y)) {
+    if (dd <= zRadius + 18 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
+      if (dd < 30 || hasLOS(z.x, z.y, P.x, P.y)) {
         z.cd = 0.8;
         hurtP(damage, z.x, z.y);
       }
@@ -6506,7 +6610,7 @@ function update(dt) {
     }
     if (typeof metaHooksHTML === 'function' && !S.isEvent) document.getElementById('sum').innerHTML += metaHooksHTML(prevBest);
     document.getElementById('over').classList.add('on');
-  } else if (!S.q.length && !Z.length && !S.po) {
+  } else if (S && S.q && !S.q.length && !Z.length && !S.po) {
     run = 0;
     if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
     openShop();
@@ -7477,6 +7581,7 @@ function loop(t) {
 }
 
 function openShop() {
+  if (typeof clearGoreDecals === 'function') clearGoreDecals();
   commitXP();
   if (S.wave > 0) SV.best = Math.max(SV.best, S.wave);
   if (typeof sv === 'function') sv();
@@ -8568,6 +8673,11 @@ function tab(i) {
     target.classList.add('on');
     target.style.animation = 'none'; void target.offsetWidth; target.style.animation = '';
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
+  }
+
+  if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
+    cancelAnimationFrame(TURNTABLE_RAF);
+    TURNTABLE_RAF = null;
   }
 
   if (i === 0) { mapsUI(); drawZonePreview(getCurMap()); }
