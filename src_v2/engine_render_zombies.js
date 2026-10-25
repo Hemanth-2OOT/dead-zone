@@ -1,4 +1,4 @@
-// DEAD ZONE v2.6 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.7 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -7,7 +7,7 @@ function drawTelegraph(z) {
   const dToP = Math.hypot(P.x - z.x, P.y - z.y);
 
   // 1. Melee attack windup telegraph for Walkers & Runners when closing in
-  if ((z.t === 'walk' || z.t === 'walker' || z.t === 'run' || z.t === 'runner' || z.t === 'brute' || z.t === 'tank') && dToP < 55) {
+  if ((z.t === 'walk' || z.t === 'walker' || z.t === 'run' || z.t === 'runner' || z.t === 'brute' || z.t === 'tank' || z.t === 'crawler' || z.t === 'armored' || z.t === 'screamer' || z.t === 'shielder' || z.t === 'necromancer' || z.t === 'bloater') && dToP < 55) {
     const pulse = 0.5 + Math.sin((S.t || 0) * 16) * 0.5;
     X.save();
     X.translate(z.x, z.y);
@@ -208,17 +208,46 @@ function drawZombie(z) {
 
   // Elite glowing orbital aura
   if (z.el) {
+    const afx = (z.aff >= 0 && typeof ELITE_AFFIX !== 'undefined') ? ELITE_AFFIX[z.aff] : null;
     X.strokeStyle = '#ffd84a';
     X.lineWidth = 2.5;
     X.setLineDash([6, 4]);
     X.beginPath(); X.arc(z.x, z.y, T.r * sc + 6 + Math.sin((S.t || 0) * 8) * 2, 0, 6.28); X.stroke();
     X.setLineDash([]);
+    if (afx) {
+      // Affix collar: a thin coloured arc at the bottom of the ring, so which
+      // affix an elite rolled is readable without a tooltip.
+      X.strokeStyle = afx.col;
+      X.lineWidth = 2.5;
+      X.beginPath(); X.arc(z.x, z.y, T.r * sc + 6, Math.PI * 0.25, Math.PI * 0.75); X.stroke();
+      // Pixel badge above the head: two blocks + a cap block.
+      const bx = Math.round(z.x) - 4, by = Math.round(z.y - T.r * sc - 14);
+      const bl = (Math.sin((S.t || 0) * 6) > 0) ? 3 : 2;
+      X.fillStyle = afx.col;
+      X.fillRect(bx, by, bl, bl);
+      X.fillRect(bx + 5, by, bl, bl);
+      X.fillRect(bx + 2 + (3 - bl) * 0.5, by - 3, bl, bl);
+    }
   }
 
   // Frozen aura
   if ((typeof S !== 'undefined' && S.fz > 0) || (z.fz > 0)) {
     X.fillStyle = 'rgba(155, 231, 255, 0.35)';
     X.beginPath(); X.arc(z.x, z.y, T.r * sc + 3.5, 0, 6.28); X.fill();
+  }
+
+  // Shielder ward: a warded zombie gets a cold blue rim so the player can read
+  // which targets are armoured by support and pick the shielder instead.
+  if (z.sh > 0) {
+    X.strokeStyle = 'rgba(120,190,255,' + (0.45 + Math.sin((S.t || 0) * 10 + z.x * 0.05) * 0.2) + ')';
+    X.lineWidth = 2.2;
+    X.beginPath(); X.arc(z.x, z.y, T.r * sc + 5, 0, 6.28); X.stroke();
+  }
+  // Screamer roar: warm pulse on everyone it emboldened.
+  if (z.buffT > 0) {
+    X.strokeStyle = 'rgba(255,130,190,' + (0.35 + Math.sin((S.t || 0) * 14) * 0.15) + ')';
+    X.lineWidth = 1.8;
+    X.beginPath(); X.arc(z.x, z.y, T.r * sc + 3, 0, 6.28); X.stroke();
   }
 
   X.save();
@@ -576,6 +605,140 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 8: BOSS VARIANTS (Brute, Necromancer, Spitter Queen, Juggernaut)
+  else if (z.t === 'crawler') {
+    // CRAWLER - a low, wide, four-limbed scuttler. The silhouette is deliberately
+    // flat so it reads as "fast and low" next to the upright walkers.
+    const bodyCol = fc || (z.el ? '#b8c060' : '#7d8a44');
+    const limbSw = Math.sin(z.ph * 2.2) * 3;
+    X.strokeStyle = fc || '#4a5228'; X.lineWidth = 2.6; X.lineCap = 'round';
+    for (const sgn of [-1, 1]) {
+      X.beginPath();
+      X.moveTo(-r * 0.2, sgn * r * 0.5);
+      X.lineTo(-r * 0.9, sgn * (r * 0.9) + limbSw * sgn);
+      X.lineTo(-r * 0.3, sgn * (r * 1.25) + limbSw * sgn);
+      X.stroke();
+      X.beginPath();
+      X.moveTo(r * 0.5, sgn * r * 0.5);
+      X.lineTo(r * 1.1, sgn * (r * 0.85) - limbSw * sgn);
+      X.stroke();
+    }
+    X.fillStyle = bodyCol;
+    X.beginPath(); X.ellipse(-r * 0.1, 0, r * 1.15, r * 0.62, 0, 0, 6.28); X.fill();
+    X.strokeStyle = 'rgba(0,0,0,0.45)'; X.lineWidth = 1.4; X.stroke();
+    X.fillStyle = fc || 'rgba(0,0,0,0.28)';
+    for (let i = -1; i <= 1; i++) X.fillRect(-r * 0.4 + i * r * 0.45, -r * 0.42, 3, 3);
+    X.fillStyle = '#1a1f10';
+    X.beginPath(); X.ellipse(r * 0.8, 0, r * 0.5, r * 0.42, 0, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#e8ff60';
+    X.beginPath(); X.arc(r * 0.95, -r * 0.16, 2, 0, 6.28); X.arc(r * 0.95, r * 0.16, 2, 0, 6.28); X.fill();
+    X.fillStyle = 'rgba(140,190,60,0.55)';
+    X.fillRect(r * 1.15, -1.5, 4, 3); // dangling drool
+  } else if (z.t === 'bloater') {
+    // BLOATER - a swollen gas bag. The belly inflation is a live read on how
+    // close it is to bursting, and vents trail behind as it drags along.
+    const near = Math.max(0, 1 - dToP / 260);
+    const puff = 1 + Math.sin((S.t || 0) * 3 + (z.animOffset || 0)) * 0.07 + near * 0.1;
+    const bodyCol = fc || (z.el ? '#9aa050' : '#6d7a38');
+    X.fillStyle = 'rgba(120,160,50,' + (0.25 + near * 0.25) + ')';
+    X.beginPath(); X.ellipse(-r * 0.3, 0, r * 1.35 * puff, r * 1.1 * puff, 0, 0, 6.28); X.fill();
+    X.fillStyle = bodyCol;
+    X.beginPath(); X.ellipse(-r * 0.25, 0, r * 1.05 * puff, r * 0.9 * puff, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || 'rgba(40,50,20,0.8)'; X.lineWidth = 1.8; X.stroke();
+    X.strokeStyle = fc || 'rgba(190,230,90,0.7)'; X.lineWidth = 1.6;
+    X.beginPath();
+    X.moveTo(-r * 0.9, -r * 0.5); X.lineTo(-r * 0.2, 0); X.lineTo(-r * 0.95, r * 0.45);
+    X.moveTo(-r * 0.4, -r * 0.8); X.lineTo(0, -r * 0.1); X.lineTo(-r * 0.5, r * 0.7);
+    X.stroke();
+    X.fillStyle = fc || '#242b16';
+    X.beginPath(); X.arc(r * 0.72, 0, r * 0.46, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#d8ff70';
+    X.beginPath(); X.arc(r * 0.85, -r * 0.16, 2.4, 0, 6.28); X.arc(r * 0.85, r * 0.16, 2.4, 0, 6.28); X.fill();
+  } else if (z.t === 'armored') {
+    // ARMORED - plates angled at the player. The bright plate is a visual cue for
+    // the real mechanic: head-on shots bounce, flanking shots do not.
+    const bodyColA = fc || (z.el ? '#8a949e' : '#5d666f');
+    X.fillStyle = fc || '#2a2f35';
+    X.beginPath(); X.ellipse(-r * 0.35, 0, r * 0.85, r * 0.8, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#1a1e22'; X.lineWidth = 1.6; X.stroke();
+    X.fillStyle = bodyColA;
+    X.beginPath();
+    X.moveTo(r * 0.3, -r * 1.05); X.lineTo(r * 1.15, -r * 0.5); X.lineTo(r * 1.25, r * 0.5); X.lineTo(r * 0.3, r * 1.05);
+    X.lineTo(r * 0.15, 0); X.closePath(); X.fill();
+    X.strokeStyle = fc || '#3a444d'; X.lineWidth = 2; X.stroke();
+    X.fillStyle = 'rgba(255,255,255,0.16)';
+    X.fillRect(r * 0.45, -r * 0.7, 3, r * 1.4);
+    X.fillStyle = fc || '#0e1114';
+    X.fillRect(r * 0.42, -r * 0.3, 4, r * 0.6); // visor slit
+    X.fillStyle = fc || '#ff5a3a';
+    X.fillRect(r * 0.5, -r * 0.1, 3, 3);
+    for (const sy of [-1, 1]) { X.fillStyle = fc || '#8a949e'; X.beginPath(); X.arc(r * 0.9, sy * r * 0.35, 2, 0, 6.28); X.fill(); }
+    if (isHit) { X.fillStyle = '#fff2a8'; X.fillRect(r * 0.7, -r * 0.2, 4, 4); X.fillRect(r * 0.55, r * 0.15, 3, 3); }
+  } else if (z.t === 'screamer') {
+    // SCREAMER - thin body, oversized maw. The throat rings pulse brighter during
+    // an actual roar (z.rr), telegraphing the buff the moment it lands.
+    const roar = (z.rr > 0) ? Math.min(1, z.rr / 0.45) : 0;
+    const bodyColS = fc || (z.el ? '#d08ab0' : '#a2597f');
+    X.fillStyle = fc || '#3a2030';
+    X.beginPath(); X.ellipse(-r * 0.4, 0, r * 0.7, r * 0.62, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#54213c'; X.lineWidth = 1.6; X.stroke();
+    X.fillStyle = bodyColS;
+    X.beginPath(); X.arc(r * 0.42, 0, r * 0.62, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#7a3050'; X.lineWidth = 1.6; X.stroke();
+    X.fillStyle = '#1a0810';
+    X.beginPath(); X.ellipse(r * 0.66, 0, r * 0.34 * (1 + roar * 0.5), r * 0.4 * (1 + roar * 0.5), 0, 0, 6.28); X.fill();
+    for (let i = 0; i < 3; i++) {
+      X.strokeStyle = 'rgba(255,120,190,' + ((0.35 + roar * 0.5) * (1 - i * 0.22)) + ')';
+      X.lineWidth = 1.6;
+      X.beginPath(); X.arc(r * 0.66, 0, r * (0.2 + i * 0.22) * (1 + roar * 0.8), -0.6, 0.6); X.stroke();
+    }
+    X.fillStyle = '#fff';
+    for (let i = -1; i <= 1; i++) X.fillRect(r * 0.5 + i * 3, i * r * 0.22, 2, 3);
+  } else if (z.t === 'shielder') {
+    // SHIELDER - the source of the ward. Emitter plates flare in time with the
+    // bubble so the aura is visibly anchored to this unit.
+    const pulse = 0.5 + 0.5 * Math.sin((S.t || 0) * 5 + (z.animOffset || 0));
+    const bodyColH = fc || (z.el ? '#6ea0d8' : '#3d5c7d');
+    X.fillStyle = 'rgba(110,170,230,' + (0.10 + pulse * 0.10) + ')';
+    X.beginPath(); X.arc(0, 0, r * 1.9, 0, 6.28); X.fill();
+    X.strokeStyle = 'rgba(140,200,255,' + (0.3 + pulse * 0.35) + ')';
+    X.lineWidth = 1.8;
+    X.beginPath(); X.arc(0, 0, r * 1.9, 0, 6.28); X.stroke();
+    X.fillStyle = fc || '#22384f';
+    X.beginPath(); X.roundRect(-r * 0.7, -r * 0.7, r * 1.3, r * 1.4, 5); X.fill();
+    X.strokeStyle = fc || '#4d7ba6'; X.lineWidth = 1.8; X.stroke();
+    X.fillStyle = bodyColH;
+    for (const sy of [-1, 1]) {
+      X.beginPath(); X.roundRect(r * 0.05, sy * (r * 0.62) - r * 0.2, r * 0.5, r * 0.4, 3); X.fill();
+      X.fillStyle = 'rgba(180,230,255,' + pulse + ')';
+      X.fillRect(r * 0.28, sy * (r * 0.62) - r * 0.1, 3, 3);
+      X.fillStyle = bodyColH;
+    }
+    X.fillStyle = fc || '#bff4ff';
+    X.beginPath(); X.arc(r * 0.5, 0, 2.6, 0, 6.28); X.fill();
+  } else if (z.t === 'necromancer') {
+    // NECROMANCER - the boss robe at skirmisher scale, with two orbiting orbs.
+    const robeCol = fc || (z.el ? '#4a3468' : '#3a2a4a');
+    for (let k = 0; k < 2; k++) {
+      const oa = (S.t || 0) * 3.0 + k * 3.1416, ox = Math.cos(oa) * (r + 9), oy = Math.sin(oa) * (r + 9);
+      X.fillStyle = fc || '#c98aff';
+      X.beginPath(); X.arc(ox, oy, 4.5, 0, 6.28); X.fill();
+      X.fillStyle = '#1e0b2e';
+      X.beginPath(); X.arc(ox + 1, oy - 1, 1.2, 0, 6.28); X.arc(ox + 1, oy + 1, 1.2, 0, 6.28); X.fill();
+    }
+    X.fillStyle = robeCol;
+    X.beginPath(); X.ellipse(-r * 0.25, 0, r * 0.85, r * 0.7, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#5a3a80'; X.lineWidth = 1.8; X.stroke();
+    X.strokeStyle = fc || 'rgba(200,140,255,0.7)'; X.lineWidth = 1.4;
+    X.beginPath(); X.moveTo(-r * 0.9, -r * 0.4); X.lineTo(-r * 0.1, 0); X.lineTo(-r * 0.9, r * 0.4); X.stroke();
+    X.fillStyle = fc || '#160a22';
+    X.beginPath(); X.arc(r * 0.45, 0, r * 0.42, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#e0a8ff';
+    X.beginPath(); X.arc(r * 0.55, -r * 0.14, 2, 0, 6.28); X.arc(r * 0.55, r * 0.14, 2, 0, 6.28); X.fill();
+    X.strokeStyle = '#8a5adf'; X.lineWidth = 2.4; X.lineCap = 'round';
+    X.beginPath(); X.moveTo(-r * 0.2, -r * 0.6); X.lineTo(-r * 0.2, r * 0.6); X.stroke();
+  }
+
+  // ARCHETYPE 8: BOSS
   else if (z.t === 'boss') {
     const bv = z.bv || 0;
     if (bv === 0) {
@@ -692,12 +855,16 @@ function spawnDyingZombie(z, killerSrc) {
   const a = Math.atan2((typeof P !== 'undefined' ? P.y : 0) - z.y, (typeof P !== 'undefined' ? P.x : 0) - z.x);
   let animType = 'collapse';
   let maxLife = 0.55;
-  if (z.t === 'spit' || z.t === 'stalker') {
+  if (z.t === 'spit' || z.t === 'stalker' || z.t === 'shielder' || z.t === 'necromancer') {
     animType = 'dissolve';
     maxLife = 0.65;
-  } else if (z.t === 'run' || z.t === 'charger') {
+  } else if (z.t === 'run' || z.t === 'charger' || z.t === 'crawler' || z.t === 'screamer' || z.t === 'armored') {
     animType = 'fallback';
     maxLife = 0.50;
+  } else if (z.t === 'bloater') {
+    // A bloater does not collapse, it detonates - the shape sells the pool it leaves.
+    animType = 'burst';
+    maxLife = 0.70;
   }
 
   DYING_ZOMBIES.push({
@@ -771,6 +938,15 @@ function drawDyingZombies(cx, cy, W, H) {
       X.scale(scale, scale);
       X.fillStyle = d.t === 'spit' ? `rgba(74, 222, 128, ${alpha})` : `rgba(168, 85, 247, ${alpha})`;
       X.beginPath(); X.arc(0, 0, d.r * (1 - progress * 0.5), 0, 6.28); X.fill();
+    } else if (d.animType === 'burst') {
+      // Bloater detonation: the sac inflates, then the shell blows out into a
+      // spreading ring while the body evaporates.
+      const swell = 1 + progress * 0.55;
+      X.fillStyle = `rgba(109, 122, 56, ${alpha * 0.9})`;
+      X.beginPath(); X.ellipse(0, 0, d.r * swell * (1 - progress * 0.75), d.r * swell * 0.9 * (1 - progress * 0.75), 0, 0, 6.28); X.fill();
+      X.strokeStyle = `rgba(216, 255, 112, ${alpha * 0.85})`;
+      X.lineWidth = 2.2;
+      X.beginPath(); X.arc(0, 0, d.r * (1 + progress * 2.4), 0, 6.28); X.stroke();
     }
 
     X.restore();

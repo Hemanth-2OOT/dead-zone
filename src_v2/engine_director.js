@@ -1,4 +1,4 @@
-// DEAD ZONE v2.6 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.7 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -204,26 +204,40 @@ function applyWaveModifier() {
   const q = S.q;
   const conv = (from, to, pct) => { for (let i = 0; i < q.length; i++) if (from.includes(q[i]) && Math.random() < pct) q[i] = to(); };
 
+  // Wave modifiers used to inject archetypes a sector never fields (IRON could
+  // drop a Charger into Downtown, which fields no Charger at all), flattening
+  // every sector back into the same fight. Conversions now resolve through the
+  // sector roster; the literal target is only used when no roster is known.
+  const rMap = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  const rList = (typeof MP !== 'undefined' && MP[rMap] && MP[rMap].enemies && MP[rMap].enemies.length)
+    ? MP[rMap].enemies.filter(t => t !== 'boss') : null;
+  const pick = (pref, fallback) => {
+    if (!rList || !rList.length) return pref;
+    if (rList.indexOf(pref) >= 0) return pref;
+    if (fallback && rList.indexOf(fallback) >= 0) return fallback;
+    return rList[Math.floor(Math.random() * rList.length)];
+  };
+
   const applyOne = m => {
     S.wmList.push(m);
     S.spMul *= (m.spMul || 1);
     S.wmCash *= (m.cash || 1);
     if (m.dark) S.dark = Math.max(S.dark, m.dark);
-    if (m.id === 'rush') conv(['walk'], () => 'run', 0.6);
-    else if (m.id === 'iron') conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'tank' : 'charger'), 0.22);
-    else if (m.id === 'toxic') conv(['walk', 'run'], () => (Math.random() < 0.55 ? 'spit' : 'exp'), 0.4);
-    else if (m.id === 'shadow') conv(['walk', 'run'], () => 'stalker', 0.32);
+    if (m.id === 'rush') conv(['walk'], () => pick('run', 'walk'), 0.6);
+    else if (m.id === 'iron') conv(['walk', 'run'], () => pick(Math.random() < 0.5 ? 'tank' : 'charger', 'tank'), 0.22);
+    else if (m.id === 'toxic') conv(['walk', 'run'], () => pick(Math.random() < 0.55 ? 'spit' : 'exp', 'exp'), 0.4);
+    else if (m.id === 'shadow') conv(['walk', 'run'], () => pick('stalker', 'run'), 0.32);
     else if (m.id === 'horde') {
       const extra = Math.round(q.length * 0.5);
-      for (let i = 0; i < extra; i++) q.push(Math.random() < 0.7 ? 'walk' : 'run');
+      for (let i = 0; i < extra; i++) q.push(pick(Math.random() < 0.7 ? 'walk' : 'run', 'walk'));
     }
     else if (m.id === 'blitz') {
       const extra = Math.round(q.length * 0.8);
-      for (let i = 0; i < extra; i++) q.push(Math.random() < 0.6 ? 'run' : 'walk');
+      for (let i = 0; i < extra; i++) q.push(pick(Math.random() < 0.6 ? 'run' : 'walk', 'run'));
     }
     else if (m.id === 'elite') {
       S.eliteBoost += 0.5;
-      conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'charger' : 'tank'), 0.35);
+      conv(['walk', 'run'], () => pick(Math.random() < 0.5 ? 'charger' : 'tank', 'tank'), 0.35);
     }
   };
 

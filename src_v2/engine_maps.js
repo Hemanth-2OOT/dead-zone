@@ -1,13 +1,13 @@
 /* === MAP ARCHITECTURE & BELIEVABLE ENVIRONMENTS === */
 
 const MP = [
-  { n: 'Downtown', d: 'Urban ruins with asphalt avenues, crosswalks, crashed vehicles & street lamps.', b: 1, recLvl: 1, t1: '#3a3a36', t2: '#282824', rd: '#1c1e19', ln: '#e0b83a', wl: '#3e443b', ws: '#c8502d', cr: '#7a5a34', bd: '#ff5a3a', zs: 1, zh: 1, cm: 1.0, enemies: ['walk', 'run', 'tank'] },
-  { n: 'Dust Bowl', d: 'Arid desert ranch with abandoned farmhouse, fences, hay bales & dust storms.', b: 0, recLvl: 3, t1: '#8a6e3d', t2: '#685028', rd: '#5a4220', ln: '#7a5a30', wl: '#6a452d', ws: '#3d2516', cr: '#7a5a34', bd: '#8c4820', zs: 1.1, zh: 1, cm: 1.15, enemies: ['walk', 'run', 'charger'] },
-  { n: 'Frozen Peak', d: 'Sub-zero snowfield with log cabin outpost, ice sheets, pines & snowfall.', b: 0, recLvl: 6, t1: '#c2d2dc', t2: '#a4b8c4', rd: '#8ca6b5', ln: '#b2c8d6', wl: '#546b7a', ws: '#364d5c', cr: '#6a8292', bd: '#38bdf8', zs: 1, zh: 1.2, cm: 1.2, enemies: ['walk', 'exp', 'tank'] },
-  { n: 'Toxic Swamp', d: 'Murky bog with rotting boardwalks, rippling water & glowing toxic pools.', b: 0, recLvl: 9, t1: '#26341d', t2: '#1b2614', rd: '#141e0e', ln: '#223018', wl: '#2a3520', ws: '#4d6830', cr: '#3d4826', bd: '#6adf3a', zs: 0.95, zh: 1, cm: 1.25, hz: '#6adf3a', hn: 12, hd: 7, enemies: ['walk', 'spit', 'stalker'] },
-  { n: 'Ashlands', d: 'Obsidian fortress ruins, glowing magma fissures, slag heaps & embers.', b: 1, recLvl: 12, t1: '#1f1816', t2: '#140f0e', rd: '#0d0a09', ln: '#381c14', wl: '#3d2a24', ws: '#ff5a22', cr: '#4a2820', bd: '#ff5a22', zs: 1.05, zh: 1.1, cm: 1.4, hz: '#ff5a22', hn: 9, hd: 14, enemies: ['walk', 'exp', 'charger', 'boss'] },
-  { n: 'Neon Lab', d: 'Cybernetic facility with modular tiled floors, servers, glass & neon lighting.', b: 1, recLvl: 15, t1: '#121622', t2: '#0b0e17', rd: '#06080f', ln: '#00e5ff', wl: '#1c2438', ws: '#00e5ff', cr: '#25324d', bd: '#00e5ff', zs: 1.15, zh: 1.25, cm: 1.6, hz: '#00e5ff', hn: 8, hd: 16, enemies: ['run', 'stalker', 'charger', 'boss'] },
-  { n: 'Bio-Dome', d: 'Mutated botanical greenhouse with dome struts, planter beds & spore mist.', b: 1, recLvl: 18, t1: '#0e1f16', t2: '#08140e', rd: '#040d08', ln: '#00ff88', wl: '#1c3828', ws: '#00ff88', cr: '#204d35', bd: '#00ff88', zs: 1.2, zh: 1.3, cm: 1.8, hz: '#00ff88', hn: 10, hd: 18, enemies: ['walk', 'spit', 'stalker', 'boss'] }
+  { n: 'Downtown', d: 'Urban ruins with asphalt avenues, crosswalks, crashed vehicles & street lamps.', b: 1, recLvl: 1, t1: '#3a3a36', t2: '#282824', rd: '#1c1e19', ln: '#e0b83a', wl: '#3e443b', ws: '#c8502d', cr: '#7a5a34', bd: '#ff5a3a', zs: 1, zh: 1, cm: 1.0, enemies: ['walk', 'run', 'tank', 'crawler'] },
+  { n: 'Dust Bowl', d: 'Arid desert ranch with abandoned farmhouse, fences, hay bales & dust storms.', b: 0, recLvl: 3, t1: '#8a6e3d', t2: '#685028', rd: '#5a4220', ln: '#7a5a30', wl: '#6a452d', ws: '#3d2516', cr: '#7a5a34', bd: '#8c4820', zs: 1.1, zh: 1, cm: 1.15, enemies: ['walk', 'run', 'charger', 'screamer'] },
+  { n: 'Frozen Peak', d: 'Sub-zero snowfield with log cabin outpost, ice sheets, pines & snowfall.', b: 0, recLvl: 6, t1: '#c2d2dc', t2: '#a4b8c4', rd: '#8ca6b5', ln: '#b2c8d6', wl: '#546b7a', ws: '#364d5c', cr: '#6a8292', bd: '#38bdf8', zs: 1, zh: 1.2, cm: 1.2, enemies: ['walk', 'exp', 'tank', 'armored'] },
+  { n: 'Toxic Swamp', d: 'Murky bog with rotting boardwalks, rippling water & glowing toxic pools.', b: 0, recLvl: 9, t1: '#26341d', t2: '#1b2614', rd: '#141e0e', ln: '#223018', wl: '#2a3520', ws: '#4d6830', cr: '#3d4826', bd: '#6adf3a', zs: 0.95, zh: 1, cm: 1.25, hz: '#6adf3a', hn: 12, hd: 7, enemies: ['walk', 'spit', 'stalker', 'bloater'] },
+  { n: 'Ashlands', d: 'Obsidian fortress ruins, glowing magma fissures, slag heaps & embers.', b: 1, recLvl: 12, t1: '#1f1816', t2: '#140f0e', rd: '#0d0a09', ln: '#381c14', wl: '#3d2a24', ws: '#ff5a22', cr: '#4a2820', bd: '#ff5a22', zs: 1.05, zh: 1.1, cm: 1.4, hz: '#ff5a22', hn: 9, hd: 14, enemies: ['walk', 'exp', 'charger', 'shielder', 'boss'] },
+  { n: 'Neon Lab', d: 'Cybernetic facility with modular tiled floors, servers, glass & neon lighting.', b: 1, recLvl: 15, t1: '#121622', t2: '#0b0e17', rd: '#06080f', ln: '#00e5ff', wl: '#1c2438', ws: '#00e5ff', cr: '#25324d', bd: '#00e5ff', zs: 1.15, zh: 1.25, cm: 1.6, hz: '#00e5ff', hn: 8, hd: 16, enemies: ['run', 'stalker', 'charger', 'necromancer', 'boss'] },
+  { n: 'Bio-Dome', d: 'Mutated botanical greenhouse with dome struts, planter beds & spore mist.', b: 1, recLvl: 18, t1: '#0e1f16', t2: '#08140e', rd: '#040d08', ln: '#00ff88', wl: '#1c3828', ws: '#00ff88', cr: '#204d35', bd: '#00ff88', zs: 1.2, zh: 1.3, cm: 1.8, hz: '#00ff88', hn: 10, hd: 18, enemies: ['walk', 'spit', 'stalker', 'bloater', 'shielder', 'boss'] }
 ];
 
 const MREQ = [0, 3, 6, 9, 12, 15, 18];
@@ -325,11 +325,28 @@ const COVER_THEME = [
   /* 6 Bio-Dome   */ { kinds: [['cover', 70, 28, '#1f4030'], ['crate', 36, 36, '#173324'], ['barrier', 86, 20, '#2a5240']], clusters: 14 }
 ];
 
+// Per-sector ground texture palette for the crack / stain / debris pass.
+// Dark sectors get light cracks and vice versa so the detail never disappears
+// into the base fill.
+const GROUND_THEME = [
+  { crack: 'rgba(210,200,170,0.14)', stain: 'rgba(0,0,0,0.16)', debris: 'rgba(220,220,210,0.07)' }, // Downtown
+  { crack: 'rgba(60,40,18,0.28)',   stain: 'rgba(120,88,40,0.14)', debris: 'rgba(230,205,150,0.08)' }, // Dust Bowl
+  { crack: 'rgba(70,100,125,0.22)', stain: 'rgba(255,255,255,0.10)', debris: 'rgba(230,245,255,0.10)' }, // Frozen Peak
+  { crack: 'rgba(150,200,110,0.14)',stain: 'rgba(0,0,0,0.20)', debris: 'rgba(180,230,140,0.07)' }, // Toxic Swamp
+  { crack: 'rgba(255,120,60,0.14)', stain: 'rgba(0,0,0,0.28)', debris: 'rgba(255,150,90,0.08)' }, // Ashlands
+  { crack: 'rgba(0,229,255,0.16)',  stain: 'rgba(0,0,0,0.22)', debris: 'rgba(120,240,255,0.10)' }, // Neon Lab
+  { crack: 'rgba(0,255,136,0.13)',  stain: 'rgba(0,0,0,0.24)', debris: 'rgba(120,255,180,0.08)' }  // Bio-Dome
+];
+
 function enrichMapData() {
   for (let mi = 0; mi < MAP_DATA.length; mi++) {
     const md = MAP_DATA[mi], th = COVER_THEME[mi];
     if (!md || !th || md._enriched) continue;
     md._enriched = true;
+    const gt = GROUND_THEME[mi] || GROUND_THEME[0];
+    md.crack = md.crack || gt.crack;
+    md.stain = md.stain || gt.stain;
+    md.debris = md.debris || gt.debris;
     md.walls = md.walls || []; md.props = md.props || [];
     const rnd = mulberry32(9001 + mi * 7919);
     const hz = md.hazards || [];

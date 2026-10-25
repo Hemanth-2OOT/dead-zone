@@ -1,4 +1,4 @@
-// DEAD ZONE v2.6 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v2.7 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -415,6 +415,7 @@ function updateFeelFX(dt) {
   }
   for (const e of SKILL_FX) e.l -= dt;
   pruneArr(SKILL_FX, e => e.l > 0);
+  updatePuPixel(dt);
   for (const a of ARCS) a.l -= dt;
   pruneArr(ARCS, a => a.l > 0);
   if (ARCS.length > 40) ARCS.splice(0, ARCS.length - 40);
@@ -437,6 +438,7 @@ function updateFeelFX(dt) {
 }
 
 function clearFeelFX() {
+  PU_PX.length = 0;
   SKILL_FX = [];
   GREN = [];
   ARCS = [];
@@ -863,6 +865,8 @@ function powerupPickupFX(id, x, y) {
   const col = def.col;
   const rgb = hexToRgbTriplet(col);
   const push = f => { if (F.length < 250) F.push(f); };
+  // Chunky pixel detonation shared by every power-up (per-id pattern).
+  powerupPixelBurst(id, x, y);
 
   if (id === 'dd') {
     // OVERCHARGE: axis-aligned reticle snapshot + hot white core flash.
@@ -1002,7 +1006,19 @@ function renderPowerupAuras(cx, cy, W, H) {
     }
   }
 
+  if (S.sh2 > 0) {
+    // AEGIS: discrete rotating hex ward, in the same pixel language as the burst.
+    X.globalAlpha = 0.55;
+    puPixelRing(P.x, P.y, 26 + Math.sin(t * 6) * 1.5, '#eab308', 6, t * 0.8, 4);
+    X.globalAlpha = 0.35;
+    puPixelRing(P.x, P.y, 34 + Math.cos(t * 6) * 1.5, '#eab308', 6, -t * 0.8, 3);
+  }
+
   if (S.adr > 0) {
+    // ADRENALINE: pixel sparks streaming outward, plus the facing smear below.
+    X.globalAlpha = 0.5;
+    puPixelRing(P.x, P.y, 20 + (t * 62 % 22), '#22d3ee', 10, t * 2.0, 3);
+    X.globalAlpha = 1;
     // ADRENALINE: speed smear trails behind the player's facing.
     X.globalAlpha = 0.22;
     X.strokeStyle = '#22d3ee';
@@ -1018,6 +1034,82 @@ function renderPowerupAuras(cx, cy, W, H) {
     }
   }
 
+  X.restore();
+}
+
+/* ------------------------------------------------------------------ */
+/* PIXEL-ART POWER-UP FX                                               */
+/* ------------------------------------------------------------------ */
+// Every power-up also detonates a chunky, lattice-snapped pixel burst, so the
+// pickup reads in the game's pixel language instead of as a smooth vector puff.
+// Each id has its own pattern so the power-up is identifiable at a glance.
+let PU_PX = [];
+
+// Draws one ring of discrete pixels on the shared lattice. Used by both the
+// pickup burst and the persistent ward rings around the player.
+function puPixelRing(cx, cy, radius, col, count, phase, size) {
+  const s = size || ((typeof GORE_PX === 'number') ? GORE_PX : 3);
+  const snap = (typeof pxSnap === 'function') ? pxSnap : (v => v);
+  X.fillStyle = col;
+  for (let i = 0; i < count; i++) {
+    const a = phase + i * 6.2832 / count;
+    X.fillRect(snap(cx + Math.cos(a) * radius) - s / 2, snap(cy + Math.sin(a) * radius) - s / 2, s, s);
+  }
+}
+
+function powerupPixelBurst(id, x, y) {
+  const def = (typeof PU_DEFS !== 'undefined') ? PU_DEFS[id] : null;
+  const spec = {
+    dd: { n: 20, spd: 210, life: 0.46, px: 3, pat: 'ring' },
+    fz: { n: 24, spd: 175, life: 0.58, px: 3, pat: 'star' },
+    sh: { n: 18, spd: 165, life: 0.50, px: 4, pat: 'hex' },
+    mg: { n: 26, spd: 145, life: 0.52, px: 3, pat: 'diamond', inward: 1 },
+    ad: { n: 22, spd: 205, life: 0.40, px: 3, pat: 'bolt' },
+    nk: { n: 32, spd: 300, life: 0.50, px: 4, pat: 'ring' }
+  }[id] || { n: 18, spd: 190, life: 0.50, px: 3, pat: 'ring' };
+  PU_PX.push({
+    x: x, y: y, t: 0, life: spec.life, n: spec.n, spd: spec.spd, px: spec.px,
+    pat: spec.pat, inward: spec.inward ? 1 : 0,
+    col: def ? def.col : '#ffffff'
+  });
+  if (PU_PX.length > 16) PU_PX.shift();
+}
+
+function updatePuPixel(dt) {
+  for (const b of PU_PX) b.t += dt;
+  pruneArr(PU_PX, b => b.t < b.life);
+}
+
+function renderPuPixel() {
+  if (!PU_PX.length) return;
+  const snap = (typeof pxSnap === 'function') ? pxSnap : (v => v);
+  X.save();
+  for (const b of PU_PX) {
+    const p = Math.min(1, b.t / b.life);
+    X.globalAlpha = Math.max(0, 1 - p);
+    const ease = 1 - Math.pow(1 - p, 2.2);
+    const R = (b.inward ? (1 - ease) : ease) * b.spd * b.life;
+    for (let i = 0; i < b.n; i++) {
+      const h = i / b.n;
+      let a;
+      if (b.pat === 'ring') a = h * 6.2832 + b.t * 1.6;
+      else if (b.pat === 'star') a = h * 6.2832;
+      else if (b.pat === 'hex') a = Math.round(h * 6) / 6 * 6.2832;
+      else if (b.pat === 'diamond') a = Math.round(h * 4) / 4 * 6.2832;
+      else a = -1.5708 + (h - 0.5) * 1.9;          // bolt: upward fan
+      const rr = (b.pat === 'star' && (i % 2)) ? R * 0.58 : R;
+      const size = Math.max(2, b.px * (1 - p * 0.4));
+      X.fillStyle = (i % 3 === 0) ? '#ffffff' : b.col;
+      X.fillRect(snap(b.x + Math.cos(a) * rr) - size / 2, snap(b.y + Math.sin(a) * rr) - size / 2, size, size);
+    }
+    if (p < 0.28) {
+      X.globalAlpha = (1 - p / 0.28) * 0.9;
+      X.fillStyle = '#ffffff';
+      const cs = b.px * 2;
+      X.fillRect(snap(b.x) - cs / 2, snap(b.y) - cs / 2, cs, cs);
+    }
+  }
+  X.globalAlpha = 1;
   X.restore();
 }
 

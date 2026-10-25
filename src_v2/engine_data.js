@@ -41,7 +41,15 @@ const ZT = {
   spit: { hp: 40, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
   stalker: { hp: 42, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
   charger: { hp: 115, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
-  boss: { hp: 1150, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 }
+  boss: { hp: 1150, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
+  // v2.7 support & specialist roster. Each new type owns a distinct tactical
+  // job so encounters read logically instead of "more of the same walker".
+  crawler: { hp: 20, s: 132, spd: 132, r: 9, col: '#93a24e', dm: 5, dmg: 5, cash: 12, kb: 1.3, crawl: 1 },
+  bloater: { hp: 135, s: 33, spd: 33, r: 19, col: '#6d7a38', dm: 0, dmg: 0, cash: 42, kb: 0.28, blo: 1 },
+  armored: { hp: 160, s: 50, spd: 50, r: 17, col: '#59626b', dm: 14, dmg: 14, cash: 48, kb: 0.4, arm: 1 },
+  screamer: { hp: 58, s: 72, spd: 72, r: 13, col: '#a2597f', dm: 6, dmg: 6, cash: 30, kb: 0.9, scr: 1 },
+  shielder: { hp: 95, s: 62, spd: 62, r: 15, col: '#3d5c7d', dm: 8, dmg: 8, cash: 44, kb: 0.7, shd: 1 },
+  necromancer: { hp: 235, s: 42, spd: 42, r: 20, col: '#3a2a4a', dm: 10, dmg: 10, cash: 95, kb: 0.2, nec: 1 }
 };
 ZT.walker = ZT.walk;
 ZT.runner = ZT.run;
@@ -89,6 +97,17 @@ const SKL = [
 ];
 
 const BN = ['BRUTE', 'NECROMANCER', 'SPITTER QUEEN', 'JUGGERNAUT'];
+
+// v2.7 ELITE AFFIXES. Elites (the gold dashed ring) used to be nothing but a
+// 3.5x HP sack - the same fight, longer. Each elite now rolls one affix that
+// changes how it must be killed, which is what makes a random elite worth
+// reacting to. Index order is stable: world/render logic reads z.aff by index.
+const ELITE_AFFIX = [
+  { id: 'regen',    n: 'REGEN',    col: '#4ade80', hpRegen: 0.045 },
+  { id: 'swift',    n: 'SWIFT',    col: '#38bdf8', spMul: 1.35 },
+  { id: 'volatile', n: 'VOLATILE', col: '#fb923c' },
+  { id: 'split',    n: 'SPLITTER', col: '#c084fc' }
+];
 
 const AR = [
   ['Vampire Fang', '+1 HP per kill', 700, () => S.ls = (S.ls || 0) + 1, '#d9453a'],

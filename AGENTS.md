@@ -8,7 +8,8 @@ Top-down zombie survival roguelite. Vanilla JS (no framework, no bundler deps), 
 
 ## Commands
 - Build + syntax audit: `node src_v2/build.js` (must print `✓ Syntax Check Passed: 0 compilation errors!`).
-- Serve for browser testing: `python3 -m http.server 8124 --directory www`.
+- Serve for browser testing: `python3 -m http.server 8125 --directory www` (the port AGENTS used to
+  document, 8124, is stale — check the running server before quoting a URL).
 - There is no unit-test framework. Verification is done with a throwaway harness page: copy
   `www/index.html`, inject a `<script>` before `</body>` that runs assertions against the bundle's
   globals, load it in a browser, read the pass/fail block out of the DOM. Delete the harness when done.
@@ -40,6 +41,44 @@ Top-down zombie survival roguelite. Vanilla JS (no framework, no bundler deps), 
 - `drawEntityBand()` (`engine_depth.js`) pools its entries in `BAND_LIST` and culls entities outside the
   camera rect ±140 px; it must not allocate per frame.
 
+## Maps, props and ground detail
+
+- `engine_maps.js` owns `MAP_DATA`, the per-sector rosters (`MP[].enemies`) and `GROUND_THEME`.
+  **Two prop paths exist**: `engine_world.js` `draw()` section 7 has hand-written branches for 12
+  prop types, and everything else falls through to `drawMapPropExtra(pr)` in `engine_props.js`
+  (which returns `false` when it does not handle the type). Before v2.7.0 there was no `else` and
+  16 of the 28 authored prop types were silently never drawn — if you add a prop type, add its
+  branch *or* accept the fallback stand-in. The `_v27.html` harness fails the build on an
+  unhandled authored type (`authored=28 unhandled=0`).
+- `drawMapGroundDetail(cx, cy, W, H, mapDef)` paints cracks/stains/debris on a fixed 220px lattice
+  hashed by `propRand(x, y, salt)` — deterministic, stores nothing. Tints come from
+  `mapDef.crack/stain/debris`, assigned from `GROUND_THEME` in `enrichMapData()`.
+- Props are **decoration only** (no collision) — painting them cannot change balance.
+- Roads are not props: `mapDef.roads` is drawn by the roads pass in `engine_world.js`. Do not look
+  for `dirt_road` / `v_avenue` / `h_boulevard` in the prop loop.
+- `engine_props.js` uses `cachedRadialGradient` for the lit props; keep new prop art on the 3px
+  lattice (`propPixelRect`) so it matches the rest of the game.
+
+## Enemies, elites and wave modifiers
+
+- `ZT` (`engine_data.js`) holds every archetype. **Aliases are real**: `walker`→`walk`, `runner`→`run`,
+  `brute`→`tank`, `exploder`→`exp`, `spitter`→`spit`. A branch on `z.t` must cover the canonical id.
+- `damageZ()` owns the positional armour rule: `armored` and the JUGGERNAUT boss take **0.45x** on a
+  head-on hit (`cos(ha - facing) < -0.35` is the flank window). A shielder's ward multiplies incoming
+  damage by **0.55x** for allies inside the bubble. Support auras are rebuilt every frame in a pass
+  that **must run before the damage loop**.
+- Adding an archetype means touching five places: `ZT`, the sector rosters in `engine_maps.js`, the
+  spawn table / wave gates, a render branch in `engine_render_zombies.js`, and a dying-animation
+  branch (`spawnDyingZombie`). The `_v27.html` harness asserts all five.
+- **Never mutate `Z` while iterating it.** `necromancer` summons and the `SPLITTER` elite affix push
+  onto `SUMQ`, which `update()` flushes after the zombie loop.
+- Elites roll one `ELITE_AFFIX` (`z.aff`, `-1` = plain elite): `regen` / `swift` / `volatile` / `split`.
+  An affix must change *how* the elite is killed, not just its HP.
+- `applyWaveModifier()` conversions must resolve through the **sector roster** (`MP[...].enemies`),
+  never a literal archetype — otherwise a modifier drops an enemy into a sector that never fields it.
+- Heavy hits arm `HIT_STOP_TIMER`, which makes the *next* `update()` an intentional no-op. A harness
+  that measures a 99999-damage kill must run several frames before counting anything.
+
 ## Skills, passives & status effects
 - `engine_passives.js` owns every passive aura, summon and status effect (SPECIAL perks/relics) plus the
   meteor/missile/soul-blast pools. `update()` calls `updatePassives(dt)`; `draw()` calls
@@ -65,6 +104,9 @@ Version lives in: `package.json`, `android/app/build.gradle` (`versionCode`/`ver
 the `// DEAD ZONE vX.Y` headers in `src_v2/*.js`, `src_v2/build.js` banners and `src_v2/body.html`
 tagline. Bump all of them, rebuild `www/index.html`, then commit/tag/push. The Android release APK is
 produced by the GitHub Actions workflows in `.github/workflows/`.
+`build.js` also rejects duplicate top-level `function`/`class` names across modules — a new
+module must not redeclare an existing global (that is why the props module is `engine_props.js`
+and not an extra block in `engine_world.js`).
 
 ## Lobby / mobile layout
 
@@ -96,8 +138,20 @@ produced by the GitHub Actions workflows in `.github/workflows/`.
   the HUD chips. `puGlyph` draws straight onto the current `X`; it does not return a data URL.
 * `powerupPickupFX(id,x,y)` holds the per-power-up detonation and `renderPowerupAuras` the
   active world auras; both are called from `engine_world.js` draw/`applyPowerup`.
-* Regenerate and run the harnesses after touching any of this:
+* Pixel power-up FX lives in `engine_feel.js` (`PU_PX`, `puPixelRing`, `powerupPixelBurst`,
+  `updatePuPixel`, `renderPuPixel`). It is a *layer on top of* `powerupPickupFX` /
+  `renderPowerupAuras`, and `renderPuPixel()` is called from `engine_world.js` `draw()` right after
+  `renderPowerupAuras()`. `clearFeelFX()` must empty `PU_PX` on run reset.
+* Regenerate and run the harnesses after touching any of this (each generator rewrites its page from
+  the current `www/index.html`, so **always regenerate after a rebuild**):
   * `/tmp/mkbul.py` → `www/_bul.html` (per-weapon bullet coverage, trail-length scaling,
     crit palette, skill-icon distinctness, skill-cast paint check, power-up aura check,
     pickup-effect distinctness). Must be **0 FAIL**.
   * `/tmp/mkdeep3.py` → `www/_deep.html` (the full 250-assert regression suite).
+  * `/tmp/mkv27.py` → `www/_v27.html` (prop coverage, ground themes, the six v2.7 archetypes, boss
+    variants, pixel power-up bursts, the four elite affixes and roster-aware wave modifiers).
+  * `/tmp/mkshot.py` → `www/_shot.html` (contact sheet; panels 1–9 — check the `PER-PANEL INK`
+    report for non-zero ink and colour variety rather than eyeballing it).
+* Harnesses read their result out of `localStorage` (`V27_LAST`, `DEEP_LAST`, `BUL_LAST`,
+  `SHOT_REPORT`) and several **wipe storage on load**, so run them one at a time and read the result
+  through a small reader page before loading the next harness.

@@ -1,10 +1,10 @@
-// DEAD ZONE v2.6 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.7 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
 let TR = [], CH = [], LT = [], NS = [], TX = [], CS = [], MAG = [];
 let POIS = [], DUST = [], O = [], G = [], HZ = [];
-let ACID_PUDDLES = [], AOE_DEBRIS = [];
+let ACID_PUDDLES = [], AOE_DEBRIS = [], SUMQ = [];
 let CX = 0, CY = 0, last = 0;
 let S = null;
 
@@ -288,17 +288,19 @@ function startWave() {
   const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
   const n = (6 + S.wave * 4) * densityMult;
 
+  // Each sector declares its own roster (MP[].enemies). Previously that list was
+  // only ever printed on the lobby map card - the wave actually spawned from one
+  // global bucket set, so every sector played identically. The roster now drives
+  // the spawn table, gated by wave so tough specialists never front-load.
+  const bCurM = getCurMap();
+  const bRoster = (MP[bCurM] && MP[bCurM].enemies && MP[bCurM].enemies.length)
+    ? MP[bCurM].enemies : ['walk', 'run', 'tank', 'exp', 'stalker', 'charger', 'spit'];
+  const GATE = { walk: 0, run: 2, exp: 3, crawler: 3, stalker: 4, tank: 4, spit: 5, charger: 5, screamer: 6, armored: 7, bloater: 8, shielder: 9, necromancer: 10 };
+  const bPool = bRoster.filter(x => x !== 'boss' && S.wave >= (GATE[x] != null ? GATE[x] : 0));
+  if (!bPool.length) bPool.push('walk');
+
   for (let i = 0; i < n; i++) {
-    let t = 'walk';
-    const r = Math.random();
-    // Exclusive buckets, highest priority first, so every archetype is reachable.
-    if (S.wave > 1 && r < 0.28) t = 'run';
-    else if (S.wave > 3 && r > 0.90) t = 'tank';
-    else if (S.wave > 2 && r > 0.82) t = 'exp';
-    else if (S.wave > 3 && r > 0.72) t = 'stalker';
-    else if (S.wave > 4 && r > 0.62) t = 'charger';
-    else if (S.wave > 4 && r > 0.52) t = 'spit';
-    S.q.push(t);
+    S.q.push(bPool[Math.floor(Math.random() * bPool.length)]);
   }
 
   if (S.wave % 5 === 0) S.q.push('boss');
@@ -352,6 +354,8 @@ function spawn(t) {
     hit: 0, cd: 0, el, flinch: 0,
     animOffset: Math.random() * 6.28,
     bv: t === 'boss' ? ((S.wave / 5 | 0) - 1) % 4 : 0,
+    // Elites roll one affix (see ELITE_AFFIX); -1 means "ordinary elite".
+    aff: el ? (Math.random() * ELITE_AFFIX.length | 0) : -1,
     cgT: 0
   });
 }
@@ -476,7 +480,16 @@ function damageZ(z, rawDmg, src, isCrit, hitAngle, wi) {
   const dmg = Number(rawDmg);
   if (!isFinite(dmg) || dmg <= 0) return false;
 
-  const arm = (z.t === 'tank' ? 0.85 : (z.t === 'charger' ? 0.90 : 1)) * (z.el ? 0.88 : 1);
+  let arm = (z.t === 'tank' ? 0.85 : (z.t === 'charger' ? 0.90 : 1)) * (z.el ? 0.88 : 1);
+  // Armoured units angle the plate they are facing into incoming fire: a shot
+  // that lands head-on loses half its punch, so the counter is to flank them.
+  if (z.t === 'armored' || (z.t === 'boss' && (z.bv || 0) === 3)) {
+    const facing = Math.atan2(P.y - z.y, P.x - z.x);
+    const ha = (typeof hitAngle === 'number' && isFinite(hitAngle)) ? hitAngle : facing + Math.PI;
+    if (Math.cos(ha - facing) < -0.35) arm *= 0.45;
+  }
+  // Shielder ward: undead inside the bubble are harder to kill.
+  if (z.sh > 0) arm *= 0.55;
   const finalD = Math.max(1, dmg * arm);
   z.hp -= finalD;
   z.hit = 0.08;
@@ -579,10 +592,63 @@ function killZ(z, src, hitAngle, isCrit, wi) {
     burst(z.x, z.y, '#8a4828', 14, 4, 90, 1);
     burst(z.x, z.y, '#d8c9a0', 8, 3, 130, 1);
     G.push({ x: z.x, y: z.y, r: T.r * 1.3, k: 'b' });
+  } else if (z.t === 'bloater') {
+    // A bloater bursts into a lingering toxic pool - the death is the threat.
+    burst(z.x, z.y, '#8aa03a', 22, 4.2, 105, 1);
+    burst(z.x, z.y, '#d8ff70', 12, 3, 150);
+    G.push({ x: z.x, y: z.y, r: T.r * 1.5, k: 'g' });
+    ACID_PUDDLES.push({ x: z.x, y: z.y, r: 54, maxR: 54, l: 7, maxL: 7, tox: 1 });
+    if (ACID_PUDDLES.length > 25) ACID_PUDDLES.shift();
+    RG.push({ x: z.x, y: z.y, r: 8, l: 0.5, v: 300, c: '170,200,60' });
+  } else if (z.t === 'shielder') {
+    burst(z.x, z.y, '#5aa0e0', 16, 3, 100);
+    burst(z.x, z.y, '#bff4ff', 10, 2.5, 140);
+    RG.push({ x: z.x, y: z.y, r: 10, l: 0.45, v: 420, c: '120,190,255' });
+    G.push({ x: z.x, y: z.y, r: T.r * 1.2, k: 'b' });
+  } else if (z.t === 'screamer') {
+    burst(z.x, z.y, '#c76a9a', 16, 3.4, 95);
+    burst(z.x, z.y, '#ffd0e8', 8, 2.6, 130);
+    G.push({ x: z.x, y: z.y, r: T.r * 1.2, k: 'b' });
+  } else if (z.t === 'necromancer') {
+    burst(z.x, z.y, '#8a5adf', 20, 4, 110, 1);
+    burst(z.x, z.y, '#e0c8ff', 12, 3, 150);
+    RG.push({ x: z.x, y: z.y, r: 9, l: 0.6, v: 380, c: '150,80,255' });
+    G.push({ x: z.x, y: z.y, r: T.r * 1.3, k: 'b' });
+  } else if (z.t === 'crawler' || z.t === 'armored') {
+    burst(z.x, z.y, T.col, 12, 3.4, 95, 1);
+    burst(z.x, z.y, z.t === 'armored' ? '#c8d0d8' : '#c8502d', 8, 2.4, 120, 1);
+    G.push({ x: z.x, y: z.y, r: T.r * 1.15, k: 'b' });
   } else {
     burst(z.x, z.y, T.col, 12, 3.5, 90, 1);
     burst(z.x, z.y, '#c8502d', 8, 2.5, 110, 1);
     G.push({ x: z.x, y: z.y, r: T.r * 1.2, k: 'b' });
+  }
+
+  // Elite affix death effects. Deliberately independent of the archetype chain
+  // above so any archetype can roll any affix.
+  if (z.el && z.aff >= 0 && typeof ELITE_AFFIX !== 'undefined' && ELITE_AFFIX[z.aff]) {
+    const af = ELITE_AFFIX[z.aff];
+    if (af.id === 'volatile') {
+      RG.push({ x: z.x, y: z.y, r: 8, l: 0.5, v: 520, c: '251,146,60' });
+      burst(z.x, z.y, '#fb923c', 20, 4, 150, 1);
+      if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 120, d: 55 });
+      SH = Math.max(SH, 10);
+      if (typeof snd === 'function') snd(110, 0.3, 'square', 0.08, 0.6);
+    } else if (af.id === 'split') {
+      // Splitters break into two smaller walkers - killing one is not done.
+      const hpS = Math.max(12, T.hp * 0.45);
+      for (let k = 0; k < 2; k++) {
+        const an = Math.random() * 6.28;
+        SUMQ.push({
+          x: Math.max(20, Math.min(WS - 20, z.x + Math.cos(an) * 30)),
+          y: Math.max(20, Math.min(WS - 20, z.y + Math.sin(an) * 30)),
+          t: 'walk', hp: hpS, mh: hpS, hit: 0, cd: 0, el: false, flinch: 0,
+          animOffset: Math.random() * 6.28, cgT: 0, age: 0, aff: -1
+        });
+      }
+      burst(z.x, z.y, '#c084fc', 16, 3.5, 120);
+      RG.push({ x: z.x, y: z.y, r: 7, l: 0.5, v: 380, c: '192,132,252' });
+    }
   }
 
   // Elite kill feedback
@@ -1158,7 +1224,64 @@ function update(dt) {
   }
 
   // Zombie AI, movement & collisions
-  for (const z of Z) {
+  // --- v2.7 support auras & summons -------------------------------------------------
+    // Rebuilt every frame so a ward or roar can never outlive its source. Must run
+    // before the movement/damage loop so the flags are already in place when a
+    // bullet resolves against a warded zombie later in this same tick.
+    for (const z of Z) {
+      if (z.sh > 0) z.sh = Math.max(0, z.sh - dt);
+      if (z.buffT > 0) z.buffT = Math.max(0, z.buffT - dt);
+      if (z.rr > 0) z.rr = Math.max(0, z.rr - dt);
+    }
+    for (const z of Z) {
+      if (z.dead) continue;
+      // Elite affix ticks run as their own pass so an elite Necromancer still
+      // regens while also running its summon logic.
+      if (z.aff >= 0 && z.hp > 0 && z.hp < z.mh && typeof ELITE_AFFIX !== 'undefined') {
+        const af = ELITE_AFFIX[z.aff];
+        if (af && af.hpRegen) z.hp = Math.min(z.mh, z.hp + z.mh * af.hpRegen * dt);
+      }
+      if (z.t === 'shielder') {
+        const R2 = 150 * 150;
+        for (const o of Z) {
+          if (o.dead || o === z) continue;
+          const ox = o.x - z.x, oy = o.y - z.y;
+          if (ox * ox + oy * oy < R2) o.sh = 0.3;
+        }
+      } else if (z.t === 'screamer') {
+        z.rw = (z.rw != null ? z.rw : 3.5) - dt;
+        const pdx = P.x - z.x, pdy = P.y - z.y;
+        if (z.rw <= 0 && pdx * pdx + pdy * pdy < 430 * 430) {
+          z.rw = 5.5; z.rr = 0.45;
+          for (const o of Z) {
+            if (o.dead) continue;
+            const ox = o.x - z.x, oy = o.y - z.y;
+            if (ox * ox + oy * oy < 260 * 260) o.buffT = 3;
+          }
+          RG.push({ x: z.x, y: z.y, r: 6, l: 0.5, v: 430, c: '255,120,180' });
+          if (typeof snd === 'function') snd(150, 0.34, 'square', 0.05, 0.8);
+        }
+      } else if (z.t === 'necromancer') {
+        z.nw = (z.nw != null ? z.nw : 5) - dt;
+        if (z.nw <= 0 && Z.length < 42) {
+          z.nw = 8.5;
+          const hpS = ZT.walk.hp * (1 + S.wave * 0.055);
+          for (let k = 0; k < 2; k++) {
+            const an = Math.random() * 6.28;
+            SUMQ.push({
+              x: Math.max(20, Math.min(WS - 20, z.x + Math.cos(an) * 34)),
+              y: Math.max(20, Math.min(WS - 20, z.y + Math.sin(an) * 34)),
+              t: 'walk', hp: hpS, mh: hpS, hit: 0, cd: 0, el: false, flinch: 0,
+              animOffset: Math.random() * 6.28, cgT: 0, age: 0
+            });
+          }
+          burst(z.x, z.y, '#a855f7', 14, 3, 95);
+          RG.push({ x: z.x, y: z.y, r: 5, l: 0.5, v: 320, c: '150,80,255' });
+        }
+      }
+    }
+
+    for (const z of Z) {
     if (!z || z.dead || (z.hp != null && z.hp <= 0) || !isFinite(z.x) || !isFinite(z.y)) {
       if (z && !z.dead && (z.hp <= 0 || !isFinite(z.hp))) killZ(z, 'cleanup');
       if (z) z.dead = 1;
@@ -1169,18 +1292,21 @@ function update(dt) {
     if (z.cd > 0) z.cd = Math.max(0, z.cd - dt);
 
     const T = ZT[z.t] || ZT.walk;
-    const speed = T.s || T.spd || 55;
+    const speed = (T.s || T.spd || 55) * ((z.aff >= 0 && typeof ELITE_AFFIX !== 'undefined' && ELITE_AFFIX[z.aff] && ELITE_AFFIX[z.aff].spMul) ? ELITE_AFFIX[z.aff].spMul : 1);
     const zRadius = T.r || 13;
-    const damage = T.dm != null ? T.dm : (T.dmg != null ? T.dmg : 8);
+    const damage = (T.dm != null ? T.dm : (T.dmg != null ? T.dmg : 8)) * (z.buffT > 0 ? 1.3 : 1);
     const a = Math.atan2(P.y - z.y, P.x - z.x);
     if (z.fz > 0) z.fz -= dt;
-    const sl = (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - 0.12 * (S.tw || 0)) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
+    const sl = (z.buffT > 0 ? 1.35 : 1) * (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - 0.12 * (S.tw || 0)) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
 
     const decay = Math.exp(-dt * 9);
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
     if (z.kx * z.kx + z.ky * z.ky < 16 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
 
-    const mvA = (typeof zombieHeading === 'function') ? zombieHeading(z, dt, zRadius) : a;
+    let mvA = (typeof zombieHeading === 'function') ? zombieHeading(z, dt, zRadius) : a;
+    // Crawlers scuttle: a cheap sine weave makes the swarm read as erratic rather
+    // than as a straight-line rush of identical sprites.
+    if (z.t === 'crawler') mvA += Math.sin((S.t || 0) * 6.5 + (z.animOffset || 0)) * 0.55;
     z.x += Math.cos(mvA) * speed * dt * sl + z.kx * dt;
     z.y += Math.sin(mvA) * speed * dt * sl + z.ky * dt;
     if (!isFinite(z.x) || !isFinite(z.y)) { z.dead = 1; continue; }
@@ -1239,6 +1365,92 @@ function update(dt) {
       }
     }
 
+    // === Boss attack patterns (v2.7) =========================================
+    // The four named bosses (BN) already had distinct sprites but shared one
+    // generic "walk at the player" behaviour. Each now runs its own pattern so
+    // the fight has to be learned.
+    if (z.t === 'boss') {
+      const bv = z.bv || 0;
+      if (z.ch > 0) z.ch = Math.max(0, z.ch - dt);       // charge timer decays here
+      z.bw = (z.bw != null ? z.bw : 3) - dt;
+      const los = hasLOS(z.x, z.y, P.x, P.y);
+
+      if (bv === 0) {
+        // BRUTE - telegraphed charge, then a ground-slam shockwave on arrival.
+        if (z.ch > 0 && dd < zRadius + 52 && !(P.dash > 0)) {
+          z.ch = 0;
+          z.bw = 6.0;
+          hurtP(damage * 1.7, z.x, z.y);
+          RG.push({ x: z.x, y: z.y, r: 12, l: 0.55, v: 620, c: '255,110,40' });
+          RG.push({ x: z.x, y: z.y, r: 6, l: 0.75, v: 420, c: '255,220,120' });
+          burst(z.x, z.y, '#ff8a3a', 22, 5, 170, 1);
+          if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 90, d: damage * 2.2 });
+          SH = Math.max(SH, 12);
+          if (typeof snd === 'function') snd(90, 0.4, 'square', 0.09, 0.7);
+        } else if (z.bw <= 0 && dd < 620 && dd > 120 && los && !(P.dash > 0)) {
+          z.ch = 0.7;
+          if (typeof snd === 'function') snd(120, 0.3, 'sawtooth', 0.06, 0.9);
+        }
+      } else if (bv === 1) {
+        // NECROMANCER - raises a pair of walkers on a timer.
+        if (z.bw <= 0 && Z.length < 44) {
+          z.bw = 7.0;
+          const hpS = ZT.walk.hp * (1 + S.wave * 0.055) * 1.4;
+          for (let k = 0; k < 2; k++) {
+            const an = Math.random() * 6.28;
+            SUMQ.push({
+              x: Math.max(20, Math.min(WS - 20, z.x + Math.cos(an) * 40)),
+              y: Math.max(20, Math.min(WS - 20, z.y + Math.sin(an) * 40)),
+              t: 'walk', hp: hpS, mh: hpS, hit: 0, cd: 0, el: false, flinch: 0,
+              animOffset: Math.random() * 6.28, cgT: 0, age: 0
+            });
+          }
+          RG.push({ x: z.x, y: z.y, r: 10, l: 0.6, v: 380, c: '180,90,255' });
+          burst(z.x, z.y, '#a855f7', 18, 3.5, 110);
+          if (typeof snd === 'function') snd(180, 0.35, 'triangle', 0.05, 0.5);
+        }
+      } else if (bv === 2) {
+        // SPITTER QUEEN - five-shot acid fan, plus live crawlers as her brood.
+        if (z.bw <= 0 && dd < 430 && dd > 70 && los) {
+          z.bw = 5.0;
+          for (let k = -2; k <= 2; k++) {
+            const aa = a + k * 0.18, asp = 235;
+            AB.push({
+              x: z.x, y: z.y, vx: Math.cos(aa) * asp, vy: Math.sin(aa) * asp,
+              l: Math.min(1.7, dd / asp), r: 6, dmg: 14
+            });
+          }
+          if (Z.length < 44 && (z.bd = (z.bd || 0) + 1) % 2 === 0) {
+            for (let k = 0; k < 2; k++) {
+              const an = Math.random() * 6.28;
+              const hpS = ZT.crawler.hp * (1 + S.wave * 0.055);
+              SUMQ.push({
+                x: Math.max(20, Math.min(WS - 20, z.x + Math.cos(an) * 36)),
+                y: Math.max(20, Math.min(WS - 20, z.y + Math.sin(an) * 36)),
+                t: 'crawler', hp: hpS, mh: hpS, hit: 0, cd: 0, el: false, flinch: 0,
+                animOffset: Math.random() * 6.28, cgT: 0, age: 0
+              });
+            }
+          }
+          burst(z.x, z.y, '#4ade80', 14, 3, 90);
+          if (typeof snd === 'function') snd(200, 0.2, 'sawtooth', 0.05, 0.6);
+        }
+      } else {
+        // JUGGERNAUT - armoured (see damageZ) and lobs a three-rocket volley.
+        if (z.bw <= 0 && dd < 560 && los) {
+          z.bw = 6.5;
+          for (let k = -1; k <= 1; k++) {
+            const aa = a + k * 0.22, asp = 200;
+            AB.push({
+              x: z.x, y: z.y, vx: Math.cos(aa) * asp, vy: Math.sin(aa) * asp,
+              l: Math.min(1.9, dd / asp), r: 8, dmg: 22, rocket: 1
+            });
+          }
+          if (typeof snd === 'function') snd(140, 0.28, 'square', 0.06, 0.7);
+        }
+      }
+    }
+
     // Bullet collisions with zombie
     for (const b of B) {
       if (z.dead) break;
@@ -1279,7 +1491,7 @@ function update(dt) {
     const abx = P ? P.x - ab.x : 0, aby = P ? P.y - ab.y : 0;
     const hitP = (P && abx * abx + aby * aby < 196);
     if (ab.l <= 0 || hitP) {
-      if (hitP) hurtP(16, ab.x, ab.y);
+      if (hitP) hurtP(ab.dmg || 16, ab.x, ab.y);
       // Spawn Spitter Acid Puddle that damages and shrinks
       ACID_PUDDLES.push({
         x: ab.x, y: ab.y,
@@ -1308,6 +1520,10 @@ function update(dt) {
     }
     if (ap.l <= 0) ACID_PUDDLES.splice(i, 1);
   }
+
+  // Flush necromancer summons gathered during the update loop (never mutate Z
+  // while iterating it).
+  if (SUMQ.length) { for (const q of SUMQ) Z.push(q); SUMQ.length = 0; }
 
   // Update dying zombies, debris & effects
   if (typeof updateDyingZombies === 'function') updateDyingZombies(dt);
@@ -1435,6 +1651,9 @@ function draw() {
   }
   X.stroke();
 
+  // 1c. Ground texture: cracks, stains and pixel debris on a fixed lattice.
+  if (typeof drawMapGroundDetail === 'function') drawMapGroundDetail(cx, cy, W, H, mapDef);
+
   // 2. Roads, Crosswalks, and Sidewalks
   if (mapDef.roads && mapDef.roads.length) {
     for (const rd of mapDef.roads) {
@@ -1528,7 +1747,7 @@ function draw() {
         X.fillStyle = '#1e241c'; X.beginPath(); X.arc(pr.x, pr.y, 6, 0, 6.28); X.fill();
         X.fillStyle = '#fef08a'; X.beginPath(); X.arc(pr.x, pr.y, 3, 0, 6.28); X.fill();
       } else if (pr.type === 'car') {
-        X.save(); X.translate(pr.x, pr.y); X.rotate(pr.a || 0);
+        X.save(); X.translate(pr.x, pr.y); X.rotate(pr.a != null ? pr.a : (pr.rot || 0));
         X.fillStyle = 'rgba(0,0,0,0.45)'; X.fillRect(-18, -10, 42, 24);
         X.fillStyle = '#334155'; X.beginPath(); X.roundRect(-16, -11, 38, 22, 4); X.fill();
         X.fillStyle = '#0f172a'; X.fillRect(-4, -8, 14, 16); // Windshield
@@ -1689,6 +1908,8 @@ function draw() {
         X.fillRect(pr.x - 12, pr.y - 14, 3, 2);
         X.fillStyle = !ledGlow ? '#38bdf8' : '#0284c7';
         X.fillRect(pr.x - 12, pr.y - 8, 3, 2);
+      } else if (typeof drawMapPropExtra === 'function' && drawMapPropExtra(pr)) {
+        // handled by engine_props.js (16 types the old chain dropped silently)
       }
     }
   }
@@ -1856,6 +2077,7 @@ function draw() {
   // rings, the CRYO frost ring and the ADRENALINE smear. OVERCHARGE and MAGNET
   // previously changed only numbers and never showed on screen at all.
   if (typeof renderPowerupAuras === 'function') renderPowerupAuras(cx, cy, W, H);
+  if (typeof renderPuPixel === 'function') renderPuPixel();
 
   // 14. Telegraphed attacks are ground markers, drawn beneath every entity
   for (const z of Z) { if (typeof drawTelegraph === "function") drawTelegraph(z); }

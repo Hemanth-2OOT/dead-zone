@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.6.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, the new depth/retention layer (Section 6), **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** **the v2.5.1 landscape-phone lobby layout fix (Section 10)** and **the v2.6.0 bullet-render / per-skill-icon / per-powerup-effect pass (Section 11)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
+> **Status:** Updated for **v2.7.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, the new depth/retention layer (Section 6), **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** **the v2.5.1 landscape-phone lobby layout fix (Section 10)** and **the v2.6.0 bullet-render / per-skill-icon / per-powerup-effect pass (Section 11)** and **the v2.7.0 map-decor / archetype / elite-affix / pixel-power-up-FX pass (Section 12)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
 
 ---
 
@@ -551,3 +551,118 @@ presentation only, so Rule 14's caps and the `GUN_LOGIC.md` DPS/TTK table are un
 Particle and ring pools remain capped (`F` 250, `RG` bounded, `MAX_METEOR` 6,
 `MAX_AMISS` 10). Current run: **250 PASS / 0 FAIL** (`_deep.html`), plus **36 PASS / 0 FAIL**
 on the dedicated `_bul.html` bullet/icon harness.
+
+## 12. v2.7.0 — Readable Maps, Logical Enemies, Pixel Power-up FX & Elite Affixes
+
+### 12.1 Half the authored map decor never rendered
+
+`MAP_DATA[].props` authors **28 distinct prop types** across the seven sectors. The render
+chain in `engine_world.js` (`draw()`, section "7. Map Props") only had branches for 12 of
+them and **no `else`** — the remaining 16 (`barrel`, `crate`, `dumpster`, `manhole`,
+`tire_tracks`, `pine`, `swamp_tree`, `charred_tree`, `hay_bale`, `slag_heap`, `cairn`,
+`log`, `planter_bed`, `neon_light`, `grow_light` and the sector-coloured trees) were
+authored, placed and then silently skipped. A sector was therefore much emptier than its
+data said it was. The new `src_v2/engine_props.js` draws all of them with the same 3px
+lattice-snapped pixel idiom as the rest of the game, plus a **fallback branch** in the prop
+loop so a future prop type can never be dropped again (it draws a neutral stand-in and the
+harness reports it).
+
+`drawMapGroundDetail()` adds the under-foot layer the flat grid was missing: cracks,
+stains and 3px debris flecks on a fixed 220px lattice, hashed with `propRand(x, y, salt)`
+so nothing is stored and the layout is deterministic per sector. Seven `GROUND_THEME`
+palettes (one per sector, assigned in `enrichMapData`) tint those marks to the biome —
+sand-scoured in Dust Bowl, frost-blue in Frozen Peak, caustic green in Toxic Swamp,
+ember-orange in Ashlands, neon-cyan in Neon Lab, bio-green in Bio-Dome.
+
+Props are decoration only (no collision), so none of this can change the fight. `car` also
+had a rotation bug: it read `pr.rot` while the map data writes `pr.a`, so every vehicle in
+Downtown faced 0°. Now `pr.a != null ? pr.a : (pr.rot || 0)`.
+
+### 12.2 Six archetypes with a distinct job (not six more HP sacks)
+
+The old roster was walk / run / tank / stalker / charger / spit / exp / boss — effectively
+"fastish", "faster", "slow and fat". Each new type owns one tactical job, so an encounter
+reads as a composition rather than a blob:
+
+| Type | Data | Job |
+| --- | --- | --- |
+| `crawler` | hp 20, sp 132, r 9, cash 12 | Fast, fragile swarm — forces you to keep backing up. |
+| `bloater` | hp 135, sp 33, dm 0, cash 42 | Slow, harmless, and **bursts into an acid pool on death** — an area denial you create. |
+| `armored` | hp 160, sp 50, arm 1, cash 48 | Frontal plates: **head-on hit does 0.45x**. Flank (cos < −0.35) for full damage. |
+| `screamer` | hp 58, sp 72, scr 1, cash 30 | Roars: buffs nearby undead, so killing it first is a *choice*, not a chore. |
+| `shielder` | hp 95, sp 62, shd 1, cash 44 | Projects a ward: allies inside take **0.55x**. Kill the source or eat the tax. |
+| `necromancer` | hp 235, sp 42, cash 95 | Summons walkers from range — a threat that grows if ignored. |
+
+Damage/armour rules for `armored` (and the JUGGERNAUT boss) and the shielder ward both sit
+in `damageZ()`. Support auras (ward, roar) are rebuilt **each frame in a pass that runs
+before the damage loop**, so a shielder standing behind a wall does not get a frame of
+free mitigation.
+
+### 12.3 Boss variants
+
+`BRUTE` (charge + ground slam), `NECROMANCER` (raises summons), `SPITTER QUEEN` (five-shot
+acid fan, each projectile carrying its own damage) and `JUGGERNAUT` (armoured frontal
+plates + a three-rocket volley). All four reuse the existing boss AI contract, so wave
+director code did not have to change.
+
+### 12.4 Elite affixes — an elite is a puzzle, not a 3.5x HP bar
+
+Elites were previously "the same fight, three times longer". Each elite now rolls one
+`ELITE_AFFIX` (stored as `z.aff`, `-1` for ordinary elites) that changes *how* it must be
+killed:
+
+| Affix | Colour | Effect |
+| --- | --- | --- |
+| `REGEN` | `#4ade80` | Heals 4.5% max HP/s — burst it down or don't bother. |
+| `SWIFT` | `#38bdf8` | 1.35x speed — it closes the gap you were counting on. |
+| `VOLATILE` | `#fb923c` | Detonates on death — killing it at your feet is a mistake. |
+| `SPLITTER` | `#c084fc` | Breaks into two walkers — clear the add or be flanked. |
+
+An affix badge arc + pixel collar is drawn above the head so the modifier is readable
+before you commit. Summons spawned by `SPLITTER` are queued in `SUMQ` and flushed after the
+zombie loop — **never mutate `Z` while iterating it.**
+
+### 12.5 Wave modifiers are now roster-aware
+
+`applyWaveModifier()` used to convert a spawn into a *literal* archetype (`charger`,
+`tank`) regardless of sector. A `rush` modifier in Downtown — a sector whose roster has no
+charger — would drop a Charger into a map that never fields one, flattening every sector
+into the same fight. Conversions now resolve through the sector's own roster
+(`MP[getCurMap().id].enemies`) with a documented fallback, so a modifier intensifies the
+sector's identity instead of erasing it. Verified clean over 280 rolls.
+
+### 12.6 Pixel-art FX for every power-up
+
+`engine_feel.js` gained a pixel FX layer (`PU_PX`, `puPixelRing`, `powerupPixelBurst`,
+`updatePuPixel`, `renderPuPixel`) that fires a lattice-snapped burst per power-up id —
+ring, star, hex, diamond, bolt and stacked-ring patterns, each with its own colour — plus
+persistent ward rings while `AEGIS`/`ADRENALINE` are ticking. This sits *on top of* the
+v2.6.0 smooth pickup effects, so a pickup reads as pixel flash (immediate) then vector
+bloom (continuation). `renderPuPixel()` is called from `engine_world.js` `draw()` directly
+after `renderPowerupAuras()`. Pool is cleared by `clearFeelFX()` on run reset.
+
+### 12.7 Balance impact
+
+Section 12 changes raw numbers in exactly three places, all deliberate and all bounded:
+
+1. New archetypes enter the wave table with their own cash/HP (the roster, not the
+   difficulty curve, is what changed — gating still comes from the per-archetype wave
+   gates).
+2. `armored`/JUGGERNAUT frontal reduction is **0.45x**, i.e. a *worse* case than the
+   existing armour floor of 0.35 allowed, and it is positional (flankable), not
+   unconditional.
+3. Shielder ward is **0.55x** for allies inside the bubble and ends with the shielder.
+
+Rule 14's ceilings are untouched: crit ≤ 75%, damage reduction ≤ 65% (armour floor 0.35),
+CDR ≤ 50%, `spMul` ≤ 2, `eliteBoost` ≤ 0.8, ascension ≤ 5.
+
+### 12.8 Mandatory coverage (v2.7.0)
+
+* `_v27.html` (new, built by `/tmp/mkv27.py`) — 75 assertions covering prop coverage
+  (`authored=28 unhandled=0`), ground themes, the six archetypes' data and art, telegraph
+  and dying dispatch, boss variants, per-power-up pixel bursts, and all four elite affixes.
+  Current run: **75 PASS / 0 FAIL**.
+* `_deep.html` — the full regression suite must stay green: **250 PASS / 0 FAIL**.
+* `_bul.html` — per-weapon bullet coverage: **36 PASS / 0 FAIL**.
+* `_shot.html` — visual contact sheet; panels 7–9 (new archetypes + affix rings, pixel
+  bursts, ground detail + restored props) must report non-zero ink and colour variety.

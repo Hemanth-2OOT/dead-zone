@@ -13,11 +13,6 @@ android/*.iml
 android/app/*.iml
 android/.navigation/
 android/captures/
-www/_deep.html
-www/_live.html
 *.zip
-www/_lobby*.html
-www/_mob.html
-www/_r.html
-www/_bul*.html
-www/_shot.html
+# scratch verification harnesses (regenerated from www/index.html by the generators in /tmp)
+www/_*.html
