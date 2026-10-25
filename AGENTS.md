@@ -78,3 +78,26 @@ produced by the GitHub Actions workflows in `.github/workflows/`.
   * `@media (max-width: 760px), (max-aspect-ratio: 1/1)` — stacked, single scrolling column (portrait).
   * `@media (max-height: 460px) and (orientation: landscape)` — two independently scrolling columns.
 * `_deep.html` (built by `/tmp/mkdeep3.py`) guards both queries. Run it after any lobby CSS change.
+
+## Bullets, skill FX and power-up iconography
+
+* `drawBulletDefault` in `engine_feel.js` is the shared renderer for 12 of the 22 guns; the
+  other 10 have bespoke branches in `draw()`. Both paths must be checked — the bullet harness
+  reports which pass paints each weapon and must show **0 in "NEVER PAINTED"**.
+* Bullet archetypes come from `bulletArchetype(wi)` and drive head shape, trail length and
+  bloom. Speed matters: the trail length is `base * (1 + tier*0.12) * vk` where
+  `vk = clamp(spd/700, 0.45, 1.9)`. Do not "simplify" `spd` away again — it was dead code
+  that made every bullet smear identically.
+* `skillCastFX` pushes a `SKILL_FX` entry per cast and `renderSkillFX` must draw **every**
+  kind. It previously handled only `turret`/`grenThrow`/`nova` with no fallback, silently
+  dropping 7 skills. Any new skill needs a matching `else if (e.k === ...)` branch.
+* Icons: `getSkillIcon` must produce a **distinct** bitmap per skill id (20 ids) and
+  `puGlyph` is the single source of power-up glyph art, used by both `drawPowerupIcon` and
+  the HUD chips. `puGlyph` draws straight onto the current `X`; it does not return a data URL.
+* `powerupPickupFX(id,x,y)` holds the per-power-up detonation and `renderPowerupAuras` the
+  active world auras; both are called from `engine_world.js` draw/`applyPowerup`.
+* Regenerate and run the harnesses after touching any of this:
+  * `/tmp/mkbul.py` → `www/_bul.html` (per-weapon bullet coverage, trail-length scaling,
+    crit palette, skill-icon distinctness, skill-cast paint check, power-up aura check,
+    pickup-effect distinctness). Must be **0 FAIL**.
+  * `/tmp/mkdeep3.py` → `www/_deep.html` (the full 250-assert regression suite).

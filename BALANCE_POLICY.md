@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.5.1**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, the new depth/retention layer (Section 6), **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** and **the v2.5.1 landscape-phone lobby layout fix (Section 10)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
+> **Status:** Updated for **v2.6.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, the new depth/retention layer (Section 6), **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** **the v2.5.0 dead-code resurrection of the class skills, perks and relics (Section 9)** **the v2.5.1 landscape-phone lobby layout fix (Section 10)** and **the v2.6.0 bullet-render / per-skill-icon / per-powerup-effect pass (Section 11)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
 
 ---
 
@@ -496,4 +496,58 @@ both queries (e.g. 640×360) the stacked scrolling layout wins, which is also co
 10.3 **Mandatory coverage (v2.5.1).** The `_deep.html` harness asserts that the landscape-phone media
 query exists, that it sets `flex-shrink: 0` on the lobby blocks, that both columns become scrollable, and
 that the sector picker and rewards panel keep their minimum heights; plus that the portrait query still
-stacks into one scrolling column. Current run: **184 PASS / 0 FAIL** (was 176).
+stacks into one scrolling column. Current run: **250 PASS / 0 FAIL** (measured after Section 11).
+
+## 11. v2.6.0 — Bullet Rendering, Skill Icons & Per-Power-up Effects
+
+Three shipped defects were found and fixed, and the feedback for power-ups and skills
+was made one-to-one with the thing it represents.
+
+### 11.1 The broken bullet visuals
+
+| Defect (proven) | Fix |
+| --- | --- |
+| `drawBulletDefault` computed `const spd = Math.hypot(b.vx, b.vy)` and **never read it** — the documented "trail length scales with speed" was not implemented, so a 1050px/s railgun slug smeared exactly as far as a 240px/s flamer puff. | `spd` is normalised into `vk` (0.45–1.9) and multiplied into the trail length. Measured: a 200px/s round now smears 3.6px, a 1100px/s round 69.7px. |
+| A crit round drew the **same colour as a normal one** (`bulletColourFor(wi, true)` was only used on impact, never in flight), so crits were only marginally fatter. | Crits take the hot palette (`#fff3c4` body, `#fffdf0` core) for the whole flight. |
+| Every one of the 22 guns drew the **same white dot** head. | Per-archetype head geometry: pellet oval, tracer streak, heavy slug with a driving band, rail needle, cryo shard, rocket with fins, pulsing arc/energy orb. |
+| Bullets emitted a light bloom only if `heavy`. | A travelling bloom on every archetype (0.55 heavy / 0.40 hot / 0.20 light), so an SMG stream lights the ground it crosses. |
+| No muzzle-bloom stretch. | `b.ft` (flight clock) stretches a fresh round for ~45ms. |
+
+Cold/energy rounds also leave frost motes and sparks via `bulletTrailFX`, all gated on the
+existing 250-particle budget so the pool stays bounded.
+
+### 11.2 Skills that had an animation and never drew it
+
+`skillCastFX` pushed `SKILL_FX` entries for `bolt`, `meteor`, `frost`, `heal`, `cloak`,
+`shield` **and** `dash`/`rage`, but `renderSkillFX` only had branches for `turret`,
+`grenThrow` and `nova` — the loop had **no fallback**. Seven of eleven skills could be cast
+with no cast animation at all. Each now has its own: a storm column that forks into the
+ground, a snapping ground reticle with an incoming streak, a six-ray frost star, rising
+motes in a cross ring, a shadow fold with a dashed silhouette, a hex barrier that snaps
+outward, dash chevrons with a dust ring, and a rage activation ring that slams inward.
+
+### 11.3 Icons and effects, one per id
+
+* `getSkillIcon` had **5 distinct bitmaps for 20 skill ids** — `nova`, `frost`, `cloak`,
+  `shield`, `heal`, `bolt`, `meteor` and the nine stat skills all fell through to one
+  generic circle-and-cross placeholder. All 20 now have bespoke vector art (blossom,
+  branched snowflake, hooded silhouette, faceted shield, medic cross, bolt, meteor,
+  heart-with-plus, chevrons, rifle round, trigger, crosshair star, fanged droplet,
+  repair arrow, credit stack, training chevron).
+* Every power-up used to drop the **same two rings and the same 26-particle burst**, so a
+  MAGNET looked identical to a SHOCKWAVE. Each now has its own detonation (reticle snapshot,
+  shard spokes, hex burst, inward-then-outward pulse, upward forks, stacked blast rings) and
+  its own pickup jingle pitch.
+* `OVERCHARGE` and `MAGNET` changed only numbers — they had **no on-screen presence at all**.
+  `renderPowerupAuras` now draws an overcharge collar with a rotating tick crown, the magnet
+  field at its real pull radius, a cryo frost ring and an adrenaline speed smear.
+* The HUD chip art and the ground-collectable art are now the same `puGlyph` vector, so the
+  icon a player picks up is literally the icon ticking down in the corner.
+
+### 11.4 Rule preserved
+
+Nothing here changes damage, fire rate, drop rate or any economy value — this section is
+presentation only, so Rule 14's caps and the `GUN_LOGIC.md` DPS/TTK table are unaffected.
+Particle and ring pools remain capped (`F` 250, `RG` bounded, `MAX_METEOR` 6,
+`MAX_AMISS` 10). Current run: **250 PASS / 0 FAIL** (`_deep.html`), plus **36 PASS / 0 FAIL**
+on the dedicated `_bul.html` bullet/icon harness.

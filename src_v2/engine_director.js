@@ -1,4 +1,4 @@
-// DEAD ZONE v2.4 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.6 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -56,13 +56,17 @@ function applyPowerup(id) {
     for (const z of Z) if (!z.dead) z.fz = Math.max(z.fz || 0, 2.5);
   }
   announce(def.name, def.col, def.tag + (def.dur ? ' • ' + def.dur + 's' : ''));
-  RG.push({ x: P.x, y: P.y, r: 8, l: 0.6, v: 520, c: hexToRgbStr(def.col) });
-  RG.push({ x: P.x, y: P.y, r: 4, l: 0.45, v: 300, c: '255,255,255' });
-  burst(P.x, P.y, def.col, 26, 3.5, 150, 1);
+  // Each power-up detonates in its own shape: a reticle for OVERCHARGE, shard
+  // spokes for CRYO, a hex burst for AEGIS, an inward then outward pulse for
+  // MAGNET, upward forks for ADRENALINE and stacked blast rings for SHOCKWAVE.
+  // These used to be the same two rings and the same burst for all six.
+  if (typeof powerupPickupFX === 'function') powerupPickupFX(id, P.x, P.y);
+  else { RG.push({ x: P.x, y: P.y, r: 8, l: 0.6, v: 520, c: hexToRgbStr(def.col) }); burst(P.x, P.y, def.col, 26, 3.5, 150, 1); }
   if (typeof snd === 'function') {
-    snd(520, 0.12, 'triangle', 0.09, 1.3);
-    setTimeout(() => snd(780, 0.14, 'triangle', 0.08, 1.2), 70);
-    setTimeout(() => snd(1040, 0.2, 'sine', 0.07, 1.1), 150);
+    const base = id === 'nk' ? 300 : id === 'fz' ? 700 : id === 'sh' ? 420 : id === 'mg' ? 600 : id === 'ad' ? 880 : 520;
+    snd(base, 0.12, 'triangle', 0.09, 1.3);
+    setTimeout(() => snd(base * 1.5, 0.14, 'triangle', 0.08, 1.2), 70);
+    setTimeout(() => snd(base * 2, 0.2, 'sine', 0.07, 1.1), 150);
   }
   if (S) S.puCount = (S.puCount || 0) + 1;
 }

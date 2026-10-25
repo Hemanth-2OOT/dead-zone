@@ -334,6 +334,175 @@ function getSkillIcon(skillId, col = '#8fae4a') {
     cx.beginPath(); cx.arc(20, 18, 11, 0, 6.28); cx.fill();
     cx.fillStyle = '#111'; cx.beginPath(); cx.arc(16, 16, 2.5, 0, 6.28); cx.arc(24, 16, 2.5, 0, 6.28); cx.fill();
     cx.beginPath(); cx.arc(20, 23, 5, 0, 3.14); cx.fill();
+  } else if (skillId === 'nova') {
+    // Blast core with eight radial spikes.
+    cx.beginPath(); cx.arc(20, 20, 6, 0, 6.28); cx.fill();
+    cx.beginPath(); cx.arc(20, 20, 11, 0, 6.28); cx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i * 0.7854;
+      cx.beginPath();
+      cx.moveTo(20 + Math.cos(a) * 14, 20 + Math.sin(a) * 14);
+      cx.lineTo(20 + Math.cos(a) * 18, 20 + Math.sin(a) * 18);
+      cx.stroke();
+    }
+  } else if (skillId === 'frost') {
+    // Branched six-arm snowflake.
+    for (let i = 0; i < 6; i++) {
+      const a = i * 1.0472;
+      const vx = Math.cos(a), vy = Math.sin(a);
+      cx.beginPath(); cx.moveTo(20, 20); cx.lineTo(20 + vx * 15, 20 + vy * 15); cx.stroke();
+      cx.beginPath();
+      cx.moveTo(20 + vx * 9, 20 + vy * 9);
+      cx.lineTo(20 + vx * 13 - vy * 5, 20 + vy * 13 + vx * 5);
+      cx.moveTo(20 + vx * 9, 20 + vy * 9);
+      cx.lineTo(20 + vx * 13 + vy * 5, 20 + vy * 13 - vx * 5);
+      cx.stroke();
+    }
+    cx.beginPath(); cx.arc(20, 20, 2.6, 0, 6.28); cx.fill();
+  } else if (skillId === 'cloak') {
+    // Hooded silhouette inside two dashed concealment arcs.
+    cx.setLineDash([3, 3]);
+    cx.beginPath(); cx.arc(20, 21, 14, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.arc(20, 21, 18, 3.6, 5.9); cx.stroke();
+    cx.setLineDash([]);
+    cx.beginPath();
+    cx.moveTo(20, 10);
+    cx.bezierCurveTo(13, 10, 10, 16, 11, 22);
+    cx.lineTo(11, 30); cx.lineTo(29, 30); cx.lineTo(29, 22);
+    cx.bezierCurveTo(30, 16, 27, 10, 20, 10);
+    cx.closePath();
+    cx.fill();
+    cx.fillStyle = '#1c2216';
+    cx.beginPath(); cx.ellipse(20, 20, 6, 7.5, 0, 0, 6.28); cx.fill();
+  } else if (skillId === 'shield') {
+    // Faceted shield with a centre chevron and two rivets.
+    cx.beginPath();
+    cx.moveTo(20, 7); cx.lineTo(32, 12); cx.lineTo(30, 24);
+    cx.lineTo(20, 33); cx.lineTo(10, 24); cx.lineTo(8, 12);
+    cx.closePath(); cx.stroke();
+    cx.beginPath(); cx.moveTo(20, 12); cx.lineTo(26, 22); cx.lineTo(20, 19); cx.lineTo(14, 22); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.arc(14, 14, 1.4, 0, 6.28); cx.arc(26, 14, 1.4, 0, 6.28); cx.fill();
+  } else if (skillId === 'heal') {
+    // Medic cross inside a ring, with a pulse blip.
+    cx.beginPath(); cx.arc(20, 20, 14, 0, 6.28); cx.stroke();
+    cx.fillRect(17, 10, 6, 20);
+    cx.fillRect(10, 17, 20, 6);
+    cx.fillStyle = '#1c2216';
+    cx.beginPath(); cx.arc(20, 20, 3.4, 0, 6.28); cx.fill();
+  } else if (skillId === 'bolt') {
+    // Storm bolt with a fork.
+    cx.beginPath();
+    cx.moveTo(24, 5); cx.lineTo(12, 21); cx.lineTo(19, 21);
+    cx.lineTo(15, 35); cx.lineTo(29, 17); cx.lineTo(21, 17);
+    cx.closePath(); cx.fill();
+    cx.lineWidth = 1.6;
+    cx.beginPath(); cx.moveTo(12, 12); cx.lineTo(9, 17); cx.moveTo(29, 27); cx.lineTo(32, 22); cx.stroke();
+  } else if (skillId === 'meteor') {
+    // Rock with an incoming streak and ground impact rays.
+    cx.beginPath(); cx.arc(25, 26, 8, 0, 6.28); cx.fill();
+    cx.beginPath();
+    cx.moveTo(20, 22); cx.lineTo(4, 5);
+    cx.moveTo(23, 19); cx.lineTo(10, 4);
+    cx.stroke();
+    cx.lineWidth = 1.6;
+    for (let i = 0; i < 5; i++) {
+      const a = -0.4 + i * 0.5;
+      cx.beginPath();
+      cx.moveTo(25 + Math.cos(a) * 10, 26 + Math.sin(a) * 10);
+      cx.lineTo(25 + Math.cos(a) * 14, 26 + Math.sin(a) * 14);
+      cx.stroke();
+    }
+  } else if (skillId === 'mx') {
+    // Heart with a vitality plus.
+    cx.beginPath();
+    cx.moveTo(20, 33);
+    cx.bezierCurveTo(9, 25, 5, 18, 5, 13);
+    cx.bezierCurveTo(5, 8, 9, 6, 13, 6);
+    cx.bezierCurveTo(17, 6, 20, 10, 20, 11.5);
+    cx.bezierCurveTo(20, 10, 23, 6, 27, 6);
+    cx.bezierCurveTo(31, 6, 35, 8, 35, 13);
+    cx.bezierCurveTo(35, 18, 31, 25, 20, 33);
+    cx.closePath(); cx.fill();
+    cx.fillStyle = '#1c2216';
+    cx.fillRect(19, 14, 3, 11);
+    cx.fillRect(15, 18, 11, 3);
+  } else if (skillId === 'spd') {
+    // Double chevron with speed lines.
+    cx.beginPath(); cx.moveTo(14, 8); cx.lineTo(24, 20); cx.lineTo(14, 32); cx.stroke();
+    cx.beginPath(); cx.moveTo(23, 8); cx.lineTo(33, 20); cx.lineTo(23, 32); cx.stroke();
+    cx.lineWidth = 1.8;
+    cx.beginPath(); cx.moveTo(4, 14); cx.lineTo(10, 14); cx.moveTo(3, 20); cx.lineTo(9, 20); cx.moveTo(4, 26); cx.lineTo(10, 26); cx.stroke();
+  } else if (skillId === 'dm') {
+    // Rifle round with a muzzle flare.
+    cx.beginPath(); cx.moveTo(21, 4); cx.lineTo(27, 14); cx.lineTo(27, 28); cx.lineTo(15, 28); cx.lineTo(15, 14); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.moveTo(15, 31); cx.lineTo(27, 31); cx.lineTo(27, 36); cx.lineTo(15, 36); cx.closePath(); cx.stroke();
+    cx.lineWidth = 1.8;
+    for (let i = 0; i < 3; i++) {
+      const a = Math.PI + (i - 1) * 0.5;
+      cx.beginPath(); cx.moveTo(21, 4); cx.lineTo(21 + Math.cos(a) * 8, 4 + Math.sin(a) * 8); cx.stroke();
+    }
+  } else if (skillId === 'rof') {
+    // Trigger plus a rotation arrow for cycle rate.
+    cx.beginPath(); cx.moveTo(12, 8); cx.lineTo(12, 20);
+    cx.bezierCurveTo(12, 26, 18, 30, 24, 28);
+    cx.stroke();
+    cx.beginPath(); cx.moveTo(20, 6); cx.lineTo(20, 12); cx.moveTo(17, 9); cx.lineTo(20, 6); cx.lineTo(23, 9); cx.stroke();
+    cx.beginPath(); cx.arc(25, 22, 7, 0.6, 5.2); cx.stroke();
+    cx.beginPath(); cx.moveTo(31, 18); cx.lineTo(31, 23); cx.lineTo(26, 22); cx.closePath(); cx.fill();
+  } else if (skillId === 'crit') {
+    // Crosshair with a crit star in the middle.
+    cx.beginPath(); cx.arc(20, 20, 12, 0, 6.28); cx.stroke();
+    cx.beginPath();
+    cx.moveTo(20, 3); cx.lineTo(20, 11); cx.moveTo(20, 29); cx.lineTo(20, 37);
+    cx.moveTo(3, 20); cx.lineTo(11, 20); cx.moveTo(29, 20); cx.lineTo(37, 20);
+    cx.stroke();
+    cx.beginPath();
+    cx.moveTo(20, 11); cx.lineTo(22.5, 18); cx.lineTo(29, 20); cx.lineTo(22.5, 22);
+    cx.lineTo(20, 29); cx.lineTo(17.5, 22); cx.lineTo(11, 20); cx.lineTo(17.5, 18);
+    cx.closePath(); cx.fill();
+  } else if (skillId === 'vamp') {
+    // Blood drop with a fang notch and a pulse line.
+    cx.beginPath();
+    cx.moveTo(20, 5);
+    cx.bezierCurveTo(28, 16, 30, 21, 30, 25);
+    cx.bezierCurveTo(30, 31, 25, 35, 20, 35);
+    cx.bezierCurveTo(15, 35, 10, 31, 10, 25);
+    cx.bezierCurveTo(10, 21, 12, 16, 20, 5);
+    cx.closePath(); cx.fill();
+    cx.fillStyle = '#1c2216';
+    cx.beginPath(); cx.moveTo(16, 22); cx.lineTo(19, 22); cx.lineTo(17.5, 30); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.moveTo(22, 22); cx.lineTo(25, 22); cx.lineTo(23.5, 30); cx.closePath(); cx.fill();
+  } else if (skillId === 'regen') {
+    // Cellular repair: circular arrow around a plus.
+    cx.beginPath(); cx.arc(20, 20, 13, 0.5, 5.3); cx.stroke();
+    cx.beginPath(); cx.moveTo(31, 12); cx.lineTo(31, 18); cx.lineTo(25, 17); cx.closePath(); cx.fill();
+    cx.fillRect(17, 14, 6, 12);
+    cx.fillRect(14, 17, 12, 6);
+  } else if (skillId === 'cb') {
+    // Stacked credits with a sparkle.
+    cx.beginPath(); cx.ellipse(18, 30, 12, 5, 0, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.ellipse(18, 24, 12, 5, 0, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.ellipse(18, 18, 12, 5, 0, 0, 6.28); cx.fill();
+    cx.fillStyle = '#1c2216';
+    cx.font = 'bold 11px Arial'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText('$', 18, 18);
+    cx.fillStyle = col;
+    cx.beginPath();
+    cx.moveTo(33, 6); cx.lineTo(34.6, 10.4); cx.lineTo(39, 12); cx.lineTo(34.6, 13.6);
+    cx.lineTo(33, 18); cx.lineTo(31.4, 13.6); cx.lineTo(27, 12); cx.lineTo(31.4, 10.4);
+    cx.closePath(); cx.fill();
+  } else if (skillId === 'xpb') {
+    // Training chevrons with a service star.
+    cx.beginPath();
+    cx.moveTo(6, 24); cx.lineTo(16, 32); cx.lineTo(34, 10);
+    cx.stroke();
+    cx.lineWidth = 1.8;
+    cx.beginPath();
+    cx.moveTo(6, 32); cx.lineTo(14, 36); cx.stroke();
+    cx.beginPath();
+    cx.moveTo(29, 4); cx.lineTo(30.8, 9); cx.lineTo(36, 10.8); cx.lineTo(30.8, 12.6);
+    cx.lineTo(29, 18); cx.lineTo(27.2, 12.6); cx.lineTo(22, 10.8); cx.lineTo(27.2, 9);
+    cx.closePath(); cx.fill();
   } else {
     cx.beginPath(); cx.arc(20, 20, 13, 0, 6.28); cx.stroke();
     cx.beginPath(); cx.moveTo(20, 8); cx.lineTo(20, 32); cx.moveTo(8, 20); cx.lineTo(32, 20); cx.stroke();

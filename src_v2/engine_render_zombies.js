@@ -1,4 +1,4 @@
-// DEAD ZONE v2.4 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.6 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.4 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v2.6 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 let ANN = [];          // announcer queue (screen-space banners)
 let FX_STEP_T = 0;
@@ -92,20 +92,10 @@ function drawPowerupIcon(id, t) {
   X.closePath(); X.fill();
   X.fillStyle = 'rgba(255,255,255,0.28)';
   X.beginPath(); X.moveTo(-10, -4); X.lineTo(0, -11); X.lineTo(10, -4); X.lineTo(0, -5); X.closePath(); X.fill();
+  // Same vector glyph the HUD chip uses, so the icon on the ground and the
+  // icon ticking down in the corner are literally the same shape.
+  if (typeof puGlyph === 'function') { puGlyph(id, 0, 0, 1, '#ffffff'); X.restore(); return; }
   X.strokeStyle = '#fff'; X.fillStyle = '#fff'; X.lineWidth = 2; X.lineCap = 'round'; X.lineJoin = 'round';
-  if (id === 'dd') { // crosshair + plus
-    X.beginPath(); X.arc(0, 0, 5, 0, 6.28); X.stroke(); X.fillRect(-1, -9, 2, 4); X.fillRect(-1, 5, 2, 4); X.fillRect(-9, -1, 4, 2); X.fillRect(5, -1, 4, 2);
-  } else if (id === 'fz') { // snowflake
-    for (let k = 0; k < 3; k++) { const a = k * 1.0472; X.beginPath(); X.moveTo(Math.cos(a) * 7, Math.sin(a) * 7); X.lineTo(-Math.cos(a) * 7, -Math.sin(a) * 7); X.stroke(); }
-  } else if (id === 'sh') { // shield
-    X.beginPath(); X.moveTo(0, -7); X.lineTo(6, -4); X.lineTo(5, 3); X.lineTo(0, 8); X.lineTo(-5, 3); X.lineTo(-6, -4); X.closePath(); X.stroke();
-  } else if (id === 'mg') { // horseshoe magnet
-    X.beginPath(); X.arc(0, 0, 5.5, Math.PI, 0); X.lineTo(5.5, 6); X.moveTo(-5.5, 0); X.lineTo(-5.5, 6); X.stroke();
-  } else if (id === 'ad') { // bolt
-    X.beginPath(); X.moveTo(2, -8); X.lineTo(-4, 1); X.lineTo(0, 1); X.lineTo(-2, 8); X.lineTo(5, -2); X.lineTo(1, -2); X.closePath(); X.fill();
-  } else if (id === 'nk') { // burst
-    for (let k = 0; k < 8; k++) { const a = k * 0.7854; X.beginPath(); X.moveTo(Math.cos(a) * 3, Math.sin(a) * 3); X.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); X.stroke(); }
-  }
   X.restore();
 }
 

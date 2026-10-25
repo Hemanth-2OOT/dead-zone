@@ -1,4 +1,4 @@
-// DEAD ZONE v2.4 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.6 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -1852,6 +1852,10 @@ function draw() {
   if (typeof renderSkillFX === 'function') renderSkillFX(cx, cy, W, H);
   // Ground-anchored passive auras and meteor telegraphs.
   if (typeof renderPassivesGround === 'function') renderPassivesGround(cx, cy, W, H);
+  // Ground-anchored power-up auras: the OVERCHARGE collar, the MAGNET field
+  // rings, the CRYO frost ring and the ADRENALINE smear. OVERCHARGE and MAGNET
+  // previously changed only numbers and never showed on screen at all.
+  if (typeof renderPowerupAuras === 'function') renderPowerupAuras(cx, cy, W, H);
 
   // 14. Telegraphed attacks are ground markers, drawn beneath every entity
   for (const z of Z) { if (typeof drawTelegraph === "function") drawTelegraph(z); }
@@ -2099,30 +2103,13 @@ function renderHUD() {
     X.arc(px, py, 11, -1.57, -1.57 + 6.28 * pct);
     X.stroke();
 
-    // Distinct powerup icons
-    if (pu.id === 'dd') {
+    // Shared vector glyph - the same art the collectable uses on the ground.
+    if (typeof puGlyph === 'function') {
+      puGlyph(pu.id, px, py, 0.82, pu.col);
+    } else {
       X.fillStyle = pu.col;
       X.font = '900 8px Impact'; X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText('2X', px, py + 0.5);
-    } else if (pu.id === 'fz') {
-      X.strokeStyle = pu.col; X.lineWidth = 1.4;
-      X.beginPath();
-      X.moveTo(px - 4, py); X.lineTo(px + 4, py);
-      X.moveTo(px, py - 4); X.lineTo(px, py + 4);
-      X.stroke();
-    } else if (pu.id === 'sh') {
-      X.fillStyle = pu.col;
-      X.beginPath();
-      X.moveTo(px, py - 4); X.lineTo(px + 4, py - 2); X.lineTo(px + 3, py + 2); X.lineTo(px, py + 5); X.lineTo(px - 3, py + 2); X.lineTo(px - 4, py - 2);
-      X.closePath(); X.fill();
-    } else if (pu.id === 'mg') {
-      X.strokeStyle = pu.col; X.lineWidth = 2;
-      X.beginPath(); X.arc(px, py - 1, 3.5, 3.14, 0, true); X.stroke();
-    } else if (pu.id === 'ad') {
-      X.strokeStyle = pu.col; X.lineWidth = 1.6;
-      X.beginPath();
-      X.moveTo(px - 4, py + 3); X.lineTo(px - 1, py - 3); X.lineTo(px + 1, py + 1); X.lineTo(px + 4, py - 4);
-      X.stroke();
+      X.fillText(pu.name.slice(0, 2), px, py + 0.5);
     }
   });
 
