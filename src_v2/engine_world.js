@@ -1677,8 +1677,133 @@ function draw() {
 function renderHUD() {
   const pad = 16;
   const rx = pad + 28, ry = pad + 28;
+  const radarRad = 26;
 
-  // Mini-radar ring
+  // 1. Radar Background & Clipping Boundary
+  X.save();
+  X.fillStyle = '#0a0e08ee';
+  X.beginPath(); X.arc(rx, ry, radarRad, 0, 6.28); X.fill();
+  X.clip();
+
+  // 2. Tactical Grid Rings
+  X.strokeStyle = 'rgba(255,255,255,0.08)';
+  X.lineWidth = 1;
+  X.beginPath();
+  X.arc(rx, ry, 13, 0, 6.28);
+  X.arc(rx, ry, 22, 0, 6.28);
+  X.stroke();
+
+  // 3. Walls & Buildings from MAP_DATA / Obstacles O
+  X.fillStyle = 'rgba(74, 95, 60, 0.45)';
+  const curM = getCurMap();
+  const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[curM]) ? MAP_DATA[curM] : (MP[curM] || MP[0]);
+  const wallsList = (typeof O !== 'undefined' && O.length) ? O : (mapDef.walls || mapDef.obstacles || []);
+  for (const w of wallsList) {
+    const wx = rx + (w.x - P.x) / 24;
+    const wy = ry + (w.y - P.y) / 24;
+    const ww = Math.max(1.5, w.w / 24);
+    const wh = Math.max(1.5, w.h / 24);
+    if (Math.hypot(wx - rx, wy - ry) < radarRad + 10) {
+      X.fillRect(wx, wy, ww, wh);
+    }
+  }
+
+  // 4. World Bounds Boundary
+  const wLeft = rx + (0 - P.x) / 24;
+  const wTop = ry + (0 - P.y) / 24;
+  const wSize = (typeof WS !== 'undefined' ? WS : 2400) / 24;
+  X.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+  X.lineWidth = 1.2;
+  X.strokeRect(wLeft, wTop, wSize, wSize);
+
+  // 5. Radar Sweep Line
+  const swpAng = (S ? S.t : 0) * 2.8;
+  X.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+  X.lineWidth = 1.4;
+  X.beginPath(); X.moveTo(rx, ry); X.lineTo(rx + Math.cos(swpAng) * radarRad, ry + Math.sin(swpAng) * radarRad); X.stroke();
+
+  // 6. Player Vision Cone
+  X.fillStyle = 'rgba(56, 189, 248, 0.12)';
+  X.beginPath();
+  X.moveTo(rx, ry);
+  X.arc(rx, ry, 20, P.a - 0.38, P.a + 0.38);
+  X.closePath();
+  X.fill();
+
+  // 7. Pickups & Relic Chests (CH & D)
+  for (const c of CH) {
+    const dx = (c.x - P.x) / 24, dy = (c.y - P.y) / 24;
+    const dist = Math.hypot(dx, dy);
+    const k = dist > (radarRad - 3) ? (radarRad - 3) / dist : 1;
+    X.fillStyle = '#ffd36b';
+    X.fillRect(rx + dx * k - 2, ry + dy * k - 2, 4, 4);
+  }
+  for (const d of D) {
+    const dx = (d.x - P.x) / 24, dy = (d.y - P.y) / 24;
+    if (dx * dx + dy * dy < radarRad * radarRad) {
+      X.fillStyle = d.t === 'h' ? '#ef4444' : (d.t === 'a' ? '#38bdf8' : '#ffd36b');
+      X.beginPath(); X.arc(rx + dx, ry + dy, 1.8, 0, 6.28); X.fill();
+    }
+  }
+
+  // 8. Zombie Radar Blips
+  for (const z of Z) {
+    if (z.dead) continue;
+    const dx = (z.x - P.x) / 24, dy = (z.y - P.y) / 24;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq < radarRad * radarRad) {
+      if (z.t === 'boss') {
+        const bRad = 3.5 + Math.sin((S ? S.t : 0) * 10) * 1.2;
+        X.fillStyle = 'rgba(239,68,68,0.45)';
+        X.beginPath(); X.arc(rx + dx, ry + dy, bRad + 2, 0, 6.28); X.fill();
+        X.fillStyle = '#ef4444';
+        X.beginPath();
+        X.moveTo(rx + dx, ry + dy - bRad);
+        X.lineTo(rx + dx + bRad, ry + dy);
+        X.lineTo(rx + dx, ry + dy + bRad);
+        X.lineTo(rx + dx - bRad, ry + dy);
+        X.closePath(); X.fill();
+      } else if (z.t === 'tank' || z.t === 'brute' || z.t === 'charger') {
+        X.fillStyle = '#f97316';
+        X.beginPath();
+        X.moveTo(rx + dx, ry + dy - 2.5);
+        X.lineTo(rx + dx + 2.5, ry + dy);
+        X.lineTo(rx + dx, ry + dy + 2.5);
+        X.lineTo(rx + dx - 2.5, ry + dy);
+        X.closePath(); X.fill();
+      } else if (z.t === 'exp' || z.t === 'exploder') {
+        X.fillStyle = Math.sin((S ? S.t : 0) * 12) > 0 ? '#facc15' : '#ef4444';
+        X.beginPath(); X.arc(rx + dx, ry + dy, 2.2, 0, 6.28); X.fill();
+      } else {
+        X.fillStyle = '#ff5a3a';
+        X.fillRect(rx + dx - 1.2, ry + dy - 1.2, 2.4, 2.4);
+      }
+    } else if (z.t === 'boss') {
+      // Off-screen boss directional pointer along radar rim
+      const bAng = Math.atan2(dy, dx);
+      X.fillStyle = '#ef4444';
+      X.beginPath();
+      X.moveTo(rx + Math.cos(bAng) * (radarRad - 2), ry + Math.sin(bAng) * (radarRad - 2));
+      X.lineTo(rx + Math.cos(bAng + 0.22) * (radarRad - 6), ry + Math.sin(bAng + 0.22) * (radarRad - 6));
+      X.lineTo(rx + Math.cos(bAng - 0.22) * (radarRad - 6), ry + Math.sin(bAng - 0.22) * (radarRad - 6));
+      X.closePath(); X.fill();
+    }
+  }
+
+  // 9. Central Player Directional Chevron
+  X.save();
+  X.translate(rx, ry);
+  X.rotate(P.a);
+  X.fillStyle = '#38bdf8';
+  X.beginPath();
+  X.moveTo(5, 0); X.lineTo(-3.5, -3.5); X.lineTo(-1.8, 0); X.lineTo(-3.5, 3.5);
+  X.closePath(); X.fill();
+  X.restore();
+
+  X.restore(); // Restore radar clipping
+
+  // 10. Mini-Radar Perimeter & Health Ring
   X.lineWidth = 3.5; X.strokeStyle = '#141a12';
   X.beginPath(); X.arc(rx, ry, 28, 0, 6.28); X.stroke();
   X.strokeStyle = P.hp > 30 ? '#8fae4a' : '#d9453a';
