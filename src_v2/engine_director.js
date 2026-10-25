@@ -1,4 +1,4 @@
-// DEAD ZONE v2.2 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.3 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -186,11 +186,13 @@ const WAVE_MODS = [
   { id: 'iron',   name: 'IRON',     min: 4, col: '#94a3b8', desc: 'ARMORED - FOCUS FIRE',         spMul: 1.15, cash: 1.25 },
   { id: 'toxic',  name: 'TOXIC',    min: 3, col: '#4ade80', desc: 'SPITTERS & BLASTERS - SPREAD OUT', spMul: 1.0, cash: 1.2 },
   { id: 'shadow', name: 'BLACKOUT', min: 3, col: '#c084fc', desc: 'LIMITED VISIBILITY',           spMul: 0.9,  cash: 1.3, dark: 0.55 },
-  { id: 'horde',  name: 'SWARM',    min: 2, col: '#fb7185', desc: 'CROWD CONTROL',                spMul: 0.6,  cash: 1.15 }
+  { id: 'horde',  name: 'SWARM',    min: 2, col: '#fb7185', desc: 'CROWD CONTROL',                spMul: 0.6,  cash: 1.15 },
+  { id: 'blitz',  name: 'BLITZ',    min: 5, col: '#f472b6', desc: 'OVERRUN - THIN THE HORDE FAST', spMul: 0.5,  cash: 1.35 },
+  { id: 'elite',  name: 'ELITE HUNT', min: 6, col: '#facc15', desc: 'ELITE PACK - HIGH VALUE TARGETS', spMul: 1.05, cash: 1.6 }
 ];
 
 function applyWaveModifier() {
-  S.wm = null; S.dark = 0; S.spMul = 1; S.wmCash = 1;
+  S.wm = null; S.dark = 0; S.spMul = 1; S.wmCash = 1; S.eliteBoost = 0;
   S.hitWave = false;
   const w = S.wave;
   const isBoss = w % 5 === 0;
@@ -211,6 +213,14 @@ function applyWaveModifier() {
       else if (m.id === 'horde') {
         const extra = Math.round(q.length * 0.5);
         for (let i = 0; i < extra; i++) q.push(Math.random() < 0.7 ? 'walk' : 'run');
+      }
+      else if (m.id === 'blitz') {
+        const extra = Math.round(q.length * 0.8);
+        for (let i = 0; i < extra; i++) q.push(Math.random() < 0.6 ? 'run' : 'walk');
+      }
+      else if (m.id === 'elite') {
+        S.eliteBoost = 0.5;
+        conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'charger' : 'tank'), 0.35);
       }
       announce('WAVE ' + w + ' - ' + m.name, m.col, m.desc + '  (+' + Math.round((m.cash - 1) * 100) + '% CASH)');
     }

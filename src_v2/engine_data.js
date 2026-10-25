@@ -5,7 +5,7 @@ const WEAP = [
   { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON' },
   { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON' },
   { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE' },
-  { n: 'Minigun', d: 8.5, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC' },
+  { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC' },
   { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON' },
   { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE' },
   { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC' },
@@ -13,16 +13,16 @@ const WEAP = [
   { n: 'Rocket', d: 175, r: 0.95, sp: 0.01, p: 1, c: 3000, ex: 115, kb: 2.5, mag: 4, rl: 2.0, tier: 'LEGENDARY' },
   { n: 'Flamer', d: 8.5, r: 0.065, sp: 0.22, p: 2, c: 1800, rg: 0.24, flm: 1, kb: 0.12, mag: 50, rl: 1.7, tier: 'EPIC' },
   { n: 'Tesla', d: 62, r: 0.30, sp: 0, p: 1, c: 3500, pr: 3, cl: 3, kb: 0.75, mag: 15, rl: 1.6, tier: 'LEGENDARY' },
-  { n: 'GL-40', d: 115, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC' },
+  { n: 'GL-40', d: 135, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC' },
   { n: 'Cryo Blaster', d: 24, r: 0.13, sp: 0.025, p: 1, c: 3400, fz: 1, kb: 0.7, mag: 24, rl: 1.4, tier: 'LEGENDARY' },
   { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY' },
   { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON' },
   { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE' },
-  { n: 'Arc Shotgun', d: 18, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
+  { n: 'Arc Shotgun', d: 24, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
   { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE' },
-  { n: 'Siphon SMG', d: 10, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
-  { n: 'Glacier Breaker', d: 13, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
-  { n: 'Hornet', d: 26, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
+  { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
+  { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
+  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
 ];
 
 const TIER_COLORS = {
@@ -150,6 +150,19 @@ const PKS = [
   ['✦ Fragmentation', 'Bullets burst into shards on impact', () => S.fr = (S.fr || 0) + 1, 2, '#ff9a3a', 'SPECIAL'],
   ['✦ Glass Cannon', '+40% damage, -20% max HP', () => { S.dm = (S.dm || 1) * 1.4; P.mx = Math.max(40, Math.round(P.mx * 0.8)); P.hp = Math.min(P.hp, P.mx); }, 1, '#ff4a3a', 'ULTIMATE'],
   ['✦ Nano Swarm', 'Drones seek and shred nearby zombies', () => S.ns = (S.ns || 0) + 1, 3, '#00e5ff', 'SPECIAL']
+];
+
+const RANK_MILESTONES = [
+  { r: 2,  cr: 250,  label: 'FIELD COMMISSION' },
+  { r: 4,  cr: 400,  label: 'SUPPLY CACHE' },
+  { r: 6,  cr: 600,  label: 'VETERAN PACK' },
+  { r: 8,  cr: 900,  label: 'ARSENAL GRANT' },
+  { r: 10, cr: 1300, label: 'SECTOR CLEARANCE' },
+  { r: 12, cr: 1700, label: 'ELITE COMMISSION' },
+  { r: 15, cr: 2200, label: 'GHOST PROTOCOL' },
+  { r: 20, cr: 3200, label: 'OVERLORD CLEARANCE' },
+  { r: 25, cr: 4500, label: 'DEAD ZONE LEGEND' },
+  { r: 30, cr: 6500, label: 'APEX OPERATIVE' }
 ];
 
 const SKINS = {

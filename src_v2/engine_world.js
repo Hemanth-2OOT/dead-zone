@@ -1,4 +1,4 @@
-// DEAD ZONE v2.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.3 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -223,7 +223,7 @@ function startWave() {
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
   if (typeof snd === 'function') snd(200, 0.4, 'sawtooth', 0.08, 0.5);
   S.q = [];
-  S.cash = (S.cash || 0) + (S.sc || 0); // 'Starting Cash' stat upgrade: +$50 per wave
+  S.cash = (S.cash || 0) + (S.stCash || 0); // 'Starting Cash' stat upgrade: +$50 per wave
 
   const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
   const n = (6 + S.wave * 4) * densityMult;
@@ -281,7 +281,7 @@ function spawn(t) {
 
   const baseElChance = (S && S.isEvent && S.evDef && S.evDef.id === 'elite_hunt') ? 0.24 : 0.06;
   const elBonus = S.wave > 25 ? Math.min(0.25, (S.wave - 25) * 0.02) : (S.wave > 15 ? (S.wave - 15) * 0.008 : 0);
-  const elChance = Math.min(0.40, baseElChance + elBonus);
+  const elChance = Math.min(0.60, baseElChance + elBonus + (S.eliteBoost || 0));
   const elWaveMin = (S && S.isEvent && S.evDef && S.evDef.id === 'elite_hunt') ? 1 : 2;
   const el = S.wave >= elWaveMin && t !== 'boss' && Math.random() < elChance;
 
@@ -765,8 +765,11 @@ function openPerk() {
   if (!modal || !cards) return;
 
   cards.innerHTML = '';
-  // Pick 3 random distinct perks from PKS
-  const pool = [...PKS].sort(() => Math.random() - 0.5).slice(0, 3);
+  // Pick 3 random distinct perks, never offering one already at max stacks
+  const owned = n => (S.pk && S.pk[n]) || 0;
+  const avail = PKS.filter(p => owned(p[0]) < (p[3] || 1));
+  const src = avail.length >= 3 ? avail : PKS;
+  const pool = [...src].sort(() => Math.random() - 0.5).slice(0, 3);
   pool.forEach(p => {
     const card = document.createElement('div');
     card.className = 'card';
@@ -775,7 +778,7 @@ function openPerk() {
     card.innerHTML = (iconUri ? `<div style="width:38px;height:38px;border-radius:8px;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;border:1px solid ${p[4]}55"><img src="${iconUri}" style="width:26px;height:26px"></div>` : '')
       + `<div style="flex:1;min-width:0">`
       + `<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${p[4]};font-size:13px;letter-spacing:.5px">${p[0]}</b>`
-      + `<span style="font-size:9px;font-weight:800;color:#ffd36b;letter-spacing:1px">${p[5]}</span></div>`
+      + `<span style="font-size:9px;font-weight:800;color:#ffd36b;letter-spacing:1px">${p[5]}${owned(p[0]) ? ' \u2022 LV' + (owned(p[0]) + 1) : ''}</span></div>`
       + `<p style="font-size:11px;opacity:.9;line-height:1.4;margin:4px 0 0 0;color:#ccc">${p[1]}</p>`
       + `</div>`;
     card.onclick = () => {
@@ -798,6 +801,19 @@ function openPerk() {
         modal.classList.remove('on');
         if (S.pend > 0) openPerk(); else run = 1;
       }
+    };
+  }
+
+  const rr = document.getElementById('reroll');
+  if (rr) {
+    const cost = 150;
+    rr.disabled = (S.cash || 0) < cost;
+    rr.onclick = () => {
+      if ((S.cash || 0) < cost) return;
+      S.cash -= cost;
+      S.po = 0; // release the lock so openPerk re-rolls a fresh hand
+      if (typeof snd === 'function') snd(300, 0.18, 'square', 0.06, 1.2);
+      openPerk();
     };
   }
 
@@ -1161,7 +1177,7 @@ function update(dt) {
     } else {
       document.getElementById('sum').innerHTML = '<div style="font-size:13.5px;margin-bottom:6px"><b>WAVE ' + S.wave + '</b> &bull; ' + S.kills + ' KILLS &bull; SURVIVOR LV ' + S.lv + '</div>'
         + '<div style="font-size:11.5px;opacity:.9;line-height:1.6;margin-bottom:6px">'
-        + 'Cash collected this run: <b>$' + (S.cash || 0) + '</b> &rarr; banked 1:1 as credits<br>'
+        + 'Unspent cash banked: <b>$' + (S.cash || 0) + '</b> &rarr; 1:1 credits<br>'
         + '<span style="color:#ffd36b;font-weight:800;font-size:13.5px">Total Earned: +' + (S.cash || 0) + ' CREDITS</span></div>'
         + '<div style="font-size:11px;color:#8fae4a">Account Rank: ' + SV.lvl + (S.up ? ' (+' + S.up + ' Skill Points!)' : '') + '</div>';
     }
@@ -1834,7 +1850,7 @@ function renderHUD() {
   for (const d of D) {
     const dx = (d.x - P.x) / 24, dy = (d.y - P.y) / 24;
     if (dx * dx + dy * dy < radarRad * radarRad) {
-      X.fillStyle = d.t === 'h' ? '#ef4444' : (d.t === 'a' ? '#38bdf8' : '#ffd36b');
+      X.fillStyle = d.k === 'h' ? '#ef4444' : (d.k === 'a' ? '#38bdf8' : (d.k === 'pu' ? '#c084fc' : (d.k === 'r' ? '#be8cff' : '#ffd36b')));
       X.beginPath(); X.arc(rx + dx, ry + dy, 1.8, 0, 6.28); X.fill();
     }
   }
@@ -1958,6 +1974,11 @@ function renderHUD() {
     } else if (pu.id === 'mg') {
       X.strokeStyle = pu.col; X.lineWidth = 2;
       X.beginPath(); X.arc(px, py - 1, 3.5, 3.14, 0, true); X.stroke();
+    } else if (pu.id === 'ad') {
+      X.strokeStyle = pu.col; X.lineWidth = 1.6;
+      X.beginPath();
+      X.moveTo(px - 4, py + 3); X.lineTo(px - 1, py - 3); X.lineTo(px + 1, py + 1); X.lineTo(px + 4, py - 4);
+      X.stroke();
     }
   });
 
@@ -2014,6 +2035,51 @@ function renderHUD() {
     vig.addColorStop(1, `rgba(239,68,68,${vAlpha})`);
     X.fillStyle = vig;
     X.fillRect(0, 0, W, H);
+  }
+
+  // Boss health bar (top centre) while a boss is alive
+  const boss = Z.find(z => z.t === 'boss' && !z.dead);
+  if (boss) {
+    const bw = Math.min(420, W - 130), bx = W / 2 - bw / 2, by = 52;
+    const pctB = Math.max(0, Math.min(1, boss.hp / (boss.mh || 1)));
+    X.textBaseline = 'alphabetic';
+    X.fillStyle = 'rgba(10,12,8,0.78)';
+    X.beginPath(); X.roundRect(bx - 5, by - 5, bw + 10, 24, 6); X.fill();
+    X.strokeStyle = '#ef4444'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = '#2a1010';
+    X.beginPath(); X.roundRect(bx, by, bw, 14, 4); X.fill();
+    const bg = X.createLinearGradient(bx, 0, bx + bw, 0);
+    bg.addColorStop(0, '#ef4444'); bg.addColorStop(1, '#ff9a3a');
+    X.fillStyle = bg;
+    X.beginPath(); X.roundRect(bx, by, Math.max(2, bw * pctB), 14, 4); X.fill();
+    X.fillStyle = '#f0ece1'; X.font = '900 11px Impact,Arial Black,sans-serif'; X.textAlign = 'center';
+    X.fillText((typeof BN !== 'undefined' && BN[boss.bv % 4] ? BN[boss.bv % 4] : 'BOSS') + '   ' + Math.max(0, Math.round(boss.hp)) + ' / ' + Math.round(boss.mh), W / 2, by + 11);
+  }
+
+  // Acquired perk tray (build readout) — top-right under the cash counter
+  if (S && S.pk) {
+    const names = Object.keys(S.pk).filter(k => S.pk[k] > 0);
+    if (names.length) {
+      const bw2 = 16, gap = 2, shown = names.slice(0, 16);
+      let sx0 = W - 50 - shown.length * (bw2 + gap);
+      const ty = 58;
+      X.textAlign = 'left'; X.textBaseline = 'middle';
+      shown.forEach((name, i) => {
+        const pdef = PKS.find(p => p[0] === name) || PKS.find(p => p[0] === '\u2726 ' + name) || [];
+        const col = pdef[4] || '#8fae4a';
+        const x = sx0 + i * (bw2 + gap);
+        X.fillStyle = 'rgba(10,12,8,0.72)';
+        X.beginPath(); X.roundRect(x, ty - 8, bw2, bw2, 4); X.fill();
+        X.strokeStyle = col; X.lineWidth = 1.4; X.stroke();
+        X.fillStyle = col;
+        X.beginPath(); X.arc(x + 8, ty - 1.5, 3.2, 0, 6.28); X.fill();
+        if (S.pk[name] > 1) {
+          X.fillStyle = '#fff'; X.font = '900 8px Arial';
+          X.fillText(String(S.pk[name]), x + 9.5, ty + 6);
+        }
+      });
+      X.textBaseline = 'alphabetic';
+    }
   }
 
   // Virtual Joysticks, Action Buttons, and Combat Overlay
@@ -2139,7 +2205,8 @@ function loop(t) {
 
 function openShop() {
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
-  commitXP();
+  // NOTE: credits are settled once at run end (death/quit) so unspent cash banks 1:1.
+  // Banking here would settle only the wave-1 balance and lose later earnings.
   if (S.wave > 0) SV.best = Math.max(SV.best, S.wave);
   if (typeof sv === 'function') sv();
 
@@ -2159,7 +2226,13 @@ function openShop() {
 
 function rebuild() {
   const cashEl = document.getElementById('cash');
-  if (cashEl) cashEl.textContent = 'Cash: $' + S.cash;
+  if (cashEl) {
+    let line = 'Cash: $' + S.cash;
+    if (S.wm) line += '   •   ' + S.wm.name;
+    if (S.flawless > 1) line += '   •   FLAWLESS x' + S.flawless;
+    if (S.cmbMax >= 10) line += '   •   BEST COMBO x' + S.cmbMax;
+    cashEl.textContent = line;
+  }
   const s = document.getElementById('shop');
   if (!s) return;
   s.innerHTML = '';

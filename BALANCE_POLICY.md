@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.2.0**. Rules 4 and 6, the weapon matrix, and the new Skill/Stat reference reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected.
+> **Status:** Updated for **v2.3.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, and the Skill/Stat reference reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected.
 
 ---
 
@@ -53,7 +53,7 @@ Wave difficulty escalates through **tactical composition** rather than infinite 
 
 ### Rule 6 — Reward Rarity & Economy Integrity
 The game features two strictly separated currencies:
-1. **Run Cash (`S.cash`)**: Temporary currency earned during deployment (kill drops and chests), spent at between-wave supply caches on temporary weapon acquisitions, repairs, and combat consumables. At the end of a run, unspent cash converts into permanent credits at a fixed, transparent settlement rate of **1:1 (100%)**, exactly as printed on the run-summary panel. The **Scavenger** skill applies a persistent `+10%` credit bonus per rank (`S.cm`) to in-run cash drops.
+1. **Run Cash (`S.cash`)**: Temporary currency earned during deployment (kill drops and chests), spent at between-wave supply caches on temporary weapon acquisitions, repairs, and combat consumables. At the **end of a run only** (death, abort, or event resolution), unspent cash converts into permanent credits at a fixed, transparent settlement rate of **1:1 (100%)**, exactly as printed on the run-summary panel. Settlement is guarded by `S.committed` so a run can never bank twice, and mid-run autosaves must **not** settle credits (banking mid-run would let a player keep the credits *and* spend the same cash at the next cache). The **Scavenger** skill applies a persistent `+10%` credit bonus per rank (`S.cm`) to in-run cash drops.
 2. **Permanent Credits (`SV.cr`)**: Meta-currency displayed in the lobby, used exclusively for persistent base upgrades, weapon armory unlocks, and operative licenses.
 - No purchase may ever double-charge or accidentally spend meta-credits during an in-run supply phase.
 - All purchases must route through centralized transaction guards with affordability verification.
@@ -105,17 +105,17 @@ Every firearm in Dead Zone must satisfy its designated role:
 - **Burst Rifle (850 cr)**: Precision 3-round burst, lethal at mid-to-long range.
 - **Assault (900 cr)**: Versatile full-auto combat weapon with predictable recoil.
 - **Sniper (1200 cr)**: High-caliber precision rifle, pierces 3 targets, severe hipfire penalty while sprinting.
-- **Minigun (1500 cr)**: Heavy rotary cannon, immense sustained suppression, wide spread cone, low per-shot knockback.
+- **Minigun (1500 cr)**: Heavy rotary cannon (10 dmg, 13.3/s), immense sustained suppression, wide spread cone, low per-shot knockback.
 - **Flamer (1800 cr)**: Dedicated short-range conical stream (2 pellets), intense point-blank billow.
-- **Siphon SMG (1900 cr)**: Sustained-fire SMG that heals the operator on hit (lifesteal).
+- **Siphon SMG (1900 cr)**: Sustained-fire SMG (13 dmg, 11.8/s) that heals the operator on hit (lifesteal).
 - **Plasma (2500 cr)**: High-energy piercing spheres (2 pierce) with ionized splash.
-- **Glacier Breaker (2600 cr)**: 6-pellet cryogenic punt-gun, crowd-freezing utility over raw DPS.
-- **Hornet (2600 cr)**: Compact explosive carbine, splash damage for clustered hordes.
-- **GL-40 (2800 cr)**: 40mm explosive canisters, high tactical crowd clearance.
+- **Glacier Breaker (2600 cr)**: 6-pellet cryogenic punt-gun (20 dmg/pellet), crowd-freezing utility over raw DPS.
+- **Hornet (2600 cr)**: Compact explosive carbine (34 dmg + 48 splash), splash damage for clustered hordes.
+- **GL-40 (2800 cr)**: 40mm explosive canisters (135 dmg + 95 splash), high tactical crowd clearance.
 - **Rocket Launcher (3000 cr)**: Massive explosive warhead, 175 direct damage + 115 splash radius.
 - **Cryo Blaster (3400 cr)**: Cryogenic shards slowing enemies, defensive utility over raw DPS.
 - **Tesla (3500 cr)**: High-voltage arc generator chaining through up to 4 targets with falloff.
-- **Arc Shotgun (3800 cr)**: Electrified heavy buckshot chaining miniature lightning arcs to adjacent targets.
+- **Arc Shotgun (3800 cr)**: Electrified heavy buckshot (24 dmg × 6 pellets) chaining miniature lightning arcs to adjacent targets.
 - **Heavy Railgun (4200 cr)**: Pure electromagnetic kinetic beam piercing up to 10 targets, high commitment.
 
 ---
@@ -152,7 +152,21 @@ Every meta upgrade must map a single save key (`SV.<key>`) to exactly one runtim
 - **Skill Points** (`SV.sp`) are granted at **+1 per in-run level-up** and are spent in the lobby skill tree. Login-reward entries may also define an `sp` amount.
 - The **run-over summary** reports skill points earned this run as `S.up`.
 
-> These mappings are enforced as of v2.2.0. The `sc` (Starting Cash) key was renamed from `cb` to resolve a collision with the Scavenger skill.
+> These mappings are enforced as of v2.3.0. The `sc` (Starting Cash) key was renamed from `cb` to resolve a collision with the Scavenger skill; the *runtime* Starting Cash value now lives in `S.stCash` so it can never collide with the Storm Caller perk/relic counter (`S.sc`).
+
+### 3.4 Career Rank Milestones (`RANK_MILESTONES`)
+A persistent, additive reward track that gives every account rank a concrete goal:
+- Milestones are defined at ranks **2, 4, 6, 8, 10, 12, 15, 20, 25, 30**, each granting a one-time credit payout (250 → 6500 CR).
+- Claims are keyed by rank in `SV.rankClaimed` and are **idempotent** — a milestone can be claimed exactly once, and only when `SV.lvl >= milestone.r`.
+- The lobby **CAREER REWARDS** panel always surfaces the next locked milestone with progress, so the player is never without a near-term objective.
+
+### 3.5 Wave Modifier Roster (`WAVE_MODS`)
+Non-boss waves from wave 2 may roll one modifier (55% chance, never the same as the previous wave). Seven modifiers exist and must remain mutually distinct:
+`RUSH`, `IRON`, `TOXIC`, `BLACKOUT`, `SWARM`, `BLITZ` (overrun — heavy runner density, `spMul 0.5`), and `ELITE HUNT` (raises elite spawn chance via `S.eliteBoost`). Each modifier carries a cash multiplier so risk is always rewarded.
+
+### 3.6 In-Run Perk Draft
+- The level-up draft offers **3 distinct perks**, and must **never** offer a perk already at its maximum stack count (`PKS[i][3]`); when fewer than three un-maxed perks remain, the pool falls back to the full list.
+- A **REROLL** option (150 run cash) lets the player re-draw the hand, giving agency over a bad roll. Rerolls spend run cash only and never meta-credits.
 
 ---
 
@@ -219,3 +233,8 @@ Before any update is committed or deployed, verify:
 - [ ] Save migration from previous versions preserves all player credits and unlocks without reset.
 - [ ] Frame rate on mobile maintains steady 60 FPS without memory leaks or unbounded arrays.
 - [ ] Android landscape and sticky immersive fullscreen remain locked.
+- [ ] Run cash settles to credits exactly once, at run end (death/abort/event), and never during a mid-run autosave.
+- [ ] The Starting Cash stat (`S.stCash`) and the Storm Caller perk/relic counter (`S.sc`) remain separate runtime fields.
+- [ ] The perk draft never offers a perk already at max stacks, and REROLL spends run cash only.
+- [ ] Career Rank Milestone claims are idempotent and rank-gated (`SV.rankClaimed`).
+- [ ] All 7 wave modifiers remain reachable and mutually distinct, and the radar colours drops by `d.k`.

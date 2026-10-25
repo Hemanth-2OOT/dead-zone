@@ -1,4 +1,4 @@
-// DEAD ZONE v2.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.3 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -328,6 +328,7 @@ function lobby() {
   initDailyMissions();
   renderMissionsUI();
   renderLoginTrackUI();
+  if (typeof renderRankRewards === 'function') renderRankRewards();
 
   renderGunsUI();
 }

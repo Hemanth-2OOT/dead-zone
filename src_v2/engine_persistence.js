@@ -1,4 +1,4 @@
-// DEAD ZONE v2.2 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.3 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -66,6 +66,7 @@ function sanitizeSV(s) {
   if (!out.evDone || typeof out.evDone !== 'object') out.evDone = {};
   if (!out.dailyMissions || typeof out.dailyMissions !== 'object') out.dailyMissions = {};
   if (!out.loginClaimed || typeof out.loginClaimed !== 'object') out.loginClaimed = {};
+  if (!out.rankClaimed || typeof out.rankClaimed !== 'object') out.rankClaimed = {};
   out.loginDays = Math.max(1, Math.min(10, Math.floor(Number(out.loginDays) || 1)));
   return out;
 }
@@ -147,7 +148,7 @@ function applySV() {
     S.dm = (1 + 0.02 * (SV.lvl - 1) + (SV.du || 0) * 0.05 + (SV.dm || 0) * 0.05) * cl.dm; // 'Damage Output' stat + 'Firepower' skill
     S.gr = 5 + (SV.gu || 0) * 2;
     S.cm = 1 + 0.10 * (SV.cb || 0);              // Scavenger: +10% credits per rank
-    S.sc = (SV.sc || 0) * 50;                    // Starting Cash stat: +$50 per wave
+    S.stCash = (SV.sc || 0) * 50;                // Starting Cash stat: +$50 per wave (S.sc is reserved for the Storm Caller perk)
     S.ls = (S.ls || 0) + 0.5 * (SV.vamp || 0);   // Life Leech: +0.5 HP per kill per rank
   }
   if (Array.isArray(SV.eq)) {

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.2 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.3 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -279,6 +279,42 @@ function claimLoginDay(day) {
   sv();
   lobby();
   renderLoginTrackUI();
+}
+
+function renderRankRewards() {
+  const el = $('rank-list'); if (!el) return;
+  SV.rankClaimed = SV.rankClaimed || {};
+  const lvl = SV.lvl || 1;
+  const claimable = RANK_MILESTONES.filter(m => lvl >= m.r && !SV.rankClaimed[m.r]).length;
+  const cnt = $('rank-claim-count');
+  if (cnt) cnt.textContent = claimable ? claimable + ' READY' : '';
+  el.innerHTML = RANK_MILESTONES.map(m => {
+    const claimed = !!SV.rankClaimed[m.r];
+    const ready = lvl >= m.r && !claimed;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:4px;border-radius:6px;background:${claimed?'rgba(143,174,74,.14)':ready?'rgba(224,184,58,.16)':'rgba(255,255,255,.04)'};border:1px solid ${claimed?'#8fae4a55':ready?'#e0b83a':'rgba(255,255,255,.08)'}">
+      <div style="width:34px;text-align:center;flex-shrink:0">
+        <div style="font-size:9px;font-weight:800;color:#aaa;letter-spacing:.5px">RANK</div>
+        <div style="font-size:15px;font-weight:900;color:${claimed?'#8fae4a':ready?'#ffd36b':'#ccc'}">${m.r}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10.5px;font-weight:800;color:#f0ece1;letter-spacing:.4px">${m.label}</div>
+        <div style="font-size:9.5px;color:#ffd36b;font-weight:700">+${m.cr} CR${claimed?' \u2022 CLAIMED':ready?'':` \u2022 ${lvl}/${m.r}`}</div>
+      </div>
+      <button onclick="claimRank(${m.r})" ${!ready?'disabled':''} style="font-size:9.5px;padding:4px 8px;min-height:26px;font-weight:800;flex-shrink:0">${claimed?'DONE':ready?'CLAIM':'LOCKED'}</button>
+    </div>`;
+  }).join('');
+}
+
+function claimRank(r) {
+  const m = RANK_MILESTONES.find(x => x.r === r);
+  if (!m || (SV.lvl || 1) < r) return;
+  SV.rankClaimed = SV.rankClaimed || {};
+  if (SV.rankClaimed[r]) return;
+  SV.rankClaimed[r] = true;
+  SV.cr = (SV.cr || 0) + m.cr;
+  if (typeof snd === 'function') snd(880, 0.2, 'triangle', 0.08, 1.6);
+  sv();
+  lobby();
 }
 
 function toggleSkin(weapIdx) {

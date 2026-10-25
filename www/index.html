@@ -507,7 +507,7 @@ button.eq {
 
 
 /* ===================================================================
-   v2.2 MOBILE-FIRST LOBBY, MOTION & TOUCH POLISH
+   v2.3 MOBILE-FIRST LOBBY, MOTION & TOUCH POLISH
    =================================================================== */
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:active:not(:disabled) { transform: scale(0.96); }
@@ -678,7 +678,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.2.0</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.3.0</div>
         </div>
 
         <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -703,6 +703,13 @@ button:active:not(:disabled) { transform: scale(0.96); }
           </div>
           <div id="rview-l" style="display:none">
             <div id="login-track"></div>
+          </div>
+          <div class="rewards-box" style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
+              <span style="font-size:10px;font-weight:900;letter-spacing:.8px;color:#e0b83a">CAREER REWARDS</span>
+              <span id="rank-claim-count" style="font-size:9.5px;font-weight:800;color:#8fae4a"></span>
+            </div>
+            <div id="rank-list"></div>
           </div>
         </div>
       </div>
@@ -869,6 +876,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>
       QUICK PICK
     </button>
+    <button id="reroll" style="padding:6px 14px;min-height:36px;font-size:12px;letter-spacing:1px;font-weight:800;background:rgba(255,211,107,.12);border:1.5px solid #ffd36b;color:#ffd36b;border-radius:6px">REROLL $150</button>
   </div>
   <div id="pcards" class="grid"></div>
 </div>
@@ -1228,7 +1236,7 @@ const WEAP = [
   { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON' },
   { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON' },
   { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE' },
-  { n: 'Minigun', d: 8.5, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC' },
+  { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC' },
   { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON' },
   { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE' },
   { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC' },
@@ -1236,16 +1244,16 @@ const WEAP = [
   { n: 'Rocket', d: 175, r: 0.95, sp: 0.01, p: 1, c: 3000, ex: 115, kb: 2.5, mag: 4, rl: 2.0, tier: 'LEGENDARY' },
   { n: 'Flamer', d: 8.5, r: 0.065, sp: 0.22, p: 2, c: 1800, rg: 0.24, flm: 1, kb: 0.12, mag: 50, rl: 1.7, tier: 'EPIC' },
   { n: 'Tesla', d: 62, r: 0.30, sp: 0, p: 1, c: 3500, pr: 3, cl: 3, kb: 0.75, mag: 15, rl: 1.6, tier: 'LEGENDARY' },
-  { n: 'GL-40', d: 115, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC' },
+  { n: 'GL-40', d: 135, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC' },
   { n: 'Cryo Blaster', d: 24, r: 0.13, sp: 0.025, p: 1, c: 3400, fz: 1, kb: 0.7, mag: 24, rl: 1.4, tier: 'LEGENDARY' },
   { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY' },
   { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON' },
   { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE' },
-  { n: 'Arc Shotgun', d: 18, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
+  { n: 'Arc Shotgun', d: 24, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
   { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE' },
-  { n: 'Siphon SMG', d: 10, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
-  { n: 'Glacier Breaker', d: 13, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
-  { n: 'Hornet', d: 26, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
+  { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
+  { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
+  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
 ];
 
 const TIER_COLORS = {
@@ -1373,6 +1381,19 @@ const PKS = [
   ['✦ Fragmentation', 'Bullets burst into shards on impact', () => S.fr = (S.fr || 0) + 1, 2, '#ff9a3a', 'SPECIAL'],
   ['✦ Glass Cannon', '+40% damage, -20% max HP', () => { S.dm = (S.dm || 1) * 1.4; P.mx = Math.max(40, Math.round(P.mx * 0.8)); P.hp = Math.min(P.hp, P.mx); }, 1, '#ff4a3a', 'ULTIMATE'],
   ['✦ Nano Swarm', 'Drones seek and shred nearby zombies', () => S.ns = (S.ns || 0) + 1, 3, '#00e5ff', 'SPECIAL']
+];
+
+const RANK_MILESTONES = [
+  { r: 2,  cr: 250,  label: 'FIELD COMMISSION' },
+  { r: 4,  cr: 400,  label: 'SUPPLY CACHE' },
+  { r: 6,  cr: 600,  label: 'VETERAN PACK' },
+  { r: 8,  cr: 900,  label: 'ARSENAL GRANT' },
+  { r: 10, cr: 1300, label: 'SECTOR CLEARANCE' },
+  { r: 12, cr: 1700, label: 'ELITE COMMISSION' },
+  { r: 15, cr: 2200, label: 'GHOST PROTOCOL' },
+  { r: 20, cr: 3200, label: 'OVERLORD CLEARANCE' },
+  { r: 25, cr: 4500, label: 'DEAD ZONE LEGEND' },
+  { r: 30, cr: 6500, label: 'APEX OPERATIVE' }
 ];
 
 const SKINS = {
@@ -1784,7 +1805,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v2.2 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.3 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -1852,6 +1873,7 @@ function sanitizeSV(s) {
   if (!out.evDone || typeof out.evDone !== 'object') out.evDone = {};
   if (!out.dailyMissions || typeof out.dailyMissions !== 'object') out.dailyMissions = {};
   if (!out.loginClaimed || typeof out.loginClaimed !== 'object') out.loginClaimed = {};
+  if (!out.rankClaimed || typeof out.rankClaimed !== 'object') out.rankClaimed = {};
   out.loginDays = Math.max(1, Math.min(10, Math.floor(Number(out.loginDays) || 1)));
   return out;
 }
@@ -1933,7 +1955,7 @@ function applySV() {
     S.dm = (1 + 0.02 * (SV.lvl - 1) + (SV.du || 0) * 0.05 + (SV.dm || 0) * 0.05) * cl.dm; // 'Damage Output' stat + 'Firepower' skill
     S.gr = 5 + (SV.gu || 0) * 2;
     S.cm = 1 + 0.10 * (SV.cb || 0);              // Scavenger: +10% credits per rank
-    S.sc = (SV.sc || 0) * 50;                    // Starting Cash stat: +$50 per wave
+    S.stCash = (SV.sc || 0) * 50;                // Starting Cash stat: +$50 per wave (S.sc is reserved for the Storm Caller perk)
     S.ls = (S.ls || 0) + 0.5 * (SV.vamp || 0);   // Life Leech: +0.5 HP per kill per rank
   }
   if (Array.isArray(SV.eq)) {
@@ -2391,7 +2413,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v2.2 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.3 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -2672,6 +2694,42 @@ function claimLoginDay(day) {
   sv();
   lobby();
   renderLoginTrackUI();
+}
+
+function renderRankRewards() {
+  const el = $('rank-list'); if (!el) return;
+  SV.rankClaimed = SV.rankClaimed || {};
+  const lvl = SV.lvl || 1;
+  const claimable = RANK_MILESTONES.filter(m => lvl >= m.r && !SV.rankClaimed[m.r]).length;
+  const cnt = $('rank-claim-count');
+  if (cnt) cnt.textContent = claimable ? claimable + ' READY' : '';
+  el.innerHTML = RANK_MILESTONES.map(m => {
+    const claimed = !!SV.rankClaimed[m.r];
+    const ready = lvl >= m.r && !claimed;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:4px;border-radius:6px;background:${claimed?'rgba(143,174,74,.14)':ready?'rgba(224,184,58,.16)':'rgba(255,255,255,.04)'};border:1px solid ${claimed?'#8fae4a55':ready?'#e0b83a':'rgba(255,255,255,.08)'}">
+      <div style="width:34px;text-align:center;flex-shrink:0">
+        <div style="font-size:9px;font-weight:800;color:#aaa;letter-spacing:.5px">RANK</div>
+        <div style="font-size:15px;font-weight:900;color:${claimed?'#8fae4a':ready?'#ffd36b':'#ccc'}">${m.r}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10.5px;font-weight:800;color:#f0ece1;letter-spacing:.4px">${m.label}</div>
+        <div style="font-size:9.5px;color:#ffd36b;font-weight:700">+${m.cr} CR${claimed?' \u2022 CLAIMED':ready?'':` \u2022 ${lvl}/${m.r}`}</div>
+      </div>
+      <button onclick="claimRank(${m.r})" ${!ready?'disabled':''} style="font-size:9.5px;padding:4px 8px;min-height:26px;font-weight:800;flex-shrink:0">${claimed?'DONE':ready?'CLAIM':'LOCKED'}</button>
+    </div>`;
+  }).join('');
+}
+
+function claimRank(r) {
+  const m = RANK_MILESTONES.find(x => x.r === r);
+  if (!m || (SV.lvl || 1) < r) return;
+  SV.rankClaimed = SV.rankClaimed || {};
+  if (SV.rankClaimed[r]) return;
+  SV.rankClaimed[r] = true;
+  SV.cr = (SV.cr || 0) + m.cr;
+  if (typeof snd === 'function') snd(880, 0.2, 'triangle', 0.08, 1.6);
+  sv();
+  lobby();
 }
 
 function toggleSkin(weapIdx) {
@@ -3741,7 +3799,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v2.2 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.3 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -4311,7 +4369,7 @@ function clsIcon(ci, wi = 0) {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v2.2 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.3 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -5098,7 +5156,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v2.2 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v2.3 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -5471,7 +5529,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v2.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.3 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -5696,7 +5754,7 @@ function startWave() {
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
   if (typeof snd === 'function') snd(200, 0.4, 'sawtooth', 0.08, 0.5);
   S.q = [];
-  S.cash = (S.cash || 0) + (S.sc || 0); // 'Starting Cash' stat upgrade: +$50 per wave
+  S.cash = (S.cash || 0) + (S.stCash || 0); // 'Starting Cash' stat upgrade: +$50 per wave
 
   const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
   const n = (6 + S.wave * 4) * densityMult;
@@ -5754,7 +5812,7 @@ function spawn(t) {
 
   const baseElChance = (S && S.isEvent && S.evDef && S.evDef.id === 'elite_hunt') ? 0.24 : 0.06;
   const elBonus = S.wave > 25 ? Math.min(0.25, (S.wave - 25) * 0.02) : (S.wave > 15 ? (S.wave - 15) * 0.008 : 0);
-  const elChance = Math.min(0.40, baseElChance + elBonus);
+  const elChance = Math.min(0.60, baseElChance + elBonus + (S.eliteBoost || 0));
   const elWaveMin = (S && S.isEvent && S.evDef && S.evDef.id === 'elite_hunt') ? 1 : 2;
   const el = S.wave >= elWaveMin && t !== 'boss' && Math.random() < elChance;
 
@@ -6238,8 +6296,11 @@ function openPerk() {
   if (!modal || !cards) return;
 
   cards.innerHTML = '';
-  // Pick 3 random distinct perks from PKS
-  const pool = [...PKS].sort(() => Math.random() - 0.5).slice(0, 3);
+  // Pick 3 random distinct perks, never offering one already at max stacks
+  const owned = n => (S.pk && S.pk[n]) || 0;
+  const avail = PKS.filter(p => owned(p[0]) < (p[3] || 1));
+  const src = avail.length >= 3 ? avail : PKS;
+  const pool = [...src].sort(() => Math.random() - 0.5).slice(0, 3);
   pool.forEach(p => {
     const card = document.createElement('div');
     card.className = 'card';
@@ -6248,7 +6309,7 @@ function openPerk() {
     card.innerHTML = (iconUri ? `<div style="width:38px;height:38px;border-radius:8px;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;border:1px solid ${p[4]}55"><img src="${iconUri}" style="width:26px;height:26px"></div>` : '')
       + `<div style="flex:1;min-width:0">`
       + `<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${p[4]};font-size:13px;letter-spacing:.5px">${p[0]}</b>`
-      + `<span style="font-size:9px;font-weight:800;color:#ffd36b;letter-spacing:1px">${p[5]}</span></div>`
+      + `<span style="font-size:9px;font-weight:800;color:#ffd36b;letter-spacing:1px">${p[5]}${owned(p[0]) ? ' \u2022 LV' + (owned(p[0]) + 1) : ''}</span></div>`
       + `<p style="font-size:11px;opacity:.9;line-height:1.4;margin:4px 0 0 0;color:#ccc">${p[1]}</p>`
       + `</div>`;
     card.onclick = () => {
@@ -6271,6 +6332,19 @@ function openPerk() {
         modal.classList.remove('on');
         if (S.pend > 0) openPerk(); else run = 1;
       }
+    };
+  }
+
+  const rr = document.getElementById('reroll');
+  if (rr) {
+    const cost = 150;
+    rr.disabled = (S.cash || 0) < cost;
+    rr.onclick = () => {
+      if ((S.cash || 0) < cost) return;
+      S.cash -= cost;
+      S.po = 0; // release the lock so openPerk re-rolls a fresh hand
+      if (typeof snd === 'function') snd(300, 0.18, 'square', 0.06, 1.2);
+      openPerk();
     };
   }
 
@@ -6634,7 +6708,7 @@ function update(dt) {
     } else {
       document.getElementById('sum').innerHTML = '<div style="font-size:13.5px;margin-bottom:6px"><b>WAVE ' + S.wave + '</b> &bull; ' + S.kills + ' KILLS &bull; SURVIVOR LV ' + S.lv + '</div>'
         + '<div style="font-size:11.5px;opacity:.9;line-height:1.6;margin-bottom:6px">'
-        + 'Cash collected this run: <b>$' + (S.cash || 0) + '</b> &rarr; banked 1:1 as credits<br>'
+        + 'Unspent cash banked: <b>$' + (S.cash || 0) + '</b> &rarr; 1:1 credits<br>'
         + '<span style="color:#ffd36b;font-weight:800;font-size:13.5px">Total Earned: +' + (S.cash || 0) + ' CREDITS</span></div>'
         + '<div style="font-size:11px;color:#8fae4a">Account Rank: ' + SV.lvl + (S.up ? ' (+' + S.up + ' Skill Points!)' : '') + '</div>';
     }
@@ -7307,7 +7381,7 @@ function renderHUD() {
   for (const d of D) {
     const dx = (d.x - P.x) / 24, dy = (d.y - P.y) / 24;
     if (dx * dx + dy * dy < radarRad * radarRad) {
-      X.fillStyle = d.t === 'h' ? '#ef4444' : (d.t === 'a' ? '#38bdf8' : '#ffd36b');
+      X.fillStyle = d.k === 'h' ? '#ef4444' : (d.k === 'a' ? '#38bdf8' : (d.k === 'pu' ? '#c084fc' : (d.k === 'r' ? '#be8cff' : '#ffd36b')));
       X.beginPath(); X.arc(rx + dx, ry + dy, 1.8, 0, 6.28); X.fill();
     }
   }
@@ -7431,6 +7505,11 @@ function renderHUD() {
     } else if (pu.id === 'mg') {
       X.strokeStyle = pu.col; X.lineWidth = 2;
       X.beginPath(); X.arc(px, py - 1, 3.5, 3.14, 0, true); X.stroke();
+    } else if (pu.id === 'ad') {
+      X.strokeStyle = pu.col; X.lineWidth = 1.6;
+      X.beginPath();
+      X.moveTo(px - 4, py + 3); X.lineTo(px - 1, py - 3); X.lineTo(px + 1, py + 1); X.lineTo(px + 4, py - 4);
+      X.stroke();
     }
   });
 
@@ -7487,6 +7566,51 @@ function renderHUD() {
     vig.addColorStop(1, `rgba(239,68,68,${vAlpha})`);
     X.fillStyle = vig;
     X.fillRect(0, 0, W, H);
+  }
+
+  // Boss health bar (top centre) while a boss is alive
+  const boss = Z.find(z => z.t === 'boss' && !z.dead);
+  if (boss) {
+    const bw = Math.min(420, W - 130), bx = W / 2 - bw / 2, by = 52;
+    const pctB = Math.max(0, Math.min(1, boss.hp / (boss.mh || 1)));
+    X.textBaseline = 'alphabetic';
+    X.fillStyle = 'rgba(10,12,8,0.78)';
+    X.beginPath(); X.roundRect(bx - 5, by - 5, bw + 10, 24, 6); X.fill();
+    X.strokeStyle = '#ef4444'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = '#2a1010';
+    X.beginPath(); X.roundRect(bx, by, bw, 14, 4); X.fill();
+    const bg = X.createLinearGradient(bx, 0, bx + bw, 0);
+    bg.addColorStop(0, '#ef4444'); bg.addColorStop(1, '#ff9a3a');
+    X.fillStyle = bg;
+    X.beginPath(); X.roundRect(bx, by, Math.max(2, bw * pctB), 14, 4); X.fill();
+    X.fillStyle = '#f0ece1'; X.font = '900 11px Impact,Arial Black,sans-serif'; X.textAlign = 'center';
+    X.fillText((typeof BN !== 'undefined' && BN[boss.bv % 4] ? BN[boss.bv % 4] : 'BOSS') + '   ' + Math.max(0, Math.round(boss.hp)) + ' / ' + Math.round(boss.mh), W / 2, by + 11);
+  }
+
+  // Acquired perk tray (build readout) — top-right under the cash counter
+  if (S && S.pk) {
+    const names = Object.keys(S.pk).filter(k => S.pk[k] > 0);
+    if (names.length) {
+      const bw2 = 16, gap = 2, shown = names.slice(0, 16);
+      let sx0 = W - 50 - shown.length * (bw2 + gap);
+      const ty = 58;
+      X.textAlign = 'left'; X.textBaseline = 'middle';
+      shown.forEach((name, i) => {
+        const pdef = PKS.find(p => p[0] === name) || PKS.find(p => p[0] === '\u2726 ' + name) || [];
+        const col = pdef[4] || '#8fae4a';
+        const x = sx0 + i * (bw2 + gap);
+        X.fillStyle = 'rgba(10,12,8,0.72)';
+        X.beginPath(); X.roundRect(x, ty - 8, bw2, bw2, 4); X.fill();
+        X.strokeStyle = col; X.lineWidth = 1.4; X.stroke();
+        X.fillStyle = col;
+        X.beginPath(); X.arc(x + 8, ty - 1.5, 3.2, 0, 6.28); X.fill();
+        if (S.pk[name] > 1) {
+          X.fillStyle = '#fff'; X.font = '900 8px Arial';
+          X.fillText(String(S.pk[name]), x + 9.5, ty + 6);
+        }
+      });
+      X.textBaseline = 'alphabetic';
+    }
   }
 
   // Virtual Joysticks, Action Buttons, and Combat Overlay
@@ -7612,7 +7736,8 @@ function loop(t) {
 
 function openShop() {
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
-  commitXP();
+  // NOTE: credits are settled once at run end (death/quit) so unspent cash banks 1:1.
+  // Banking here would settle only the wave-1 balance and lose later earnings.
   if (S.wave > 0) SV.best = Math.max(SV.best, S.wave);
   if (typeof sv === 'function') sv();
 
@@ -7632,7 +7757,13 @@ function openShop() {
 
 function rebuild() {
   const cashEl = document.getElementById('cash');
-  if (cashEl) cashEl.textContent = 'Cash: $' + S.cash;
+  if (cashEl) {
+    let line = 'Cash: $' + S.cash;
+    if (S.wm) line += '   •   ' + S.wm.name;
+    if (S.flawless > 1) line += '   •   FLAWLESS x' + S.flawless;
+    if (S.cmbMax >= 10) line += '   •   BEST COMBO x' + S.cmbMax;
+    cashEl.textContent = line;
+  }
   const s = document.getElementById('shop');
   if (!s) return;
   s.innerHTML = '';
@@ -7724,7 +7855,7 @@ function tch(e) {
 
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v2.2 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.3 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -7912,11 +8043,13 @@ const WAVE_MODS = [
   { id: 'iron',   name: 'IRON',     min: 4, col: '#94a3b8', desc: 'ARMORED - FOCUS FIRE',         spMul: 1.15, cash: 1.25 },
   { id: 'toxic',  name: 'TOXIC',    min: 3, col: '#4ade80', desc: 'SPITTERS & BLASTERS - SPREAD OUT', spMul: 1.0, cash: 1.2 },
   { id: 'shadow', name: 'BLACKOUT', min: 3, col: '#c084fc', desc: 'LIMITED VISIBILITY',           spMul: 0.9,  cash: 1.3, dark: 0.55 },
-  { id: 'horde',  name: 'SWARM',    min: 2, col: '#fb7185', desc: 'CROWD CONTROL',                spMul: 0.6,  cash: 1.15 }
+  { id: 'horde',  name: 'SWARM',    min: 2, col: '#fb7185', desc: 'CROWD CONTROL',                spMul: 0.6,  cash: 1.15 },
+  { id: 'blitz',  name: 'BLITZ',    min: 5, col: '#f472b6', desc: 'OVERRUN - THIN THE HORDE FAST', spMul: 0.5,  cash: 1.35 },
+  { id: 'elite',  name: 'ELITE HUNT', min: 6, col: '#facc15', desc: 'ELITE PACK - HIGH VALUE TARGETS', spMul: 1.05, cash: 1.6 }
 ];
 
 function applyWaveModifier() {
-  S.wm = null; S.dark = 0; S.spMul = 1; S.wmCash = 1;
+  S.wm = null; S.dark = 0; S.spMul = 1; S.wmCash = 1; S.eliteBoost = 0;
   S.hitWave = false;
   const w = S.wave;
   const isBoss = w % 5 === 0;
@@ -7937,6 +8070,14 @@ function applyWaveModifier() {
       else if (m.id === 'horde') {
         const extra = Math.round(q.length * 0.5);
         for (let i = 0; i < extra; i++) q.push(Math.random() < 0.7 ? 'walk' : 'run');
+      }
+      else if (m.id === 'blitz') {
+        const extra = Math.round(q.length * 0.8);
+        for (let i = 0; i < extra; i++) q.push(Math.random() < 0.6 ? 'run' : 'walk');
+      }
+      else if (m.id === 'elite') {
+        S.eliteBoost = 0.5;
+        conv(['walk', 'run'], () => (Math.random() < 0.5 ? 'charger' : 'tank'), 0.35);
       }
       announce('WAVE ' + w + ' - ' + m.name, m.col, m.desc + '  (+' + Math.round((m.cash - 1) * 100) + '% CASH)');
     }
@@ -8095,7 +8236,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v2.2 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v2.3 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 let ANN = [];          // announcer queue (screen-space banners)
 let FX_STEP_T = 0;
@@ -8436,7 +8577,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v2.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.3 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -8766,6 +8907,7 @@ function lobby() {
   initDailyMissions();
   renderMissionsUI();
   renderLoginTrackUI();
+  if (typeof renderRankRewards === 'function') renderRankRewards();
 
   renderGunsUI();
 }
@@ -9356,7 +9498,7 @@ function initGameAssets() {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v2.2 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.3 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;
