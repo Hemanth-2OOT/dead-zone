@@ -342,6 +342,195 @@ function skinIcon(skinKey) {
   return cv.toDataURL();
 }
 
+const PI_CACHE = {};
+function getPerkIcon(name, col) {
+  const cleanName = name.replace(/^✦\s*/, '');
+  if (PI_CACHE[cleanName]) return PI_CACHE[cleanName];
+  const cv = document.createElement('canvas'); cv.width = 48; cv.height = 48;
+  const cx = cv.getContext('2d'), c = col || '#8fae4a';
+  cx.fillStyle = '#131710'; cx.beginPath();
+  if (cx.roundRect) cx.roundRect(2, 2, 44, 44, 7); else cx.rect(2, 2, 44, 44);
+  cx.fill();
+  cx.strokeStyle = c; cx.lineWidth = 2; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,.05)'; cx.fillRect(4, 4, 40, 20);
+  cx.save(); cx.translate(24, 24);
+  cx.fillStyle = c; cx.strokeStyle = c; cx.lineWidth = 2; cx.lineCap = 'round';
+
+  if (cleanName === 'Power Shot') {
+    cx.beginPath(); cx.arc(0, 0, 9, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.moveTo(-13, 0); cx.lineTo(13, 0); cx.moveTo(0, -13); cx.lineTo(0, 13); cx.stroke();
+    cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(0, 0, 3, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Rapid Fire') {
+    for (let k = -1; k <= 1; k++) {
+      cx.beginPath(); cx.moveTo(k * 6 - 3, -8); cx.lineTo(k * 6 + 3, -8); cx.lineTo(k * 6 + 3, 8); cx.lineTo(k * 6 - 3, 8); cx.closePath(); cx.fill();
+      cx.beginPath(); cx.moveTo(k * 6 - 3, -8); cx.lineTo(k * 6, -12); cx.lineTo(k * 6 + 3, -8); cx.closePath(); cx.fill();
+    }
+  } else if (cleanName === 'Double Barrel') {
+    cx.fillStyle = '#c8302a';
+    cx.beginPath();
+    if (cx.roundRect) { cx.roundRect(-8, -10, 6, 20, 2); cx.roundRect(2, -10, 6, 20, 2); }
+    else { cx.rect(-8, -10, 6, 20); cx.rect(2, -10, 6, 20); }
+    cx.fill();
+    cx.fillStyle = '#ffd84a'; cx.fillRect(-8, 6, 6, 4); cx.fillRect(2, 6, 6, 4);
+  } else if (cleanName === 'Piercing Rounds') {
+    cx.beginPath(); cx.moveTo(-11, 11); cx.lineTo(11, -11); cx.stroke();
+    cx.beginPath(); cx.moveTo(4, -11); cx.lineTo(11, -11); cx.lineTo(11, -4); cx.stroke();
+    cx.strokeStyle = '#fff'; cx.strokeRect(-5, -5, 10, 10);
+  } else if (cleanName === 'Explosive Rounds') {
+    for (let a = 0; a < 6.28; a += 0.785) {
+      cx.beginPath(); cx.moveTo(Math.cos(a) * 4, Math.sin(a) * 4); cx.lineTo(Math.cos(a) * 13, Math.sin(a) * 13); cx.stroke();
+    }
+    cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(0, 0, 4, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Sharpshooter') {
+    cx.beginPath(); cx.arc(0, 0, 12, 0, 6.28); cx.arc(0, 0, 6, 0, 6.28); cx.stroke();
+    cx.fillStyle = '#ff3b30'; cx.beginPath(); cx.arc(0, 0, 2.5, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Iron Body') {
+    cx.fillStyle = '#fff'; cx.fillRect(-4, -12, 8, 24); cx.fillRect(-12, -4, 24, 8);
+    cx.strokeStyle = '#8fae4a'; cx.strokeRect(-12, -12, 24, 24);
+  } else if (cleanName === 'Second Wind') {
+    cx.beginPath(); cx.moveTo(-12, 2); cx.lineTo(-6, -4); cx.lineTo(0, 8); cx.lineTo(6, -8); cx.lineTo(12, 2); cx.stroke();
+    cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(6, -8, 2.5, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Bloodthirst') {
+    cx.fillStyle = '#ff3b30'; cx.beginPath();
+    cx.moveTo(0, -11); cx.quadraticCurveTo(8, -2, 8, 3); cx.arc(0, 3, 8, 0, 3.14); cx.quadraticCurveTo(-8, -2, 0, -11); cx.fill();
+    cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(-2, 2, 2, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Adrenaline') {
+    cx.beginPath(); cx.moveTo(-8, 8); cx.lineTo(4, -10); cx.lineTo(0, -10); cx.lineTo(8, -10); cx.stroke();
+    cx.beginPath(); cx.moveTo(-12, 2); cx.lineTo(-2, 2); cx.moveTo(-10, 5); cx.lineTo(0, 5); cx.stroke();
+    cx.fillStyle = '#00e5ff'; cx.beginPath(); cx.arc(3, -4, 3, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Kevlar') {
+    cx.beginPath(); cx.moveTo(0, -12); cx.lineTo(11, -6); cx.lineTo(8, 10); cx.lineTo(0, 13); cx.lineTo(-8, 10); cx.lineTo(-11, -6); cx.closePath(); cx.fill();
+    cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.stroke();
+  } else if (cleanName === 'Quick Skills') {
+    cx.beginPath(); cx.arc(0, 2, 10, 0, 6.28); cx.stroke();
+    cx.fillRect(-2, -12, 4, 4);
+    cx.beginPath(); cx.moveTo(0, 2); cx.lineTo(4, -4); cx.stroke();
+  } else if (cleanName === 'Magnet') {
+    cx.lineWidth = 4; cx.beginPath(); cx.arc(0, -2, 8, 3.14, 0); cx.lineTo(8, 8); cx.moveTo(-8, -2); cx.lineTo(-8, 8); cx.stroke();
+    cx.fillStyle = '#fff'; cx.fillRect(-10, 4, 4, 4); cx.fillRect(6, 4, 4, 4);
+  } else if (cleanName === 'Gold Rush') {
+    cx.beginPath(); cx.arc(0, 0, 11, 0, 6.28); cx.fill();
+    cx.fillStyle = '#111'; cx.font = 'bold 12px Arial'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('$', 0, 1);
+  } else if (cleanName === 'Grenadier') {
+    cx.beginPath(); if (cx.roundRect) cx.roundRect(-7, -5, 14, 16, 4); else cx.rect(-7, -5, 14, 16); cx.fill();
+    cx.fillRect(-3, -10, 6, 5); cx.strokeRect(-1, -12, 4, 2);
+  } else if (cleanName === 'Chain Lightning') {
+    cx.beginPath(); cx.moveTo(-2, -12); cx.lineTo(-8, 0); cx.lineTo(0, 0); cx.lineTo(-4, 12); cx.lineTo(8, -2); cx.lineTo(1, -2); cx.lineTo(5, -12); cx.closePath(); cx.fill();
+  } else if (cleanName === 'Frost Aura') {
+    for (let k = 0; k < 3; k++) {
+      const a = k * 1.047;
+      cx.beginPath(); cx.moveTo(Math.cos(a) * -12, Math.sin(a) * -12); cx.lineTo(Math.cos(a) * 12, Math.sin(a) * 12); cx.stroke();
+    }
+    cx.beginPath(); cx.arc(0, 0, 4, 0, 6.28); cx.stroke();
+  } else if (cleanName === 'Immolation') {
+    cx.beginPath(); cx.moveTo(0, -12); cx.quadraticCurveTo(8, -4, 6, 4); cx.arc(0, 4, 8, 0, 3.14); cx.quadraticCurveTo(-6, -4, 0, -12); cx.fill();
+    cx.fillStyle = '#ffee55'; cx.beginPath(); cx.arc(0, 5, 3.5, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Spectral Blades') {
+    cx.lineWidth = 3; cx.beginPath(); cx.moveTo(-9, 9); cx.quadraticCurveTo(0, -2, 10, -10); cx.stroke();
+    cx.fillStyle = '#fff'; cx.beginPath(); cx.moveTo(-9, 9); cx.lineTo(-4, 4); cx.lineTo(11, -11); cx.lineTo(6, -3); cx.closePath(); cx.fill();
+  } else if (cleanName === 'Meteor Rain') {
+    cx.beginPath(); cx.moveTo(-10, -10); cx.lineTo(6, 6); cx.stroke();
+    cx.beginPath(); cx.arc(6, 6, 5, 0, 6.28); cx.fill();
+    cx.strokeStyle = '#ffee55'; cx.beginPath(); cx.moveTo(-6, -12); cx.lineTo(3, 3); cx.stroke();
+  } else if (cleanName === 'Arcane Barrier') {
+    cx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i * 1.047; cx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 12, Math.sin(a) * 12); }
+    cx.closePath(); cx.stroke();
+    cx.fillStyle = c; cx.beginPath(); cx.arc(0, 0, 4, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Shadow Step') {
+    cx.beginPath(); cx.moveTo(-12, -8); cx.lineTo(4, -8); cx.lineTo(8, -3); cx.lineTo(2, 8); cx.stroke();
+    cx.beginPath(); cx.moveTo(-8, 2); cx.lineTo(6, 2); cx.stroke();
+  } else if (cleanName === 'Phoenix') {
+    cx.beginPath(); cx.arc(0, 2, 4, 0, 6.28); cx.fill();
+    cx.beginPath(); cx.moveTo(-12, -6); cx.quadraticCurveTo(-4, 0, 0, 6); cx.quadraticCurveTo(4, 0, 12, -6); cx.stroke();
+  } else if (cleanName === 'Storm Caller') {
+    cx.beginPath(); if (cx.roundRect) cx.roundRect(-10, -10, 20, 9, 3); else cx.rect(-10, -10, 20, 9); cx.fill();
+    cx.strokeStyle = '#fff'; cx.beginPath(); cx.moveTo(0, -1); cx.lineTo(-4, 9); cx.lineTo(1, 9); cx.lineTo(-2, 14); cx.stroke();
+  } else if (cleanName === 'Venom Rounds') {
+    cx.beginPath(); cx.arc(0, -2, 6, 0, 6.28); cx.fill();
+    cx.fillRect(-3, 4, 6, 5);
+    cx.fillStyle = '#111'; cx.beginPath(); cx.arc(-2, -2, 1.5, 0, 6.28); cx.arc(2, -2, 1.5, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Soul Harvest') {
+    cx.strokeRect(-7, -8, 14, 16);
+    cx.fillStyle = '#df8aff'; cx.beginPath(); cx.ellipse(0, 0, 4, 6, 0, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Thorns') {
+    for (let i = 0; i < 8; i++) {
+      const a = i * 0.785; cx.beginPath(); cx.moveTo(Math.cos(a) * 5, Math.sin(a) * 5); cx.lineTo(Math.cos(a) * 13, Math.sin(a) * 13); cx.stroke();
+    }
+    cx.beginPath(); cx.arc(0, 0, 5, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Berserker') {
+    cx.fillStyle = '#ff3b30'; cx.beginPath(); cx.arc(0, 0, 11, 0, 6.28); cx.fill();
+    cx.strokeStyle = '#fff'; cx.strokeRect(-5, -5, 10, 10);
+  } else if (cleanName === 'Time Warp') {
+    cx.beginPath(); cx.moveTo(-8, -10); cx.lineTo(8, -10); cx.lineTo(0, 0); cx.lineTo(8, 10); cx.lineTo(-8, 10); cx.closePath(); cx.stroke();
+  } else if (cleanName === 'Executioner') {
+    cx.beginPath(); cx.moveTo(-8, -10); cx.lineTo(8, -10); cx.lineTo(12, 4); cx.lineTo(-12, 4); cx.closePath(); cx.fill();
+    cx.strokeRect(-2, 4, 4, 8);
+  } else if (cleanName === 'Lucky Charm') {
+    for (let i = 0; i < 4; i++) { const a = i * 1.57; cx.beginPath(); cx.arc(Math.cos(a) * 5, Math.sin(a) * 5, 4, 0, 6.28); cx.fill(); }
+  } else if (cleanName === 'Arcane Missiles') {
+    for (let k = -1; k <= 1; k++) {
+      cx.beginPath(); cx.moveTo(k * 6, -10); cx.lineTo(k * 6 + 2, 4); cx.lineTo(k * 6 - 2, 4); cx.closePath(); cx.fill();
+    }
+  } else if (cleanName === 'Bloodlust') {
+    cx.beginPath(); cx.arc(0, 0, 10, 0, 6.28); cx.stroke();
+    cx.fillStyle = '#ff2222'; cx.beginPath(); cx.arc(0, 0, 4, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Volatile Corpses') {
+    cx.beginPath(); cx.arc(0, 0, 11, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.arc(0, 0, 4, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Kill Rush') {
+    cx.beginPath(); cx.moveTo(-8, -4); cx.lineTo(0, -11); cx.lineTo(8, -4); cx.moveTo(-8, 4); cx.lineTo(0, -3); cx.lineTo(8, 4); cx.stroke();
+  } else if (cleanName === 'Overcharge') {
+    cx.strokeRect(-8, -10, 16, 20);
+    cx.fillRect(-3, -13, 6, 3);
+    cx.fillStyle = '#ffee33'; cx.beginPath(); cx.moveTo(1, -4); cx.lineTo(-3, 1); cx.lineTo(1, 1); cx.lineTo(-1, 6); cx.lineTo(3, 0); cx.lineTo(-1, 0); cx.closePath(); cx.fill();
+  } else if (cleanName === 'Guardian Angel') {
+    cx.beginPath(); cx.arc(0, -8, 6, 3.14, 0); cx.stroke();
+    cx.beginPath(); cx.moveTo(-10, 0); cx.quadraticCurveTo(-4, 4, 0, 10); cx.quadraticCurveTo(4, 4, 10, 0); cx.stroke();
+  } else if (cleanName === 'Fragmentation') {
+    for (let k = 0; k < 6; k++) { const a = k * 1.047; cx.fillRect(Math.cos(a) * 8 - 1.5, Math.sin(a) * 8 - 1.5, 3, 3); }
+    cx.beginPath(); cx.arc(0, 0, 3, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Glass Cannon') {
+    cx.beginPath(); cx.arc(0, 0, 11, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.moveTo(-8, -8); cx.lineTo(8, 8); cx.moveTo(-4, 8); cx.lineTo(4, -8); cx.stroke();
+  } else if (cleanName === 'Nano Swarm') {
+    for (let k = 0; k < 3; k++) {
+      const a = k * 2.094 - 1.57; cx.beginPath(); cx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8); cx.lineTo(Math.cos(a) * 8 - 3, Math.sin(a) * 8 + 5); cx.lineTo(Math.cos(a) * 8 + 3, Math.sin(a) * 8 + 5); cx.closePath(); cx.fill();
+    }
+  } else if (cleanName === 'Cryo Blast') {
+    cx.beginPath(); cx.arc(0, 0, 11, 0, 6.28); cx.stroke();
+    for (let k = 0; k < 4; k++) { const a = k * 1.57; cx.fillRect(Math.cos(a) * 10 - 1.5, Math.sin(a) * 10 - 1.5, 3, 3); }
+  } else if (cleanName === 'Overdrive') {
+    cx.beginPath(); cx.arc(0, 2, 11, 3.14, 0); cx.stroke();
+    cx.strokeStyle = '#ff3b30'; cx.beginPath(); cx.moveTo(0, 2); cx.lineTo(6, -6); cx.stroke();
+  } else if (cleanName === 'Singularity') {
+    cx.beginPath(); cx.arc(0, 0, 11, 0, 3); cx.arc(0, 0, 11, 3.5, 6); cx.stroke();
+    cx.fillStyle = '#111'; cx.beginPath(); cx.arc(0, 0, 5, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Static Discharge') {
+    cx.beginPath(); cx.arc(0, 0, 4, 0, 6.28); cx.fill();
+    for (let k = 0; k < 4; k++) {
+      const a = k * 1.57 + 0.78; cx.beginPath(); cx.moveTo(Math.cos(a) * 5, Math.sin(a) * 5); cx.lineTo(Math.cos(a) * 12, Math.sin(a) * 12); cx.stroke();
+    }
+  } else if (cleanName === 'Toxic Trail') {
+    cx.beginPath(); cx.ellipse(0, 4, 11, 5, 0, 0, 6.28); cx.fill();
+    cx.beginPath(); cx.arc(-3, -3, 2.5, 0, 6.28); cx.arc(4, -5, 2, 0, 6.28); cx.fill();
+  } else if (cleanName === 'Critical Surge') {
+    cx.beginPath(); cx.arc(0, 0, 11, 0, 6.28); cx.stroke();
+    cx.beginPath(); cx.moveTo(-4, 0); cx.lineTo(0, -6); cx.lineTo(4, 6); cx.stroke();
+  } else if (cleanName === 'Kinetic Deflector') {
+    cx.beginPath(); cx.arc(0, 0, 11, -1.57, 1.57); cx.stroke();
+    cx.beginPath(); cx.moveTo(-10, 0); cx.lineTo(-2, 0); cx.lineTo(6, -6); cx.stroke();
+  } else {
+    // Heavy Ordnance & Default
+    cx.beginPath(); if (cx.roundRect) cx.roundRect(-6, -10, 12, 18, 3); else cx.rect(-6, -10, 12, 18); cx.fill();
+    cx.fillStyle = '#ffd36b'; cx.fillRect(-3, -12, 6, 2);
+  }
+  cx.restore();
+  return PI_CACHE[cleanName] = cv.toDataURL();
+}
+
+
+
 function charSkinIcon(skinKey) {
   const sk = SKINS[skinKey]; if (!sk) return '';
   const cv = document.createElement('canvas'); cv.width = 130; cv.height = 76;
@@ -370,3 +559,5 @@ function charSkinIcon(skinKey) {
   X = oldX;
   return cv.toDataURL();
 }
+
+

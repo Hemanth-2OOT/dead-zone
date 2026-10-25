@@ -117,21 +117,30 @@ function updateZoneMeta(mIndex) {
   const curLvl = (typeof SV !== 'undefined' && SV && SV.lvl) ? SV.lvl : 1;
   const isLocked = curLvl < reqLvl;
 
-  const badge = document.getElementById('rec-badge');
+  const zName = document.getElementById('zone-name');
+  if (zName) zName.textContent = `ZONE: ${(mapDef.name || mapDef.n || 'DOWNTOWN').toUpperCase()}`;
+
+  const zThreat = document.getElementById('zone-threat-badge');
+  if (zThreat) {
+    const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][mIndex] || 'I';
+    zThreat.textContent = `THREAT ${roman}`;
+  }
+
+  const mapd = document.getElementById('mapd');
+  if (mapd) mapd.textContent = mapDef.desc || mapDef.d || '';
+
+  const badge = document.getElementById('zone-rec-lvl') || document.getElementById('rec-badge');
   if (badge) {
     if (isLocked) {
-      badge.textContent = `LOCKED (SURVIVOR LV ${reqLvl} REQ)`;
-      badge.className = 'rec-badge lock';
-    } else if (curLvl < reqLvl + 2 && reqLvl > 0) {
-      badge.textContent = `REC LV ${reqLvl} (HIGH DANGER)`;
-      badge.className = 'rec-badge warn';
+      badge.textContent = `REC. LEVEL: ${reqLvl} (LOCKED)`;
+      badge.style.color = '#ff5a3a';
     } else {
-      badge.textContent = `ZONE LV ${reqLvl} (READY)`;
-      badge.className = 'rec-badge';
+      badge.textContent = `REC. LEVEL: ${reqLvl}`;
+      badge.style.color = '#e0b83a';
     }
   }
 
-  const enemyCont = document.getElementById('zone-enemies');
+  const enemyCont = document.getElementById('zone-enemy-icons') || document.getElementById('zone-enemies');
   if (enemyCont) {
     const enemyTypes = mapDef.enemies || ['walk', 'run', 'brute'];
     enemyCont.innerHTML = enemyTypes.map(t => {
@@ -143,15 +152,15 @@ function updateZoneMeta(mIndex) {
     }).join('');
   }
 
-  const recEl = document.getElementById('zone-record-text');
+  const recEl = document.getElementById('zone-best-wave') || document.getElementById('zone-record-text');
   if (recEl) {
     const bestWave = (typeof SV !== 'undefined' && SV && SV.best) ? SV.best : 0;
-    recEl.textContent = bestWave > 0 ? `Wave ${bestWave}` : 'None';
+    recEl.textContent = bestWave > 0 ? `SECTOR BEST: W${bestWave}` : 'SECTOR BEST: NONE';
   }
-  const bntyEl = document.getElementById('zone-bounty-text');
+  const bntyEl = document.getElementById('zone-bounty') || document.getElementById('zone-bounty-text');
   if (bntyEl) {
     const bnty = mapDef.bountyMult || (MP[mIndex] && MP[mIndex].cm ? MP[mIndex].cm : 1.0);
-    bntyEl.textContent = `${Math.round(bnty * 100)}% (+$${Math.round((bnty - 1) * 100)}%)`;
+    bntyEl.textContent = `${bnty.toFixed(2)}x`;
   }
 }
 
@@ -192,13 +201,13 @@ function tab(i) {
   });
   document.querySelectorAll('.pp').forEach(p => p.classList.remove('on'));
 
-  const pids = ['p0', 'pe', 'pg', 'ps', 'pc', 'pk', 'pt', 'pa', 'p3'];
+  const pids = ['p0', 'pe', 'p1', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
   const target = document.getElementById(pids[i] || 'p0');
   if (target) target.classList.add('on');
 
   if (i === 0) { mapsUI(); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
-  else if (i === 2) lobby();
+  else if (i === 2) renderGunsUI();
   else if (i === 3) renderSkinsUI();
   else if (i === 4) lobby2();
   else if (i === 5) lobby2();
@@ -210,15 +219,15 @@ function tab(i) {
 function lobby() {
   if (typeof sanitizeSV === 'function') SV = sanitizeSV(SV);
 
-  const rankEl = document.getElementById('rnk');
+  const rankEl = document.getElementById('lvn') || document.getElementById('rnk');
   if (rankEl) rankEl.textContent = SV.lvl || 1;
-  const bestEl = document.getElementById('bst');
-  if (bestEl) bestEl.textContent = SV.best || 0;
-  const crEl = document.getElementById('scr');
+  const bestEl = document.getElementById('best') || document.getElementById('bst');
+  if (bestEl) bestEl.textContent = 'SURVIVAL RECORD: WAVE ' + (SV.best || 0);
+  const crEl = document.getElementById('cr') || document.getElementById('scr');
   if (crEl) crEl.textContent = SV.cr || 0;
 
-  const xpFill = document.getElementById('xp-fill');
-  const xpLbl = document.getElementById('xp-label');
+  const xpFill = document.getElementById('xpf') || document.getElementById('xp-fill');
+  const xpLbl = document.getElementById('xptxt') || document.getElementById('xp-label');
   const reqXP = (typeof need === 'function') ? need(SV.lvl || 1) : 100;
   const curXP = SV.xp || 0;
   if (xpFill) xpFill.style.width = Math.min(100, Math.round((curXP / reqXP) * 100)) + '%';
@@ -698,8 +707,8 @@ function lobby2() {
     };
   }
 
-  // Stat Upgrades in #pt
-  const sttCont = document.getElementById('stt');
+  // Stat Upgrades in #upg or #stt
+  const sttCont = document.getElementById('upg') || document.getElementById('stt');
   if (sttCont) {
     const statsList = [
       ['hu', 'Max Health', '+10 HP per level', 150, 'hp', '#ff5a3a'],
@@ -742,14 +751,14 @@ function lobby2() {
 }
 
 function renderSettingsUI() {
-  const qBtn = document.getElementById('opt-quality-btn');
-  if (qBtn) qBtn.textContent = `Graphics Quality: ${QUALITY_SETTINGS.profile.toUpperCase()}`;
-  const sBtn = document.getElementById('opt-shake-btn');
-  if (sBtn) sBtn.textContent = `Screen Shake: ${QUALITY_SETTINGS.screenShake ? 'ON' : 'OFF'}`;
-  const gBtn = document.getElementById('opt-gore-btn');
-  if (gBtn) gBtn.textContent = `Gore & Decals: ${QUALITY_SETTINGS.goreLevel.toUpperCase()}`;
+  const qBtn = document.getElementById('qualbtn') || document.getElementById('opt-quality-btn');
+  if (qBtn) qBtn.textContent = `GRAPHICS QUALITY: ${QUALITY_SETTINGS.profile.toUpperCase()}`;
+  const sBtn = document.getElementById('shakebtn') || document.getElementById('opt-shake-btn');
+  if (sBtn) sBtn.textContent = `SCREEN SHAKE: ${QUALITY_SETTINGS.screenShake ? 'ON' : 'OFF'}`;
+  const gBtn = document.getElementById('gorebtn') || document.getElementById('opt-gore-btn');
+  if (gBtn) gBtn.textContent = `BLOOD & GORE: ${QUALITY_SETTINGS.goreLevel.toUpperCase()}`;
   const sndBtn = document.getElementById('sndbtn');
-  if (sndBtn) sndBtn.textContent = `Audio & SFX: ${SV.mute ? 'MUTED' : 'ENABLED'}`;
+  if (sndBtn) sndBtn.textContent = `AUDIO & SFX: ${SV.mute ? 'MUTED' : 'ENABLED'}`;
 }
 
 function toggleQuality() {

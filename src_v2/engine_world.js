@@ -21,14 +21,66 @@ const stick = s => {
   return [Math.cos(a), Math.sin(a), 1];
 };
 
+function jPos(k) {
+  const jX = k === 'l' ? Math.max(70, Math.min(105, W * 0.13)) : W - Math.max(70, Math.min(105, W * 0.13));
+  const jY = H - Math.max(65, Math.min(88, H * 0.22));
+  return [jX, jY];
+}
+
 // On-screen action buttons
 const BT = [
-  { n: 'SWAP', ar: 1, p: () => [W - 42, H - 150], f: () => swap() },
-  { n: 'DASH', k: 'dash', p: () => [W - 45, H - 96], f: () => skill('dash') },
-  { n: 'NOVA', k: 'nova', p: () => [W - 98, H - 46], f: () => skill('nova') },
-  { n: 'RAGE', k: 'rage', p: () => [W - 98, H - 105], f: () => skill('rage') },
-  { n: 'GREN', k: 'gren', p: () => [W - 152, H - 46], f: () => skill('gren') }
+  {
+    get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[0] : 'dash'; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'DASH'; },
+    p: () => { const j = jPos('r'); return [j[0] - 76, j[1] - 56]; },
+    f() { skill(this.k); }
+  },
+  {
+    get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[1] : 'nova'; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'NOVA'; },
+    p: () => { const j = jPos('r'); return [j[0] - 10, j[1] - 86]; },
+    f() { skill(this.k); }
+  },
+  {
+    get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[2] : 'rage'; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'RAGE'; },
+    p: () => { const j = jPos('r'); return [j[0] - 136, j[1] - 30]; },
+    f() { skill(this.k); }
+  },
+  { n: 'GREN', k: 'gren', p: () => { const j = jPos('r'); return [j[0] - 74, j[1] + 16]; }, f: () => skill('gren') },
+  { n: 'II', ar: 1, p: () => [W - 22, 22], f: () => pause() },
+  { n: '<', ar: 1, p: () => [W / 2 - 68, H - 25], f: () => swap(-1) },
+  { n: '>', ar: 1, p: () => [W / 2 + 68, H - 25], f: () => swap(1) }
 ];
+
+function txt(x, y, s, c, b) {
+  T.push({ x, y, s, c: c || '#fff', l: 0.85, ml: 0.85, vy: -38, b: !!b });
+  if (T.length > 50) T.shift();
+}
+
+function updateFloatingTexts(dt) {
+  for (let i = T.length - 1; i >= 0; i--) {
+    const t = T[i];
+    t.y += t.vy * dt;
+    t.l -= dt;
+    if (t.l <= 0) T.splice(i, 1);
+  }
+}
+
+function renderFloatingTextsPass() {
+  for (const t of T) {
+    const alpha = Math.max(0, Math.min(1, t.l / t.ml));
+    X.save();
+    X.globalAlpha = alpha;
+    X.font = t.b ? '900 13px Impact, Arial Black, sans-serif' : 'bold 11px Arial';
+    X.textAlign = 'center';
+    X.fillStyle = '#000000';
+    X.fillText(t.s, t.x + 1, t.y + 1);
+    X.fillStyle = t.c;
+    X.fillText(t.s, t.x, t.y);
+    X.restore();
+  }
+}
 
 function healP(amt) {
   if (!P || P.hp <= 0) return;
@@ -265,7 +317,23 @@ function fire() {
   const curSkin = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[P.cur]) ? SKINS[SV.eqSkin[P.cur]] : null;
   const bulletCol = curSkin ? curSkin.col : WC[P.cur];
   const mOff = ((ML[P.cur] || 45) * 0.87);
-  const bx0 = P.x + Math.cos(P.a) * mOff, by0 = P.y + Math.sin(P.a) * mOff;
+
+  // Point-blank check: if an enemy is directly between player and muzzle, spawn close so bullets don't bypass them
+  let pbTarget = null, minD = mOff + 25;
+  for (const z of Z) {
+    if (z.dead) continue;
+    const d = Math.hypot(z.x - P.x, z.y - P.y);
+    if (d < minD) {
+      const angDiff = Math.abs(Math.atan2(z.y - P.y, z.x - P.x) - P.a);
+      const normDiff = Math.atan2(Math.sin(angDiff), Math.cos(angDiff));
+      if (Math.abs(normDiff) < 0.65) {
+        minD = d;
+        pbTarget = z;
+      }
+    }
+  }
+
+  const bx0 = P.x + Math.cos(P.a) * (pbTarget ? 8 : mOff), by0 = P.y + Math.sin(P.a) * (pbTarget ? 8 : mOff);
   const canSpawn = hasLOS(P.x, P.y, bx0, by0);
   const sx = canSpawn ? bx0 : P.x, sy = canSpawn ? by0 : P.y;
 
@@ -627,7 +695,7 @@ function openPerk() {
   run = 0;
 
   const modal = document.getElementById('perk');
-  const cards = document.getElementById('pkcards');
+  const cards = document.getElementById('pcards') || document.getElementById('pkcards');
   if (!modal || !cards) return;
 
   cards.innerHTML = '';
@@ -635,11 +703,15 @@ function openPerk() {
   const pool = [...PKS].sort(() => Math.random() - 0.5).slice(0, 3);
   pool.forEach(p => {
     const card = document.createElement('div');
-    card.className = 'pk-card';
-    card.style.cssText = 'background:rgba(20,24,18,.96);border:1.5px solid ' + p[4] + ';border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:transform .15s;';
-    card.innerHTML = `<b style="color:${p[4]};font-size:14px;letter-spacing:.5px">${p[0]}</b>`
-      + `<span style="font-size:9px;font-weight:800;color:#ffd36b;letter-spacing:1px">${p[5]}</span>`
-      + `<p style="font-size:11.5px;opacity:.9;line-height:1.4;margin:0">${p[1]}</p>`;
+    card.className = 'card';
+    card.style.cssText = 'background:rgba(20,24,18,.96);border:1.5px solid ' + p[4] + ';border-radius:10px;padding:12px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:transform .15s;';
+    const iconUri = (typeof getPerkIcon === 'function') ? getPerkIcon(p[0], p[4]) : '';
+    card.innerHTML = (iconUri ? `<div style="width:38px;height:38px;border-radius:8px;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;border:1px solid ${p[4]}55"><img src="${iconUri}" style="width:26px;height:26px"></div>` : '')
+      + `<div style="flex:1;min-width:0">`
+      + `<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${p[4]};font-size:13px;letter-spacing:.5px">${p[0]}</b>`
+      + `<span style="font-size:9px;font-weight:800;color:#ffd36b;letter-spacing:1px">${p[5]}</span></div>`
+      + `<p style="font-size:11px;opacity:.9;line-height:1.4;margin:4px 0 0 0;color:#ccc">${p[1]}</p>`
+      + `</div>`;
     card.onclick = () => {
       applyPerk(p);
       S.pend--;
@@ -734,6 +806,7 @@ function update(dt) {
   S.sh2 -= dt;
   if (S.nukeFlash > 0) S.nukeFlash -= dt;
   if (S.mgTime > 0) S.mgTime -= dt;
+  if (S.lu > 0) S.lu -= dt;
 
   // Hurt vignette decay
   if (HURT_VIGNETTE_TIMER > 0) HURT_VIGNETTE_TIMER -= dt;
@@ -1696,6 +1769,98 @@ function renderHUD() {
   // Flying coin HUD particle benchmark
   if (typeof renderHUDPayoutParticles === 'function') {
     renderHUDPayoutParticles();
+  }
+
+  // Virtual Joysticks, Action Buttons, and Combat Overlay
+  drawControls();
+}
+
+function drawControls() {
+  // 1. Out of bounds map border warnings
+  if (P && (P.x < 140 || P.x > WS - 140 || P.y < 140 || P.y > WS - 140)) {
+    const oobAlpha = 0.28 + 0.22 * Math.sin((S ? S.t : 0) * 8);
+    X.fillStyle = `rgba(239, 68, 68, ${oobAlpha})`;
+    if (P.x < 140) X.fillRect(0, 0, 8, H);
+    if (P.x > WS - 140) X.fillRect(W - 8, 0, 8, H);
+    if (P.y < 140) X.fillRect(0, 0, W, 8);
+    if (P.y > WS - 140) X.fillRect(0, H - 8, W, 8);
+  }
+
+  // 2. LEVEL UP banner
+  if (S && S.lu > 0) {
+    X.save();
+    const luAlpha = Math.min(1, S.lu * 1.5);
+    X.globalAlpha = luAlpha;
+    X.fillStyle = '#ffd84a';
+    X.font = '900 24px Impact, Arial Black, sans-serif';
+    X.textAlign = 'center';
+    X.shadowColor = 'rgba(0,0,0,0.8)';
+    X.shadowBlur = 8;
+    X.fillText('LEVEL UP!', W / 2, H * 0.26);
+    X.restore();
+  }
+
+  // 3. Dual Virtual Joysticks
+  const [lx, ly] = jPos('l');
+  const [rx, ry] = jPos('r');
+
+  // Left joystick (Movement)
+  X.save();
+  X.lineWidth = 2.5;
+  X.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  X.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  X.beginPath(); X.arc(lx, ly, 46, 0, 6.28); X.fill(); X.stroke();
+  X.fillStyle = 'rgba(255, 255, 255, 0.2)';
+  X.font = '900 11px Arial'; X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText('MOVE', lx, ly);
+  const curL = J.l ? [J.l.x, J.l.y] : [lx, ly];
+  X.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  X.beginPath(); X.arc(curL[0], curL[1], 20, 0, 6.28); X.fill();
+  X.strokeStyle = 'rgba(255, 255, 255, 0.65)'; X.lineWidth = 2; X.stroke();
+  X.restore();
+
+  // Right joystick (Aim & Fire)
+  X.save();
+  X.lineWidth = 2.5;
+  X.strokeStyle = 'rgba(255, 110, 80, 0.28)';
+  X.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  X.beginPath(); X.arc(rx, ry, 46, 0, 6.28); X.fill(); X.stroke();
+  X.fillStyle = 'rgba(255, 110, 80, 0.22)';
+  X.font = '900 11px Arial'; X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText('AIM', rx, ry);
+  const curR = J.r ? [J.r.x, J.r.y] : [rx, ry];
+  X.fillStyle = 'rgba(255, 110, 80, 0.42)';
+  X.beginPath(); X.arc(curR[0], curR[1], 20, 0, 6.28); X.fill();
+  X.strokeStyle = 'rgba(255, 130, 100, 0.75)'; X.lineWidth = 2; X.stroke();
+  X.restore();
+
+  // 4. On-screen Action & Utility Buttons
+  for (const b of BT) {
+    const p = b.p();
+    const bx = p[0], by = p[1];
+    const r = b.ar ? 16 : 22;
+    const cdRatio = (b.k && SK[b.k] && SK[b.k].cd > 0) ? Math.max(0, Math.min(1, SK[b.k].cd / (SK[b.k].max || 1))) : 0;
+
+    X.save();
+    X.fillStyle = cdRatio > 0 ? 'rgba(25, 30, 22, 0.72)' : 'rgba(20, 26, 18, 0.88)';
+    X.beginPath(); X.arc(bx, by, r, 0, 6.28); X.fill();
+    X.strokeStyle = cdRatio > 0 ? 'rgba(90, 100, 80, 0.45)' : (b.ar ? '#3d4f34' : '#8fae4a');
+    X.lineWidth = 1.8; X.stroke();
+
+    if (cdRatio > 0) {
+      X.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      X.beginPath();
+      X.moveTo(bx, by);
+      X.arc(bx, by, r - 1, -1.57, -1.57 + 6.28 * cdRatio);
+      X.closePath();
+      X.fill();
+    }
+
+    X.fillStyle = cdRatio > 0 ? '#7a8570' : (b.ar ? '#d5d0c2' : '#f0ece1');
+    X.font = b.ar ? 'bold 12px Arial' : '900 10px Impact, Arial Black, sans-serif';
+    X.textAlign = 'center'; X.textBaseline = 'middle';
+    X.fillText(b.n, bx, by);
+    X.restore();
   }
 }
 

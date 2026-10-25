@@ -23,6 +23,17 @@ function initDecalBakingCanvas() {
   }
 }
 
+function clearGoreDecals() {
+  BLD = [];
+  STREAKS = [];
+  MISTS = [];
+  DEC = [];
+  POOLS = [];
+  FOOTPRINTS = [];
+  GIBS = [];
+  initDecalBakingCanvas();
+}
+
 // Surface-aware blood color palettes based on active map
 function getBloodColors(curM) {
   if (curM === 3 || curM === 6) {
