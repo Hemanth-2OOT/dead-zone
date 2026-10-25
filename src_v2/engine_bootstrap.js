@@ -1,19 +1,27 @@
-// DEAD ZONE v2.7 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.8 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;
 const againBtn = document.getElementById('again');
 if (againBtn) againBtn.onclick = begin;
-const nextBtn = document.getElementById('next');
-if (nextBtn) nextBtn.onclick = () => {
-  const shopov = document.getElementById('shopov');
-  if (shopov) shopov.classList.remove('on');
-  startWave();
-};
+// The between-wave screen and its NEXT WAVE button are gone; waves roll on
+// automatically once the clear beat and any perk draft are finished. Space or
+// Enter still skips the beat if the player wants to move faster.
+addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && pendingNextWave && !S?.po) {
+    e.preventDefault();
+    startWave();
+  }
+});
 
 addEventListener('keydown', e => {
   K[e.key.toLowerCase()] = 1;
   if (e.key === 'Escape' || e.key === 'p') {
+    // Close any open hub window first so Escape always means "back one step".
+    const mm = document.getElementById('map-modal');
+    const ms = document.getElementById('missions-modal');
+    if (mm && mm.classList.contains('on')) { closeMapModal(); return; }
+    if (ms && ms.classList.contains('on')) { closeMissionsModal(); return; }
     if (run) pause();
     else {
       const p = document.getElementById('pause');
@@ -93,16 +101,37 @@ if (apBtn) {
   };
 }
 
+// Daily login credit. This used to write SV.day but never read it, so the
+// button could be tapped repeatedly for +200 each time. Gate on the stored date
+// and reflect the claimed state on the button itself.
+function refreshDailyBtn() {
+  const b = document.getElementById('daily');
+  if (!b || typeof SV === 'undefined' || !SV) return;
+  const claimed = SV.day === new Date().toDateString();
+  b.disabled = claimed;
+  b.textContent = claimed ? 'DAILY CLAIMED' : 'DAILY +200';
+  b.style.opacity = claimed ? '0.5' : '1';
+}
+
 const dailyBtn = document.getElementById('daily');
 if (dailyBtn) {
   dailyBtn.onclick = () => {
+    if (typeof SV === 'undefined' || !SV) return;
+    const today = new Date().toDateString();
+    if (SV.day === today) {
+      if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow');
+      return;
+    }
     SV.cr = (SV.cr || 0) + 200;
-    SV.day = new Date().toDateString();
+    SV.day = today;
     SV.rev = (SV.rev || 0) + 1;
     SV.ts = Date.now();
     sv();
+    if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits');
     lobby();
+    refreshDailyBtn();
   };
+  refreshDailyBtn();
 }
 
 addEventListener('pointerdown', () => ac());

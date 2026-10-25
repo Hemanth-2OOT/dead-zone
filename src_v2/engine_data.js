@@ -1,29 +1,38 @@
 /* === DATA: WEAPONS, CLASSES, SKILLS, RELICS, PERKS, SKINS & EVENTS === */
 
 const WEAP = [
-  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON' },
-  { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON' },
-  { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON' },
-  { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE' },
-  { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC' },
-  { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON' },
-  { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE' },
-  { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC' },
-  { n: 'Plasma', d: 34, r: 0.14, sp: 0.025, p: 1, c: 2500, pr: 2, kb: 0.85, mag: 20, rl: 1.5, tier: 'LEGENDARY' },
-  { n: 'Rocket', d: 175, r: 0.95, sp: 0.01, p: 1, c: 3000, ex: 115, kb: 2.5, mag: 4, rl: 2.0, tier: 'LEGENDARY' },
-  { n: 'Flamer', d: 8.5, r: 0.065, sp: 0.22, p: 2, c: 1800, rg: 0.24, flm: 1, kb: 0.12, mag: 50, rl: 1.7, tier: 'EPIC' },
-  { n: 'Tesla', d: 62, r: 0.30, sp: 0, p: 1, c: 3500, pr: 3, cl: 3, kb: 0.75, mag: 15, rl: 1.6, tier: 'LEGENDARY' },
-  { n: 'GL-40', d: 135, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC' },
-  { n: 'Cryo Blaster', d: 24, r: 0.13, sp: 0.025, p: 1, c: 3400, fz: 1, kb: 0.7, mag: 24, rl: 1.4, tier: 'LEGENDARY' },
-  { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY' },
-  { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON' },
-  { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE' },
-  { n: 'Arc Shotgun', d: 24, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
-  { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE' },
-  { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
-  { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
-  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
+  // `rng` is how far a round actually travels, in pixels: the projectile step
+  // converts it to a lifetime via the muzzle velocity, so a pistol no longer
+  // throws a slug the length of three screens while a sniper still reaches out.
+  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON', rng: 260 },
+  { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON', rng: 240 },
+  { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON', rng: 160 },
+  { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE', rng: 380 },
+  { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC', rng: 250 },
+  { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON', rng: 330 },
+  { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE', rng: 350 },
+  { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC', rng: 1150 },
+  { n: 'Plasma', d: 34, r: 0.14, sp: 0.025, p: 1, c: 2500, pr: 2, kb: 0.85, mag: 20, rl: 1.5, tier: 'LEGENDARY', rng: 430 },
+  { n: 'Rocket', d: 175, r: 0.95, sp: 0.01, p: 1, c: 3000, ex: 115, kb: 2.5, mag: 4, rl: 2.0, tier: 'LEGENDARY', rng: 820 },
+  { n: 'Flamer', d: 8.5, r: 0.065, sp: 0.22, p: 2, c: 1800, rg: 0.24, flm: 1, kb: 0.12, mag: 50, rl: 1.7, tier: 'EPIC', rng: 95 },
+  { n: 'Tesla', d: 62, r: 0.30, sp: 0, p: 1, c: 3500, pr: 3, cl: 3, kb: 0.75, mag: 15, rl: 1.6, tier: 'LEGENDARY', rng: 500 },
+  { n: 'GL-40', d: 135, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC', rng: 620 },
+  { n: 'Cryo Blaster', d: 24, r: 0.13, sp: 0.025, p: 1, c: 3400, fz: 1, kb: 0.7, mag: 24, rl: 1.4, tier: 'LEGENDARY', rng: 310 },
+  { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY', rng: 1250 },
+  { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON', rng: 230 },
+  { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE', rng: 400 },
+  { n: 'Arc Shotgun', d: 24, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY', rng: 175 },
+  { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE', rng: 520 },
+  { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC', rng: 245 },
+  { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC', rng: 210 },
+  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC', rng: 440 }
 ];
+
+// Weapons are no longer bought: each unlocks automatically once the account
+// reaches its rank. One new gun every rank or two, so the arsenal still opens
+// up over time without a shop to visit.
+const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,1,8,19,5,10,13,18];
+
 
 const TIER_COLORS = {
   'COMMON': '#64748b',
@@ -41,7 +50,7 @@ const ZT = {
   spit: { hp: 40, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
   stalker: { hp: 42, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
   charger: { hp: 115, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
-  boss: { hp: 1150, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
+  boss: { hp: 3200, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
   // v2.7 support & specialist roster. Each new type owns a distinct tactical
   // job so encounters read logically instead of "more of the same walker".
   crawler: { hp: 20, s: 132, spd: 132, r: 9, col: '#93a24e', dm: 5, dmg: 5, cash: 12, kb: 1.3, crawl: 1 },

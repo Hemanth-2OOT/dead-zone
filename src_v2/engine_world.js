@@ -1,4 +1,4 @@
-// DEAD ZONE v2.7 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.8 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -7,6 +7,11 @@ let POIS = [], DUST = [], O = [], G = [], HZ = [];
 let ACID_PUDDLES = [], AOE_DEBRIS = [], SUMQ = [];
 let CX = 0, CY = 0, last = 0;
 let S = null;
+// Between-wave beat. The old flow stopped the run on a blocking shop screen,
+// which could sit on top of the perk draft; now the wave-clear is a short
+// non-interactive pause and the perk draft is the only thing that can take the
+// screen. WAVE_CLEAR_T counts down in loop() because run is 0 meanwhile.
+let WAVE_CLEAR_T = 0, pendingNextWave = 0;
 
 const K = {};
 const M = { x: 0, y: 0, down: 0, moved: 0 };
@@ -278,6 +283,9 @@ function init() {
 }
 
 function startWave() {
+  pendingNextWave = 0;
+  WAVE_CLEAR_T = 0;
+  run = 1;
   S.wave++;
   S.bn = 2;
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
@@ -312,6 +320,72 @@ function startWave() {
   if (S.wave === 1 || (S.wave % 3 === 0 && S.wave % 5 !== 0)) {
     if (CH.length < 3) spawnChest(1);
   }
+}
+
+// Enemies used to walk straight through the player and park on the sprite: the
+// swarm converged to a single point, the muzzle ended up inside a body and
+// point-blank shots had nothing in front of them to hit. Push every enemy back
+// out of the player's body each frame instead. The melee reach is zRadius + 18,
+// comfortably clear of this standoff, so they still connect.
+function separateFromPlayer(z, r) {
+  if (!P) return;
+  const pr = 13;
+  let dx = z.x - P.x, dy = z.y - P.y;
+  let d2 = dx * dx + dy * dy;
+  const min = r + pr;
+  if (d2 >= min * min) return;
+  let d = Math.sqrt(d2);
+  if (d < 0.001) { dx = 1; dy = 0; d = 1; }   // exactly stacked: deterministic axis
+  const out = (min - d) / d;
+  z.x += dx * out;
+  z.y += dy * out;
+}
+
+// Phase break: the boss stops taking damage for a beat, announces itself and
+// speeds up. Two gates stop a burst build deleting the fight in one clip.
+function bossPhaseBreak(z, n) {
+  const bv = z.bv || 0;
+  const bCol = bv === 0 ? '255,80,20' : bv === 1 ? '180,90,255' : bv === 2 ? '90,240,60' : '0,229,255';
+  RG.push({ x: z.x, y: z.y, r: 9, l: 0.6, v: 520, c: bCol });
+  RG.push({ x: z.x, y: z.y, r: 5, l: 0.9, v: 360, c: '255,255,255' });
+  burst(z.x, z.y, (ZT[z.t] || ZT.boss).col, 22, 4, 150, 1);
+  if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 78, d: ((ZT[z.t] || ZT.boss).dm || 32) * 0.9 });
+  if (typeof announce === 'function') announce('PHASE ' + n + ' BROKEN', '#ff5a3a', 'the husk is venting');
+  if (typeof snd === 'function') snd(130, 0.5, 'sawtooth', 0.1, 0.6);
+  SH = Math.max(SH, 14);
+  if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, 0.07);
+}
+
+// The between-wave shop used to be the run's power curve: you spent cash on
+// heal, stims and perks. With the shop gone the same upgrades arrive as a free
+// supply drop on every wave clear, so a run still escalates - it just does not
+// stop to ask you to shop. Weighted toward healing when you are hurt.
+function grantSupplyDrop() {
+  if (!S || !P || P.hp <= 0) return null;
+  const hurt = 1 - Math.min(1, P.hp / P.mx);
+  const pool = [
+    { w: 14 + hurt * 46, label: 'Field repair', col: '#4ade80', fn: () => { P.hp = P.mx; } },
+    { w: 10, label: 'Grenades +5', col: '#ffd36b', fn: () => { S.gr = (S.gr || 0) + 5; } },
+    { w: 7, label: 'Deploy turret', col: '#ffd36b', fn: () => { TR.push({ x: P.x, y: P.y, l: 35, cd: 0 }); } },
+    { w: 10, label: '+25 max health', col: '#ff5a8a', fn: () => { P.mx += 25; P.hp += 25; } },
+    { w: 10, label: 'Speed stim +20%', col: '#5ac8e8', fn: () => { S.ms = (S.ms || 1) * 1.2; } },
+    { w: 10, label: '+15% damage', col: '#ff5a3a', fn: () => { S.dm = (S.dm || 1) * 1.15; } },
+    { w: 12, label: 'Random power', col: '#c084fc', fn: () => { S.pend++; } },
+    { w: 8, label: 'Shield battery', col: '#be8cff', fn: () => { S.bl = (S.bl || 0) + 1; S.bc = (S.bc || 0) + 1; } },
+    { w: 6, label: 'Fast reload stim', col: '#38bdf8', fn: () => { S.fastReload = 1; } }
+  ];
+  let tot = 0; for (const d of pool) tot += d.w;
+  let r = Math.random() * tot;
+  for (const d of pool) {
+    r -= d.w;
+    if (r <= 0) {
+      d.fn();
+      burst(P.x, P.y, d.col, 16, 3, 120);
+      if (typeof announce === 'function') announce('SUPPLY DROP', d.col, d.label);
+      return d;
+    }
+  }
+  return null;
 }
 
 function spawn(t) {
@@ -439,7 +513,15 @@ function fire() {
     const finalDmg = w.d * effDm * mastMult * (S.dd > 0 ? 2 : 1) * (1 + (S.bk || 0) * 0.35 * (1 - P.hp / P.mx)) * (S.oc && S.shots % Math.max(4, 12 - S.oc * 3) === 0 ? 3 : 1) * (S.fo && S.stl > 1 ? 1 + 0.4 * S.fo : 1) * critMult;
 
     const bSpeed = w.flm ? (360 + Math.random() * 70) : (w.rg > 1.2 ? 1050 : (w.sp === 0 ? 920 : 700));
-    const bLife = w.flm ? 0.24 : (w.rg || 0.7);
+    // Lifetime comes from a travel distance rather than a flat 0.7s. That flat
+    // value meant a pistol round carried 490px - the whole view - and shotgun
+    // pellets reached as far as rifle rounds, so a short-range gun could snipe
+    // across the sector and every tracer outlived the shot that fired it.
+    // Hard ceiling on flight time: a 1150px sniper shot at 920px/s works out to
+    // 1.25s of travel, which is long enough that the tracer looks parked in the
+    // air next to the next shot. 0.95s still carries ~875px, comfortably past
+    // every screen edge, without the "bullet stuck mid-flight" read.
+    const bLife = w.flm ? 0.24 : Math.min(0.95, Math.max(0.08, (w.rng || 320) / bSpeed));
 
     B.push({
       x: sx, y: sy,
@@ -479,6 +561,14 @@ function damageZ(z, rawDmg, src, isCrit, hitAngle, wi) {
   }
   const dmg = Number(rawDmg);
   if (!isFinite(dmg) || dmg <= 0) return false;
+
+  // Phase-break immunity. Damage is refused but the impact still reads, so the
+  // player can tell they are early rather than missing.
+  if (z.iv > 0) {
+    if (typeof txt === 'function') txt(z.x + (Math.random() - 0.5) * 14, z.y - 30, 'IMMUNE', '#38bdf8', true);
+    if (typeof combatImpactFX === 'function') combatImpactFX(z.x, z.y, (typeof hitAngle === 'number' && isFinite(hitAngle)) ? hitAngle : 0, 1, false, wi);
+    return false;
+  }
 
   let arm = (z.t === 'tank' ? 0.85 : (z.t === 'charger' ? 0.90 : 1)) * (z.el ? 0.88 : 1);
   // Armoured units angle the plate they are facing into incoming fire: a shot
@@ -774,19 +864,33 @@ function push(z, r) {
   }
 }
 
+// Equipping is no longer something you do between waves: every owned gun is one
+// tap (or one Q) away, and the choice is remembered as the lobby default.
+function selectWeapon(i) {
+  if (!P || P.reloading) return false;
+  if (!(P.w && P.w[i])) {
+    if (typeof announce === 'function') announce('LOCKED', '#8892a0', 'Reach account rank ' + (WEAP_RANK[i] || 0));
+    return false;
+  }
+  if (P.cur === i) return false;
+  if (P.weapAmmo) P.weapAmmo[P.cur] = P.ammo;
+  P.cur = i;
+  P.maxAmmo = WEAP[i].mag || 12;
+  P.ammo = (P.weapAmmo && P.weapAmmo[i] != null) ? P.weapAmmo[i] : P.maxAmmo;
+  P.recoil = 0;
+  if (typeof SV !== 'undefined' && SV) { SV.start = i; if (typeof sv === 'function') sv(); }
+  if (typeof snd === 'function') snd(400, 0.1, 'square', 0.04, 1.2);
+  return true;
+}
+
 function swap(dir = 1) {
   if (!P || P.reloading) return;
   const unlocked = [];
   WEAP.forEach((_, i) => { if (P.w[i]) unlocked.push(i); });
   if (unlocked.length <= 1) return;
-
   let idx = unlocked.indexOf(P.cur);
   idx = (idx + dir + unlocked.length) % unlocked.length;
-  P.cur = unlocked[idx];
-  P.maxAmmo = WEAP[P.cur].mag || 12;
-  P.ammo = (P.weapAmmo && P.weapAmmo[P.cur] != null) ? P.weapAmmo[P.cur] : P.maxAmmo;
-  P.recoil = 0;
-  if (typeof snd === 'function') snd(400, 0.1, 'square', 0.04, 1.2);
+  selectWeapon(unlocked[idx]);
 }
 
 function skill(k) {
@@ -1005,7 +1109,8 @@ function openPerk() {
       S.pend--;
       S.po = 0;
       modal.classList.remove('on');
-      if (S.pend > 0) openPerk(); else run = 1;
+      if (S.pend > 0) openPerk();
+      else run = pendingNextWave ? 0 : 1;
     };
     cards.appendChild(card);
   });
@@ -1018,7 +1123,8 @@ function openPerk() {
         S.pend--;
         S.po = 0;
         modal.classList.remove('on');
-        if (S.pend > 0) openPerk(); else run = 1;
+        if (S.pend > 0) openPerk();
+        else run = pendingNextWave ? 0 : 1;
       }
     };
   }
@@ -1331,6 +1437,7 @@ function update(dt) {
       });
     }
     push(z, zRadius);
+    separateFromPlayer(z, zRadius);
 
     // Boundary constraints
     z.x = Math.max(zRadius + 8, Math.min(WS - zRadius - 8, z.x));
@@ -1378,8 +1485,20 @@ function update(dt) {
     if (z.t === 'boss') {
       const bv = z.bv || 0;
       if (z.ch > 0) z.ch = Math.max(0, z.ch - dt);       // charge timer decays here
+      if (z.iv > 0) z.iv = Math.max(0, z.iv - dt);        // phase-break immunity window
       z.bw = (z.bw != null ? z.bw : 3) - dt;
       const los = hasLOS(z.x, z.y, P.x, P.y);
+
+      // Phase gates. Each one buys 1.1s of immunity, so a boss cannot be deleted
+      // inside a single magazine no matter how the build scales.
+      const bFrac = (z.mh > 0) ? (z.hp / z.mh) : 1;
+      if (bFrac <= 0.34 && (z.pb || 0) < 2) {
+        z.pb = 2; z.iv = 1.1; z.buffT = Math.max(z.buffT || 0, 8); z.bw = Math.min(z.bw, 0.9);
+        bossPhaseBreak(z, 2);
+      } else if (bFrac <= 0.68 && (z.pb || 0) < 1) {
+        z.pb = 1; z.iv = 1.0; z.buffT = Math.max(z.buffT || 0, 8); z.bw = Math.min(z.bw, 1.1);
+        bossPhaseBreak(z, 1);
+      }
 
       if (bv === 0) {
         // BRUTE - telegraphed charge, then a ground-slam shockwave on arrival.
@@ -1614,8 +1733,62 @@ function update(dt) {
     S.clearedWave = S.wave;
     run = 0;
     if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
-    openShop();
+    endWave();
   }
+}
+
+// Weapon strip. Shared by the HUD renderer and the touch handler so a tap
+// always lands on the chip it looks like it should. Owned guns plus the single
+// next unlock, so the strip stays short early and grows with the account.
+function weaponBarLayout() {
+  const chips = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) chips.push({ i, on: true });
+  let nextLocked = -1, bestR = Infinity;
+  for (let i = 0; i < WEAP.length; i++) {
+    if (P.w && P.w[i]) continue;
+    const r = WEAP_RANK[i] || 0;
+    if (r < bestR) { bestR = r; nextLocked = i; }
+  }
+  if (nextLocked >= 0) chips.push({ i: nextLocked, on: false });
+  if (!chips.length) return chips;
+
+  const n = chips.length, gap = 4;
+  const maxW = Math.min(W - 28, 560);
+  const cw = Math.max(26, Math.min(72, Math.floor((maxW - gap * (n - 1)) / n)));
+  const totalW = cw * n + gap * (n - 1);
+  const x0 = Math.round((W - totalW) / 2), y = H - 76;
+  for (let k = 0; k < n; k++) {
+    chips[k].x = x0 + k * (cw + gap);
+    chips[k].y = y; chips[k].w = cw; chips[k].h = 16;
+  }
+  return chips;
+}
+
+function drawWeaponBar() {
+  if (!P || !P.w) return;
+  const chips = weaponBarLayout();
+  if (!chips.length) return;
+  X.textAlign = 'center'; X.textBaseline = 'middle';
+  for (const c of chips) {
+    const w = WEAP[c.i] || WEAP[0];
+    const cur = P.cur === c.i;
+    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
+    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 3);
+    if (c.on) {
+      X.fillStyle = cur ? tcol : 'rgba(18,24,16,0.85)';
+      X.fill();
+      X.strokeStyle = cur ? '#ffffff' : tcol + '99';
+      X.lineWidth = cur ? 1.6 : 1;
+      X.stroke();
+    } else {
+      X.fillStyle = 'rgba(12,14,10,0.55)'; X.fill();
+      X.strokeStyle = 'rgba(120,130,110,0.3)'; X.lineWidth = 1; X.stroke();
+    }
+    X.fillStyle = c.on ? (cur ? '#0b0f08' : '#e8e4cf') : 'rgba(200,205,190,0.5)';
+    X.font = '900 ' + (c.w >= 34 ? 9.5 : 8) + 'px Arial';
+    X.fillText(c.on ? (c.w >= 34 ? w.n.slice(0, 3).toUpperCase() : String(c.i + 1)) : 'R' + (WEAP_RANK[c.i] || 0), c.x + c.w / 2, c.y + c.h / 2 + 0.5);
+  }
+  X.textBaseline = 'alphabetic';
 }
 
 // MAIN 2D RENDERING PIPELINE
@@ -2409,6 +2582,7 @@ function renderHUD() {
   X.fillStyle = P.reloading ? '#ffd36b' : (P.ammo <= 3 ? '#ff5a3a' : '#d5d0c2');
   X.font = 'bold 10px Arial';
   X.fillText(ammoStr, W / 2, H - 9);
+  drawWeaponBar();
 
   // Screen-edge damage vignette
   if (HURT_VIGNETTE_TIMER > 0) {
@@ -2599,6 +2773,13 @@ function loop(t) {
     }
   }
 
+  // Between-wave beat. update() does not run while run is 0, so the countdown
+  // has to live here; the perk draft holds it off until the player has chosen.
+  if (!run && pendingNextWave && S && !S.po && P && P.hp > 0) {
+    WAVE_CLEAR_T -= dt;
+    if (WAVE_CLEAR_T <= 0) startWave();
+  }
+
   if (S) {
     try {
       draw();
@@ -2608,7 +2789,7 @@ function loop(t) {
   }
 }
 
-function openShop() {
+function endWave() {
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
   // NOTE: credits are settled once at run end (death/quit) so unspent cash banks 1:1.
   // Banking here would settle only the wave-1 balance and lose later earnings.
@@ -2620,8 +2801,6 @@ function openShop() {
     return;
   }
 
-  const st = document.getElementById('st');
-  if (st) st.textContent = 'Wave ' + S.wave + ' cleared';
   const healAmt = (S && S.isEvent && S.evDef && S.evDef.id === 'last_stand') ? 6 : 20;
   P.hp = Math.min(P.mx, P.hp + healAmt);
 
@@ -2634,88 +2813,40 @@ function openShop() {
       (gd < 0 ? '-' : '+') + Math.abs(gd) + 's vs your best run');
   }
   rebuild();
-  const shopov = document.getElementById('shopov');
-  if (shopov) shopov.classList.add('on');
+
+  // Non-blocking wave-clear beat. This used to raise the between-wave shop
+  // overlay; that screen collided with the perk draft and could sit on top of
+  // it. The run now breathes for two seconds and rolls into the next wave.
+  // Hold the next wave for a beat so the clear reads, but never block the run.
+  pendingNextWave = 1;
+  WAVE_CLEAR_T = 2.0;
+  run = 0;
+  if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
+  if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound');
+  // The perk draft is the ONLY screen that can take over here now. The old shop
+  // overlay sat on top of this same draft, which is what produced the double
+  // popup at wave end.
+  if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
 }
 
 function rebuild() {
   const cashEl = document.getElementById('cash');
   if (cashEl) {
     let line = 'Cash: $' + S.cash;
-    if (S.wm) line += '   •   ' + S.wm.name;
-    if (S.flawless > 1) line += '   •   FLAWLESS x' + S.flawless;
-    if (S.cmbMax >= 10) line += '   •   BEST COMBO x' + S.cmbMax;
-    if (S.ascMul && S.ascMul > 1) line += '   •   BOUNTY x' + S.ascMul.toFixed(2);
+    if (S.wm) line += '   -   ' + S.wm.name;
+    if (S.flawless > 1) line += '   -   FLAWLESS x' + S.flawless;
+    if (S.cmbMax >= 10) line += '   -   BEST COMBO x' + S.cmbMax;
+    if (S.ascMul && S.ascMul > 1) line += '   -   BOUNTY x' + S.ascMul.toFixed(2);
     const st = (typeof SV !== 'undefined' && SV && SV.runStreak) || 0;
-    if (st > 1) line += '   •   STREAK x' + st;
+    if (st > 1) line += '   -   STREAK x' + st;
     cashEl.textContent = line;
   }
-
   if (typeof renderBoonBar === 'function') renderBoonBar();
-
-  const s = document.getElementById('shop');
-  if (!s) return;
-  s.innerHTML = '';
-
-  const isLS = (S && S.isEvent && S.evDef && S.evDef.id === 'last_stand');
-  const entries = [];
-
-  WEAP.forEach((w, i) => {
-    if (S && S.isEvent && S.evDef && S.evDef.heavyOnly && ![4, 9, 12, 14, 17].includes(i)) return;
-    if (P.w[i]) {
-      entries.push({
-        id: 'eq' + i, cost: 0, eq: P.cur === i,
-        label: P.cur === i ? w.n + ' (equipped)' : 'Equip ' + w.n,
-        fn: () => {
-          if (P.cur !== i) {
-            if (P.weapAmmo) P.weapAmmo[P.cur] = P.ammo;
-            P.cur = i;
-            P.reloading = false;
-            P.maxAmmo = w.mag || 12;
-            P.ammo = (P.weapAmmo && P.weapAmmo[i] != null) ? P.weapAmmo[i] : P.maxAmmo;
-          }
-        }
-      });
-    }
-  });
-
-  entries.push({ id: 'heal', cost: 100, label: isLS ? 'Field Repair (30%)' : 'Heal full',
-    fn: () => { P.hp = isLS ? Math.min(P.mx, P.hp + Math.round(P.mx * 0.3)) : P.mx; } });
-  entries.push({ id: 'gren', cost: 150, label: 'Grenades +5', fn: () => S.gr += 5 });
-  entries.push({ id: 'turret', cost: 250, label: 'Deploy Turret', fn: () => { TR.push({ x: P.x, y: P.y, l: 35, cd: 0 }); burst(P.x, P.y, '#ffd36b', 10); } });
-  entries.push({ id: 'reload', cost: 280, label: 'Fast Reload Stim (-25% RL)', fn: () => { S.fastReload = 1; burst(P.x, P.y, '#ffd36b', 12); } });
-  entries.push({ id: 'shield', cost: 220, label: 'Shield Battery', fn: () => { S.bl = (S.bl || 0) + 1; S.bc = (S.bc || 0) + 1; burst(P.x, P.y, '#be8cff', 12); } });
-  entries.push({ id: 'hp', cost: 200, label: '+25 max health', fn: () => { P.mx += 25; P.hp += 25; } });
-  entries.push({ id: 'speed', cost: 300, label: 'Speed Stim (+20%)', fn: () => { S.ms = (S.ms || 1) * 1.2; burst(P.x, P.y, '#5ac8e8', 12); } });
-  entries.push({ id: 'damage', cost: 400, label: '+15% damage', fn: () => S.dm = (S.dm || 1) * 1.15 });
-  entries.push({ id: 'power', cost: 350, label: 'Random power', fn: () => S.pend++ });
-
-  // Rotating supply deal: one randomly discounted purchase per wave.
-  const buyable = entries.filter(e => e.cost > 0);
-  if (!S.deal || S.deal.wave !== S.wave) {
-    const pick = buyable[Math.floor(Math.random() * buyable.length)];
-    S.deal = pick ? { wave: S.wave, id: pick.id, mult: 0.6 } : null;
-  }
-
-  for (const e of entries) {
-    const deal = (S.deal && S.deal.id === e.id) ? S.deal : null;
-    const cost = deal ? Math.round(e.cost * deal.mult) : e.cost;
-    const b = document.createElement('button');
-    b.textContent = e.cost > 0 ? (e.label + ' $' + cost) : e.label;
-    if (e.eq) b.className = 'eq';
-    if (deal) {
-      b.style.borderColor = '#e0b83a';
-      b.style.background = 'rgba(224,184,58,.14)';
-      b.textContent = '★ ' + e.label + ' $' + cost + ' (was $' + e.cost + ')';
-    }
-    b.disabled = cost > S.cash;
-    b.onclick = () => { S.cash -= cost; e.fn(); if (S.deal && S.deal.id === e.id) S.deal = null; rebuild(); };
-    s.appendChild(b);
-  }
 }
 
+
 function begin() {
-  ['start', 'over', 'shopov', 'pause', 'perk'].forEach(i => {
+  ['start', 'over', 'pause', 'perk'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
@@ -2735,6 +2866,14 @@ function tch(e) {
         return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38);
       });
       if (bi >= 0) { if (run) BT[bi].f(); continue; }
+      // Weapon strip chips first: they sit just above the reload/swap zones.
+      if (run && P && P.w) {
+        let hit = null;
+        for (const c of weaponBarLayout()) {
+          if (t.clientX >= c.x - 2 && t.clientX <= c.x + c.w + 2 && t.clientY >= c.y - 5 && t.clientY <= c.y + c.h + 5) { hit = c; break; }
+        }
+        if (hit) { selectWeapon(hit.i); continue; }
+      }
       if (run && t.clientY > H - 65 && t.clientY < H - 5) {
         if (Math.abs(t.clientX - W / 2) < 40) { startReload(); continue; }
         if (Math.abs(t.clientX - W / 2) < 75) { swap(t.clientX > W / 2 ? 1 : -1); continue; }

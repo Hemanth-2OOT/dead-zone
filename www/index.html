@@ -598,6 +598,42 @@ button.eq {
   to { opacity: 1; transform: none; }
 }
 
+/* ---- Skin lobby flourish: pixel shimmer + equipped aura ---------------- */
+/* The skins hub used to be a flat list of rectangles. Epic and Legendary cards
+   now carry a scanline "pixel" shimmer and, when equipped, a pulsing aura ring
+   so the chosen finish reads at a glance instead of only on the EQUIPPED chip. */
+.skin-card { position: relative; overflow: hidden; isolation: isolate; }
+.skin-card .sk-pixel {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.055) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.045) 0 1px, transparent 1px 4px);
+  background-size: 4px 4px;
+  mix-blend-mode: screen;
+  opacity: .5;
+  animation: skPixelDrift 6s linear infinite;
+}
+.skin-card > *:not(.sk-pixel):not(.sk-aura) { position: relative; z-index: 2; }
+.skin-card .sk-aura {
+  position: absolute; inset: -18%; pointer-events: none; z-index: 1; border-radius: 16px;
+  background: radial-gradient(ellipse at 50% 40%, var(--aura, rgba(143,174,74,.5)) 0%, transparent 62%);
+  opacity: .55; filter: blur(6px);
+  animation: skAuraBreath 3.2s ease-in-out infinite;
+}
+.skin-card.equipped {
+  border-color: #8fae4a !important;
+  box-shadow: 0 0 18px rgba(143,174,74,.45), inset 0 0 22px rgba(143,174,74,.12) !important;
+}
+.skin-card.equipped .sk-aura { opacity: .8; }
+@keyframes skPixelDrift { from { background-position: 0 0, 0 0; } to { background-position: 24px 24px, 24px 24px; } }
+@keyframes skAuraBreath {
+  0%, 100% { opacity: .38; transform: scale(.98); }
+  50% { opacity: .78; transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skin-card .sk-pixel, .skin-card .sk-aura { animation: none; }
+}
+
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:active:not(:disabled) { transform: scale(0.96); }
 
@@ -744,6 +780,55 @@ button:active:not(:disabled) { transform: scale(0.96); }
   #maps { min-height: 74px; }
 }
 
+/* ---- Hub windows (maps / missions / records) ------------------------- */
+/* Each hub entry opens its own window instead of stacking more panels into
+   the already crowded lobby. */
+.modal-sheet {
+  width: 100%;
+  max-width: 560px;
+  margin: auto;
+  background: linear-gradient(180deg, rgba(20,24,18,.99), rgba(12,15,10,.99));
+  border: 1.5px solid rgba(143,174,74,.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.35);
+  flex-shrink: 0;
+}
+.modal-head h2 { font-size: 14px; letter-spacing: 1px; }
+.modal-x {
+  width: 30px; height: 30px;
+  min-height: 30px !important;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 6px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.15);
+  color: #d5d0c2;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.modal-x:hover { background: rgba(255,90,58,.2); border-color: #ff5a3a; color: #ff5a3a; }
+.modal-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Map tiles inside the window can be a little bigger than the hub strip. */
+#map-modal #maps { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+#map-modal #maps button { min-height: 52px !important; font-size: 11px !important; padding: 7px 6px !important; }
+#map-modal #maps button .m-title { font-size: 13px; }
+#map-modal-preview { transition: opacity .2s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
@@ -762,6 +847,14 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 <canvas id="c"></canvas>
 
+<!-- Run HUD meta. #cash and #boonbar used to live inside the between-wave
+     shop overlay. The overlay is gone, so the boon draft now floats above the
+     play field and can be tapped at any point during the following wave. -->
+<div id="run-hud-meta" style="position:fixed;left:0;right:0;bottom:62px;z-index:60;display:flex;flex-direction:column;align-items:center;pointer-events:none">
+  <p id="cash" style="display:none"></p>
+  <div id="boonbar" style="display:none;pointer-events:auto;width:min(560px,94vw);margin:0;padding:8px 10px;background:rgba(20,24,18,.94);border:1.5px solid rgba(143,174,74,.45);border-radius:8px;text-align:left"></div>
+</div>
+
 <div class="ov on" id="start">
   <div id="top">
     <div id="lv">
@@ -778,65 +871,63 @@ button:active:not(:disabled) { transform: scale(0.96); }
   </div>
 
   <div id="pn">
-    <!-- TAB 0: LOBBY MAIN -->
+    <!-- TAB 0: PLAY HUB -->
     <div class="pp on" id="p0">
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.7.0</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.8.0</div>
         </div>
 
-        <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
+        <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0b83a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
           <span id="best">SURVIVAL RECORD: WAVE 0</span>
         </div>
 
         <div class="act-box" style="display:flex;gap:6px;align-items:center;width:100%;margin-top:2px">
-          <button class="go" id="play" style="flex:1;min-height:38px;font-size:15px;padding:6px 14px">DEPLOY</button>
-          <button id="daily" style="min-height:38px;font-size:9.5px;padding:4px 10px;font-weight:800;border-color:#e0b83a;color:#e0b83a;background:rgba(224,184,58,.12);white-space:nowrap">DAILY +200</button>
+          <button class="go" id="play" style="flex:1;min-height:40px;font-size:15px;padding:6px 14px">DEPLOY</button>
+          <button id="daily" style="min-height:40px;font-size:9.5px;padding:4px 10px;font-weight:800;border-color:#e0b83a;color:#e0b83a;background:rgba(224,184,58,.12);white-space:nowrap">DAILY +200</button>
         </div>
 
         <div id="next-goal" class="next-goal"></div>
 
-        <div class="rewards-box" id="lobby-panel">
-          <div class="rtabs">
-            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
-            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
-            <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
-            <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
+        <!-- Hub navigation. Each of these opens its own window so the hub stays
+             a hub instead of a wall of tabs and lists. -->
+        <div style="display:flex;gap:8px;width:100%;margin-top:4px">
+          <button class="hub-btn" onclick="openMapModal()" style="flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.6px;border:1.5px solid rgba(143,174,74,.55);background:rgba(143,174,74,.12);color:#c9e08a;border-radius:8px;cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z"/><path d="M9 4v16M15 6v16"/></svg>
+            MAPS
+          </button>
+          <button class="hub-btn" onclick="openMissionsModal()" style="flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.6px;border:1.5px solid rgba(224,184,58,.55);background:rgba(224,184,58,.12);color:#ffd36b;border-radius:8px;cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+            MISSIONS
+          </button>
+        </div>
+
+        <div id="hub-sector" style="width:100%;margin-top:4px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <b id="zone-name" style="font-size:13px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
+            <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
           </div>
-          <div class="rviews">
-            <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
-            <div id="rview-l" class="rview"><div id="login-track"></div></div>
-            <div id="rview-c" class="rview"><div id="rank-list"></div></div>
-            <div id="rview-s" class="rview"><div id="ach-list"></div></div>
+          <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
+            <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
+            <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
+            <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
+            <span id="zone-haz-tag" style="font-weight:800;color:#ff5a3a"></span>
+            <span id="zone-asc-tag" style="font-weight:800;color:#c084fc"></span>
           </div>
+          <div id="zone-enemy-icons" style="display:flex;gap:6px;align-items:center;padding-top:2px;border-top:1px solid rgba(255,255,255,.06)"></div>
         </div>
       </div>
 
       <div class="l-right">
-        <div class="map-box">
-          <!-- Real map preview canvas -->
+        <div class="map-box" id="hub-map">
           <canvas id="zone-preview" width="460" height="240"></canvas>
-          
-          <div id="zone-header" style="display:flex;flex-direction:column;gap:3px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 10px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <b id="zone-name" style="font-size:13.5px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
-              <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
-            </div>
-            <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:2px;font-size:9px">
-              <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
-              <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
-              <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
-              <span id="zone-haz-tag" style="font-weight:800;color:#ff5a3a"></span>
-              <span id="zone-asc-tag" style="font-weight:800;color:#c084fc"></span>
-            </div>
-            <div id="zone-enemy-icons" style="display:flex;gap:6px;align-items:center;margin-top:2px;padding-top:2px;border-top:1px solid rgba(255,255,255,.06)"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.6;text-transform:uppercase">CURRENT SECTOR</span>
+            <button onclick="openMapModal()" style="min-height:30px;font-size:9.5px;font-weight:800;padding:3px 10px;border:1px solid rgba(143,174,74,.5);background:rgba(143,174,74,.12);color:#c9e08a;border-radius:6px;cursor:pointer">CHANGE MAP</button>
           </div>
-
-          <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase;margin-top:2px">DEPLOYMENT SECTOR SELECTION</div>
-          <div id="maps"></div>
         </div>
       </div>
     </div>
@@ -858,7 +949,6 @@ button:active:not(:disabled) { transform: scale(0.96); }
     </div>
 
     <!-- TAB 2: GUNS ARMORY -->
-    <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
 
     <!-- TAB 3: SKINS HUB -->
     <div class="pp" id="psk">
@@ -924,23 +1014,13 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <nav id="nav">
     <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 9h10l2 2h7v3h-3l-1 2h-3v-2H10l-2 5H5l2-5H2V9z"/></svg>GUNS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
+        <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
   </nav>
-</div>
-
-<!-- IN-GAME SHOP OVERLAY -->
-<div class="ov" id="shopov">
-  <h2 id="st">WAVE CLEARED</h2>
-  <p id="cash" style="font-size:14px;color:#ffd36b;font-weight:800;margin-bottom:4px"></p>
-  <div id="boonbar" style="display:none;width:100%;max-width:560px;margin:0 0 10px;padding:8px 10px;background:rgba(20,24,18,.92);border:1.5px solid rgba(143,174,74,.45);border-radius:8px;text-align:left"></div>
-  <div id="shop"></div>
-  <button class="go" id="next">NEXT WAVE</button>
 </div>
 
 <!-- EVENT BRIEFING MODAL -->
@@ -990,6 +1070,58 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <div class="ov-btns">
     <button class="go" id="resume">RESUME</button>
     <button id="quit">ABORT RUN</button>
+  </div>
+</div>
+
+<!-- MAP SELECTION MODAL -->
+<div class="ov" id="map-modal">
+  <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <h2 style="color:#ffd36b;margin:0">DEPLOYMENT SECTORS</h2>
+      <button class="modal-x" onclick="closeMapModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      <canvas id="map-modal-preview" width="600" height="240" style="width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0c0f0a"></canvas>
+      <div id="map-modal-info" style="background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <b id="map-modal-name" style="font-size:13.5px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
+          <span id="map-modal-threat" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
+        </div>
+        <div id="map-modal-desc" style="font-size:10.5px;opacity:.85;color:#d5d0c2;line-height:1.3"></div>
+        <div id="map-modal-stats" style="display:flex;flex-wrap:wrap;gap:10px;font-size:9.5px"></div>
+        <div id="map-modal-enemies" style="display:flex;gap:6px;align-items:center;padding-top:4px;border-top:1px solid rgba(255,255,255,.06)"></div>
+      </div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
+      <div id="maps"></div>
+      <button class="go" onclick="closeMapModal()" style="min-height:40px">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- MISSIONS & REWARDS MODAL -->
+<div class="ov" id="missions-modal">
+  <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <h2 style="color:#ffd36b;margin:0">MISSIONS &amp; REWARDS</h2>
+      <button class="modal-x" onclick="closeMissionsModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      <div class="rewards-box" id="lobby-panel" style="max-height:none;margin:0">
+        <div class="rtabs">
+          <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
+          <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
+          <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
+          <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
+        </div>
+        <div class="rviews" style="min-height:240px">
+          <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
+          <div id="rview-l" class="rview"><div id="login-track"></div></div>
+          <div id="rview-c" class="rview"><div id="rank-list"></div></div>
+          <div id="rview-s" class="rview"><div id="ach-list"></div></div>
+        </div>
+      </div>
+      <button class="go" onclick="closeMissionsModal()" style="min-height:40px">CLOSE</button>
+    </div>
   </div>
 </div>
 
@@ -1362,29 +1494,38 @@ function burst(x, y, c, n, sz, spd, fr) {
 /* === DATA: WEAPONS, CLASSES, SKILLS, RELICS, PERKS, SKINS & EVENTS === */
 
 const WEAP = [
-  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON' },
-  { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON' },
-  { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON' },
-  { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE' },
-  { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC' },
-  { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON' },
-  { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE' },
-  { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC' },
-  { n: 'Plasma', d: 34, r: 0.14, sp: 0.025, p: 1, c: 2500, pr: 2, kb: 0.85, mag: 20, rl: 1.5, tier: 'LEGENDARY' },
-  { n: 'Rocket', d: 175, r: 0.95, sp: 0.01, p: 1, c: 3000, ex: 115, kb: 2.5, mag: 4, rl: 2.0, tier: 'LEGENDARY' },
-  { n: 'Flamer', d: 8.5, r: 0.065, sp: 0.22, p: 2, c: 1800, rg: 0.24, flm: 1, kb: 0.12, mag: 50, rl: 1.7, tier: 'EPIC' },
-  { n: 'Tesla', d: 62, r: 0.30, sp: 0, p: 1, c: 3500, pr: 3, cl: 3, kb: 0.75, mag: 15, rl: 1.6, tier: 'LEGENDARY' },
-  { n: 'GL-40', d: 135, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC' },
-  { n: 'Cryo Blaster', d: 24, r: 0.13, sp: 0.025, p: 1, c: 3400, fz: 1, kb: 0.7, mag: 24, rl: 1.4, tier: 'LEGENDARY' },
-  { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY' },
-  { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON' },
-  { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE' },
-  { n: 'Arc Shotgun', d: 24, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
-  { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE' },
-  { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
-  { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
-  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
+  // `rng` is how far a round actually travels, in pixels: the projectile step
+  // converts it to a lifetime via the muzzle velocity, so a pistol no longer
+  // throws a slug the length of three screens while a sniper still reaches out.
+  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON', rng: 260 },
+  { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON', rng: 240 },
+  { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON', rng: 160 },
+  { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE', rng: 380 },
+  { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC', rng: 250 },
+  { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON', rng: 330 },
+  { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE', rng: 350 },
+  { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC', rng: 1150 },
+  { n: 'Plasma', d: 34, r: 0.14, sp: 0.025, p: 1, c: 2500, pr: 2, kb: 0.85, mag: 20, rl: 1.5, tier: 'LEGENDARY', rng: 430 },
+  { n: 'Rocket', d: 175, r: 0.95, sp: 0.01, p: 1, c: 3000, ex: 115, kb: 2.5, mag: 4, rl: 2.0, tier: 'LEGENDARY', rng: 820 },
+  { n: 'Flamer', d: 8.5, r: 0.065, sp: 0.22, p: 2, c: 1800, rg: 0.24, flm: 1, kb: 0.12, mag: 50, rl: 1.7, tier: 'EPIC', rng: 95 },
+  { n: 'Tesla', d: 62, r: 0.30, sp: 0, p: 1, c: 3500, pr: 3, cl: 3, kb: 0.75, mag: 15, rl: 1.6, tier: 'LEGENDARY', rng: 500 },
+  { n: 'GL-40', d: 135, r: 0.90, sp: 0.03, p: 1, c: 2800, ex: 95, kb: 1.9, mag: 6, rl: 1.8, tier: 'EPIC', rng: 620 },
+  { n: 'Cryo Blaster', d: 24, r: 0.13, sp: 0.025, p: 1, c: 3400, fz: 1, kb: 0.7, mag: 24, rl: 1.4, tier: 'LEGENDARY', rng: 310 },
+  { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY', rng: 1250 },
+  { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON', rng: 230 },
+  { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE', rng: 400 },
+  { n: 'Arc Shotgun', d: 24, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY', rng: 175 },
+  { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE', rng: 520 },
+  { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC', rng: 245 },
+  { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC', rng: 210 },
+  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC', rng: 440 }
 ];
+
+// Weapons are no longer bought: each unlocks automatically once the account
+// reaches its rank. One new gun every rank or two, so the arsenal still opens
+// up over time without a shop to visit.
+const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,1,8,19,5,10,13,18];
+
 
 const TIER_COLORS = {
   'COMMON': '#64748b',
@@ -1402,7 +1543,7 @@ const ZT = {
   spit: { hp: 40, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
   stalker: { hp: 42, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
   charger: { hp: 115, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
-  boss: { hp: 1150, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
+  boss: { hp: 3200, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
   // v2.7 support & specialist roster. Each new type owns a distinct tactical
   // job so encounters read logically instead of "more of the same walker".
   crawler: { hp: 20, s: 132, spd: 132, r: 9, col: '#93a24e', dm: 5, dmg: 5, cash: 12, kb: 1.3, crawl: 1 },
@@ -2136,7 +2277,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v2.7 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.8 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -2189,7 +2330,15 @@ function transactMetaCredits(cost, desc) {
 
 function sanitizeSV(s) {
   if (!s || typeof s !== 'object') return null;
-  const out = Object.assign({}, SV, s);
+  const out = Object.assign({}, SV);
+  // Copy only keys the save schema actually defines, and never through the
+  // prototype. `Object.assign({}, SV, s)` would honour a `__proto__` key from a
+  // hand-edited save and rewrite the object's prototype; it also let arbitrary
+  // junk keys ride along into storage.
+  for (const k of Object.keys(s)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    if (Object.prototype.hasOwnProperty.call(out, k)) out[k] = s[k];
+  }
   out.lvl = Math.max(1, Math.floor(Number(out.lvl) || 1));
   out.xp = Math.max(0, Math.floor(Number(out.xp) || 0));
   out.cr = Math.max(0, Math.floor(Number(out.cr) || 0));
@@ -2230,10 +2379,17 @@ function sanitizeSV(s) {
 
 function ld() {
   let parsed = null;
-  try {
-    const raw = localStorage.getItem('dzs') || localStorage.getItem('dzs_bak');
-    if (raw) parsed = sanitizeSV(JSON.parse(raw));
-  } catch (e) {}
+  // Try the primary slot, then the backup. Reading `dzs || dzs_bak` only fell
+  // back when dzs was absent; a corrupt dzs threw and the good backup was never
+  // consulted, which is exactly the case the backup exists for.
+  for (const key of ['dzs', 'dzs_bak']) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const p = sanitizeSV(JSON.parse(raw));
+      if (p) { parsed = p; break; }
+    } catch (e) {}
+  }
   if (parsed) SV = parsed;
   MUTE = SV.mute ? 1 : 0;
   if (SV.col) PC = SV.col;
@@ -2271,22 +2427,40 @@ function ld() {
 function sv() {
   try {
     SV.lvl = Math.max(1, Math.floor(Number(SV.lvl) || 1));
+    if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
     SV.xp = Math.max(0, Math.floor(Number(SV.xp) || 0));
     SV.cr = Math.max(0, Math.floor(Number(SV.cr) || 0));
     SV.sp = Math.max(0, Math.floor(Number(SV.sp) || 0));
     const str = JSON.stringify(SV);
+    // Real rolling backup: keep the previous good save as dzs_bak so a corrupt
+    // write cannot take both slots down at once. It used to write the same
+    // string to both keys, which made the "backup" useless.
+    const prev = localStorage.getItem('dzs');
+    if (prev && prev !== str) localStorage.setItem('dzs_bak', prev);
     localStorage.setItem('dzs', str);
-    localStorage.setItem('dzs_bak', str);
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
       window.Capacitor.Plugins.Preferences.set({ key: 'dzs', value: str }).catch(() => {});
     }
   } catch (e) {}
 }
 
+// Guns are unlocked by account rank rather than bought, so ownership is
+// re-derived from the rank on every load and save. Folding it into the existing
+// SV.own flags keeps every other reader of SV.own working unchanged.
+function syncWeaponUnlocks() {
+  if (typeof SV === 'undefined' || !SV || typeof WEAP === 'undefined') return;
+  if (!SV.own || !SV.own.length) SV.own = WEAP.map((_, i) => (i === 0 ? 1 : 0));
+  const rank = SV.lvl || 1;
+  for (let i = 0; i < WEAP.length; i++) {
+    if (!SV.own[i] && rank >= (WEAP_RANK[i] || 0)) SV.own[i] = 1;
+  }
+}
+
 function need(l) { return 100 + l * 50; }
 function rneed(l) { return Math.round(55 + l * 32 + Math.pow(l, 1.35) * 10); }
 
 function applySV() {
+  if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
   const cl = (typeof CL !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0] : (CL ? CL[0] : { hp: 100, dm: 1 });
   if (typeof SK !== 'undefined' && SK.dash) {
     SK.dash.max = SV.cls === 2 ? 2 : 3;
@@ -2780,7 +2954,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v2.7 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.8 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -3369,7 +3543,9 @@ function renderSkinsUI(){
       cardBorder = isEquipped ? '2px solid #8fae4a' : '1.5px solid #64748b';
     }
 
-    return `<div class="card" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${sk.col};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg}">
+    const flourish = (tier === 'EPIC' || tier === 'LEGENDARY');
+    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${sk.col};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${sk.col}66">
+      ${flourish ? '<div class="sk-pixel"></div><div class="sk-aura"></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="display:flex;align-items:center;gap:6px">
@@ -4536,7 +4712,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v2.7 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.8 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -5126,7 +5302,7 @@ function clsIcon(ci, wi = 0) {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v2.7 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.8 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -6095,7 +6271,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v2.7 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v2.8 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -6473,7 +6649,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v2.7 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v2.8 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -7025,7 +7201,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v2.7 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v2.8 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -7182,9 +7358,14 @@ function drawBulletDefault(b) {
   // computed here and then ignored, so a 1050px/s railgun slug smeared exactly
   // as far as a 240px/s flamer puff.
   const spd = Math.hypot(b.vx, b.vy) || 700;
-  const vk = Math.max(0.45, Math.min(1.9, spd / 700));
-  const base = heavy ? 0.075 : (b.isCrit ? 0.05 : 0.036);
-  const tlen = Math.min(0.13, base * (1 + tier * 0.12) * vk);
+  const vk = Math.max(0.55, Math.min(1.35, spd / 700));
+  const base = heavy ? 0.055 : (b.isCrit ? 0.042 : 0.030);
+  // Trail time, not trail pixels. The old 0.13s ceiling multiplied by a 1.9
+  // velocity factor smeared a 1050px/s slug across ~260px - longer than most
+  // enemies are tall - which read as the bullet itself being stuck in the air.
+  // Capping the time to 55ms and the velocity factor to 1.35 keeps the longest
+  // tracer under ~80px while still scaling visibly with muzzle speed.
+  const tlen = Math.min(0.055, base * (1 + tier * 0.12) * vk);
   // Muzzle bloom: a fresh round stretches for ~45ms before it settles, which
   // reads as the round being spat out of the barrel rather than teleporting.
   const bloom = 1 + 1.15 * Math.max(0, 1 - ft / 0.045);
@@ -7217,18 +7398,37 @@ function drawBulletDefault(b) {
   X.lineTo(b.x, b.y);
   X.stroke();
 
-  // Muzzle-to-impact energy sheath for the energy archetypes.
+  // Muzzle-to-impact energy sheath for the energy archetypes. Kept shorter than
+  // the body tracer (1.15x) so the sheath reads as a glow around the round, not
+  // as a second, longer bullet.
   if (hot && arch !== 'rocket') {
     X.globalAlpha = 0.5;
     X.strokeStyle = arch === 'cryo' ? '#d8f6ff' : arch === 'arc' ? '#bff4ff' : '#bff4ff';
     X.lineWidth = heavy ? 2 : 1.4;
     X.beginPath();
-    X.moveTo(b.x - b.vx * tl * 1.5, b.y - b.vy * tl * 1.5);
+    X.moveTo(b.x - b.vx * tl * 1.15, b.y - b.vy * tl * 1.15);
     X.lineTo(b.x, b.y);
     X.stroke();
     X.globalAlpha = 1;
   }
   X.restore();
+
+  // Tracer detail: a couple of dim afterimages strung behind the head give a
+  // fast round a sense of direction without lengthening the hard trail. Only
+  // drawn for the hot archetypes so 100-round SMG fire stays cheap.
+  if (hot && F.length < 240) {
+    X.save();
+    X.globalCompositeOperation = 'lighter';
+    for (let k = 1; k <= 2; k++) {
+      const f = k * 0.55 + Math.sin(ft * 26 + k) * 0.12;
+      const dx = b.x - b.vx * tl * f, dy = b.y - b.vy * tl * f;
+      X.globalAlpha = 0.22 / k;
+      X.fillStyle = col;
+      X.beginPath(); X.arc(dx, dy, Math.max(1.1, 2.4 - k * 0.5), 0, 6.28); X.fill();
+    }
+    X.globalAlpha = 1;
+    X.restore();
+  }
 
   // Per-archetype head silhouette: a slug, a shard, a needle, a rocket or a
   // pulsing orb, instead of one white dot for all 22 guns.
@@ -8221,7 +8421,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v2.7 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v2.8 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -8607,7 +8807,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v2.7 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.8 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -8616,6 +8816,11 @@ let POIS = [], DUST = [], O = [], G = [], HZ = [];
 let ACID_PUDDLES = [], AOE_DEBRIS = [], SUMQ = [];
 let CX = 0, CY = 0, last = 0;
 let S = null;
+// Between-wave beat. The old flow stopped the run on a blocking shop screen,
+// which could sit on top of the perk draft; now the wave-clear is a short
+// non-interactive pause and the perk draft is the only thing that can take the
+// screen. WAVE_CLEAR_T counts down in loop() because run is 0 meanwhile.
+let WAVE_CLEAR_T = 0, pendingNextWave = 0;
 
 const K = {};
 const M = { x: 0, y: 0, down: 0, moved: 0 };
@@ -8887,6 +9092,9 @@ function init() {
 }
 
 function startWave() {
+  pendingNextWave = 0;
+  WAVE_CLEAR_T = 0;
+  run = 1;
   S.wave++;
   S.bn = 2;
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
@@ -8921,6 +9129,72 @@ function startWave() {
   if (S.wave === 1 || (S.wave % 3 === 0 && S.wave % 5 !== 0)) {
     if (CH.length < 3) spawnChest(1);
   }
+}
+
+// Enemies used to walk straight through the player and park on the sprite: the
+// swarm converged to a single point, the muzzle ended up inside a body and
+// point-blank shots had nothing in front of them to hit. Push every enemy back
+// out of the player's body each frame instead. The melee reach is zRadius + 18,
+// comfortably clear of this standoff, so they still connect.
+function separateFromPlayer(z, r) {
+  if (!P) return;
+  const pr = 13;
+  let dx = z.x - P.x, dy = z.y - P.y;
+  let d2 = dx * dx + dy * dy;
+  const min = r + pr;
+  if (d2 >= min * min) return;
+  let d = Math.sqrt(d2);
+  if (d < 0.001) { dx = 1; dy = 0; d = 1; }   // exactly stacked: deterministic axis
+  const out = (min - d) / d;
+  z.x += dx * out;
+  z.y += dy * out;
+}
+
+// Phase break: the boss stops taking damage for a beat, announces itself and
+// speeds up. Two gates stop a burst build deleting the fight in one clip.
+function bossPhaseBreak(z, n) {
+  const bv = z.bv || 0;
+  const bCol = bv === 0 ? '255,80,20' : bv === 1 ? '180,90,255' : bv === 2 ? '90,240,60' : '0,229,255';
+  RG.push({ x: z.x, y: z.y, r: 9, l: 0.6, v: 520, c: bCol });
+  RG.push({ x: z.x, y: z.y, r: 5, l: 0.9, v: 360, c: '255,255,255' });
+  burst(z.x, z.y, (ZT[z.t] || ZT.boss).col, 22, 4, 150, 1);
+  if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 78, d: ((ZT[z.t] || ZT.boss).dm || 32) * 0.9 });
+  if (typeof announce === 'function') announce('PHASE ' + n + ' BROKEN', '#ff5a3a', 'the husk is venting');
+  if (typeof snd === 'function') snd(130, 0.5, 'sawtooth', 0.1, 0.6);
+  SH = Math.max(SH, 14);
+  if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, 0.07);
+}
+
+// The between-wave shop used to be the run's power curve: you spent cash on
+// heal, stims and perks. With the shop gone the same upgrades arrive as a free
+// supply drop on every wave clear, so a run still escalates - it just does not
+// stop to ask you to shop. Weighted toward healing when you are hurt.
+function grantSupplyDrop() {
+  if (!S || !P || P.hp <= 0) return null;
+  const hurt = 1 - Math.min(1, P.hp / P.mx);
+  const pool = [
+    { w: 14 + hurt * 46, label: 'Field repair', col: '#4ade80', fn: () => { P.hp = P.mx; } },
+    { w: 10, label: 'Grenades +5', col: '#ffd36b', fn: () => { S.gr = (S.gr || 0) + 5; } },
+    { w: 7, label: 'Deploy turret', col: '#ffd36b', fn: () => { TR.push({ x: P.x, y: P.y, l: 35, cd: 0 }); } },
+    { w: 10, label: '+25 max health', col: '#ff5a8a', fn: () => { P.mx += 25; P.hp += 25; } },
+    { w: 10, label: 'Speed stim +20%', col: '#5ac8e8', fn: () => { S.ms = (S.ms || 1) * 1.2; } },
+    { w: 10, label: '+15% damage', col: '#ff5a3a', fn: () => { S.dm = (S.dm || 1) * 1.15; } },
+    { w: 12, label: 'Random power', col: '#c084fc', fn: () => { S.pend++; } },
+    { w: 8, label: 'Shield battery', col: '#be8cff', fn: () => { S.bl = (S.bl || 0) + 1; S.bc = (S.bc || 0) + 1; } },
+    { w: 6, label: 'Fast reload stim', col: '#38bdf8', fn: () => { S.fastReload = 1; } }
+  ];
+  let tot = 0; for (const d of pool) tot += d.w;
+  let r = Math.random() * tot;
+  for (const d of pool) {
+    r -= d.w;
+    if (r <= 0) {
+      d.fn();
+      burst(P.x, P.y, d.col, 16, 3, 120);
+      if (typeof announce === 'function') announce('SUPPLY DROP', d.col, d.label);
+      return d;
+    }
+  }
+  return null;
 }
 
 function spawn(t) {
@@ -9048,7 +9322,15 @@ function fire() {
     const finalDmg = w.d * effDm * mastMult * (S.dd > 0 ? 2 : 1) * (1 + (S.bk || 0) * 0.35 * (1 - P.hp / P.mx)) * (S.oc && S.shots % Math.max(4, 12 - S.oc * 3) === 0 ? 3 : 1) * (S.fo && S.stl > 1 ? 1 + 0.4 * S.fo : 1) * critMult;
 
     const bSpeed = w.flm ? (360 + Math.random() * 70) : (w.rg > 1.2 ? 1050 : (w.sp === 0 ? 920 : 700));
-    const bLife = w.flm ? 0.24 : (w.rg || 0.7);
+    // Lifetime comes from a travel distance rather than a flat 0.7s. That flat
+    // value meant a pistol round carried 490px - the whole view - and shotgun
+    // pellets reached as far as rifle rounds, so a short-range gun could snipe
+    // across the sector and every tracer outlived the shot that fired it.
+    // Hard ceiling on flight time: a 1150px sniper shot at 920px/s works out to
+    // 1.25s of travel, which is long enough that the tracer looks parked in the
+    // air next to the next shot. 0.95s still carries ~875px, comfortably past
+    // every screen edge, without the "bullet stuck mid-flight" read.
+    const bLife = w.flm ? 0.24 : Math.min(0.95, Math.max(0.08, (w.rng || 320) / bSpeed));
 
     B.push({
       x: sx, y: sy,
@@ -9088,6 +9370,14 @@ function damageZ(z, rawDmg, src, isCrit, hitAngle, wi) {
   }
   const dmg = Number(rawDmg);
   if (!isFinite(dmg) || dmg <= 0) return false;
+
+  // Phase-break immunity. Damage is refused but the impact still reads, so the
+  // player can tell they are early rather than missing.
+  if (z.iv > 0) {
+    if (typeof txt === 'function') txt(z.x + (Math.random() - 0.5) * 14, z.y - 30, 'IMMUNE', '#38bdf8', true);
+    if (typeof combatImpactFX === 'function') combatImpactFX(z.x, z.y, (typeof hitAngle === 'number' && isFinite(hitAngle)) ? hitAngle : 0, 1, false, wi);
+    return false;
+  }
 
   let arm = (z.t === 'tank' ? 0.85 : (z.t === 'charger' ? 0.90 : 1)) * (z.el ? 0.88 : 1);
   // Armoured units angle the plate they are facing into incoming fire: a shot
@@ -9383,19 +9673,33 @@ function push(z, r) {
   }
 }
 
+// Equipping is no longer something you do between waves: every owned gun is one
+// tap (or one Q) away, and the choice is remembered as the lobby default.
+function selectWeapon(i) {
+  if (!P || P.reloading) return false;
+  if (!(P.w && P.w[i])) {
+    if (typeof announce === 'function') announce('LOCKED', '#8892a0', 'Reach account rank ' + (WEAP_RANK[i] || 0));
+    return false;
+  }
+  if (P.cur === i) return false;
+  if (P.weapAmmo) P.weapAmmo[P.cur] = P.ammo;
+  P.cur = i;
+  P.maxAmmo = WEAP[i].mag || 12;
+  P.ammo = (P.weapAmmo && P.weapAmmo[i] != null) ? P.weapAmmo[i] : P.maxAmmo;
+  P.recoil = 0;
+  if (typeof SV !== 'undefined' && SV) { SV.start = i; if (typeof sv === 'function') sv(); }
+  if (typeof snd === 'function') snd(400, 0.1, 'square', 0.04, 1.2);
+  return true;
+}
+
 function swap(dir = 1) {
   if (!P || P.reloading) return;
   const unlocked = [];
   WEAP.forEach((_, i) => { if (P.w[i]) unlocked.push(i); });
   if (unlocked.length <= 1) return;
-
   let idx = unlocked.indexOf(P.cur);
   idx = (idx + dir + unlocked.length) % unlocked.length;
-  P.cur = unlocked[idx];
-  P.maxAmmo = WEAP[P.cur].mag || 12;
-  P.ammo = (P.weapAmmo && P.weapAmmo[P.cur] != null) ? P.weapAmmo[P.cur] : P.maxAmmo;
-  P.recoil = 0;
-  if (typeof snd === 'function') snd(400, 0.1, 'square', 0.04, 1.2);
+  selectWeapon(unlocked[idx]);
 }
 
 function skill(k) {
@@ -9614,7 +9918,8 @@ function openPerk() {
       S.pend--;
       S.po = 0;
       modal.classList.remove('on');
-      if (S.pend > 0) openPerk(); else run = 1;
+      if (S.pend > 0) openPerk();
+      else run = pendingNextWave ? 0 : 1;
     };
     cards.appendChild(card);
   });
@@ -9627,7 +9932,8 @@ function openPerk() {
         S.pend--;
         S.po = 0;
         modal.classList.remove('on');
-        if (S.pend > 0) openPerk(); else run = 1;
+        if (S.pend > 0) openPerk();
+        else run = pendingNextWave ? 0 : 1;
       }
     };
   }
@@ -9940,6 +10246,7 @@ function update(dt) {
       });
     }
     push(z, zRadius);
+    separateFromPlayer(z, zRadius);
 
     // Boundary constraints
     z.x = Math.max(zRadius + 8, Math.min(WS - zRadius - 8, z.x));
@@ -9987,8 +10294,20 @@ function update(dt) {
     if (z.t === 'boss') {
       const bv = z.bv || 0;
       if (z.ch > 0) z.ch = Math.max(0, z.ch - dt);       // charge timer decays here
+      if (z.iv > 0) z.iv = Math.max(0, z.iv - dt);        // phase-break immunity window
       z.bw = (z.bw != null ? z.bw : 3) - dt;
       const los = hasLOS(z.x, z.y, P.x, P.y);
+
+      // Phase gates. Each one buys 1.1s of immunity, so a boss cannot be deleted
+      // inside a single magazine no matter how the build scales.
+      const bFrac = (z.mh > 0) ? (z.hp / z.mh) : 1;
+      if (bFrac <= 0.34 && (z.pb || 0) < 2) {
+        z.pb = 2; z.iv = 1.1; z.buffT = Math.max(z.buffT || 0, 8); z.bw = Math.min(z.bw, 0.9);
+        bossPhaseBreak(z, 2);
+      } else if (bFrac <= 0.68 && (z.pb || 0) < 1) {
+        z.pb = 1; z.iv = 1.0; z.buffT = Math.max(z.buffT || 0, 8); z.bw = Math.min(z.bw, 1.1);
+        bossPhaseBreak(z, 1);
+      }
 
       if (bv === 0) {
         // BRUTE - telegraphed charge, then a ground-slam shockwave on arrival.
@@ -10223,8 +10542,62 @@ function update(dt) {
     S.clearedWave = S.wave;
     run = 0;
     if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
-    openShop();
+    endWave();
   }
+}
+
+// Weapon strip. Shared by the HUD renderer and the touch handler so a tap
+// always lands on the chip it looks like it should. Owned guns plus the single
+// next unlock, so the strip stays short early and grows with the account.
+function weaponBarLayout() {
+  const chips = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) chips.push({ i, on: true });
+  let nextLocked = -1, bestR = Infinity;
+  for (let i = 0; i < WEAP.length; i++) {
+    if (P.w && P.w[i]) continue;
+    const r = WEAP_RANK[i] || 0;
+    if (r < bestR) { bestR = r; nextLocked = i; }
+  }
+  if (nextLocked >= 0) chips.push({ i: nextLocked, on: false });
+  if (!chips.length) return chips;
+
+  const n = chips.length, gap = 4;
+  const maxW = Math.min(W - 28, 560);
+  const cw = Math.max(26, Math.min(72, Math.floor((maxW - gap * (n - 1)) / n)));
+  const totalW = cw * n + gap * (n - 1);
+  const x0 = Math.round((W - totalW) / 2), y = H - 76;
+  for (let k = 0; k < n; k++) {
+    chips[k].x = x0 + k * (cw + gap);
+    chips[k].y = y; chips[k].w = cw; chips[k].h = 16;
+  }
+  return chips;
+}
+
+function drawWeaponBar() {
+  if (!P || !P.w) return;
+  const chips = weaponBarLayout();
+  if (!chips.length) return;
+  X.textAlign = 'center'; X.textBaseline = 'middle';
+  for (const c of chips) {
+    const w = WEAP[c.i] || WEAP[0];
+    const cur = P.cur === c.i;
+    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
+    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 3);
+    if (c.on) {
+      X.fillStyle = cur ? tcol : 'rgba(18,24,16,0.85)';
+      X.fill();
+      X.strokeStyle = cur ? '#ffffff' : tcol + '99';
+      X.lineWidth = cur ? 1.6 : 1;
+      X.stroke();
+    } else {
+      X.fillStyle = 'rgba(12,14,10,0.55)'; X.fill();
+      X.strokeStyle = 'rgba(120,130,110,0.3)'; X.lineWidth = 1; X.stroke();
+    }
+    X.fillStyle = c.on ? (cur ? '#0b0f08' : '#e8e4cf') : 'rgba(200,205,190,0.5)';
+    X.font = '900 ' + (c.w >= 34 ? 9.5 : 8) + 'px Arial';
+    X.fillText(c.on ? (c.w >= 34 ? w.n.slice(0, 3).toUpperCase() : String(c.i + 1)) : 'R' + (WEAP_RANK[c.i] || 0), c.x + c.w / 2, c.y + c.h / 2 + 0.5);
+  }
+  X.textBaseline = 'alphabetic';
 }
 
 // MAIN 2D RENDERING PIPELINE
@@ -11018,6 +11391,7 @@ function renderHUD() {
   X.fillStyle = P.reloading ? '#ffd36b' : (P.ammo <= 3 ? '#ff5a3a' : '#d5d0c2');
   X.font = 'bold 10px Arial';
   X.fillText(ammoStr, W / 2, H - 9);
+  drawWeaponBar();
 
   // Screen-edge damage vignette
   if (HURT_VIGNETTE_TIMER > 0) {
@@ -11208,6 +11582,13 @@ function loop(t) {
     }
   }
 
+  // Between-wave beat. update() does not run while run is 0, so the countdown
+  // has to live here; the perk draft holds it off until the player has chosen.
+  if (!run && pendingNextWave && S && !S.po && P && P.hp > 0) {
+    WAVE_CLEAR_T -= dt;
+    if (WAVE_CLEAR_T <= 0) startWave();
+  }
+
   if (S) {
     try {
       draw();
@@ -11217,7 +11598,7 @@ function loop(t) {
   }
 }
 
-function openShop() {
+function endWave() {
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
   // NOTE: credits are settled once at run end (death/quit) so unspent cash banks 1:1.
   // Banking here would settle only the wave-1 balance and lose later earnings.
@@ -11229,8 +11610,6 @@ function openShop() {
     return;
   }
 
-  const st = document.getElementById('st');
-  if (st) st.textContent = 'Wave ' + S.wave + ' cleared';
   const healAmt = (S && S.isEvent && S.evDef && S.evDef.id === 'last_stand') ? 6 : 20;
   P.hp = Math.min(P.mx, P.hp + healAmt);
 
@@ -11243,88 +11622,40 @@ function openShop() {
       (gd < 0 ? '-' : '+') + Math.abs(gd) + 's vs your best run');
   }
   rebuild();
-  const shopov = document.getElementById('shopov');
-  if (shopov) shopov.classList.add('on');
+
+  // Non-blocking wave-clear beat. This used to raise the between-wave shop
+  // overlay; that screen collided with the perk draft and could sit on top of
+  // it. The run now breathes for two seconds and rolls into the next wave.
+  // Hold the next wave for a beat so the clear reads, but never block the run.
+  pendingNextWave = 1;
+  WAVE_CLEAR_T = 2.0;
+  run = 0;
+  if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
+  if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound');
+  // The perk draft is the ONLY screen that can take over here now. The old shop
+  // overlay sat on top of this same draft, which is what produced the double
+  // popup at wave end.
+  if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
 }
 
 function rebuild() {
   const cashEl = document.getElementById('cash');
   if (cashEl) {
     let line = 'Cash: $' + S.cash;
-    if (S.wm) line += '   •   ' + S.wm.name;
-    if (S.flawless > 1) line += '   •   FLAWLESS x' + S.flawless;
-    if (S.cmbMax >= 10) line += '   •   BEST COMBO x' + S.cmbMax;
-    if (S.ascMul && S.ascMul > 1) line += '   •   BOUNTY x' + S.ascMul.toFixed(2);
+    if (S.wm) line += '   -   ' + S.wm.name;
+    if (S.flawless > 1) line += '   -   FLAWLESS x' + S.flawless;
+    if (S.cmbMax >= 10) line += '   -   BEST COMBO x' + S.cmbMax;
+    if (S.ascMul && S.ascMul > 1) line += '   -   BOUNTY x' + S.ascMul.toFixed(2);
     const st = (typeof SV !== 'undefined' && SV && SV.runStreak) || 0;
-    if (st > 1) line += '   •   STREAK x' + st;
+    if (st > 1) line += '   -   STREAK x' + st;
     cashEl.textContent = line;
   }
-
   if (typeof renderBoonBar === 'function') renderBoonBar();
-
-  const s = document.getElementById('shop');
-  if (!s) return;
-  s.innerHTML = '';
-
-  const isLS = (S && S.isEvent && S.evDef && S.evDef.id === 'last_stand');
-  const entries = [];
-
-  WEAP.forEach((w, i) => {
-    if (S && S.isEvent && S.evDef && S.evDef.heavyOnly && ![4, 9, 12, 14, 17].includes(i)) return;
-    if (P.w[i]) {
-      entries.push({
-        id: 'eq' + i, cost: 0, eq: P.cur === i,
-        label: P.cur === i ? w.n + ' (equipped)' : 'Equip ' + w.n,
-        fn: () => {
-          if (P.cur !== i) {
-            if (P.weapAmmo) P.weapAmmo[P.cur] = P.ammo;
-            P.cur = i;
-            P.reloading = false;
-            P.maxAmmo = w.mag || 12;
-            P.ammo = (P.weapAmmo && P.weapAmmo[i] != null) ? P.weapAmmo[i] : P.maxAmmo;
-          }
-        }
-      });
-    }
-  });
-
-  entries.push({ id: 'heal', cost: 100, label: isLS ? 'Field Repair (30%)' : 'Heal full',
-    fn: () => { P.hp = isLS ? Math.min(P.mx, P.hp + Math.round(P.mx * 0.3)) : P.mx; } });
-  entries.push({ id: 'gren', cost: 150, label: 'Grenades +5', fn: () => S.gr += 5 });
-  entries.push({ id: 'turret', cost: 250, label: 'Deploy Turret', fn: () => { TR.push({ x: P.x, y: P.y, l: 35, cd: 0 }); burst(P.x, P.y, '#ffd36b', 10); } });
-  entries.push({ id: 'reload', cost: 280, label: 'Fast Reload Stim (-25% RL)', fn: () => { S.fastReload = 1; burst(P.x, P.y, '#ffd36b', 12); } });
-  entries.push({ id: 'shield', cost: 220, label: 'Shield Battery', fn: () => { S.bl = (S.bl || 0) + 1; S.bc = (S.bc || 0) + 1; burst(P.x, P.y, '#be8cff', 12); } });
-  entries.push({ id: 'hp', cost: 200, label: '+25 max health', fn: () => { P.mx += 25; P.hp += 25; } });
-  entries.push({ id: 'speed', cost: 300, label: 'Speed Stim (+20%)', fn: () => { S.ms = (S.ms || 1) * 1.2; burst(P.x, P.y, '#5ac8e8', 12); } });
-  entries.push({ id: 'damage', cost: 400, label: '+15% damage', fn: () => S.dm = (S.dm || 1) * 1.15 });
-  entries.push({ id: 'power', cost: 350, label: 'Random power', fn: () => S.pend++ });
-
-  // Rotating supply deal: one randomly discounted purchase per wave.
-  const buyable = entries.filter(e => e.cost > 0);
-  if (!S.deal || S.deal.wave !== S.wave) {
-    const pick = buyable[Math.floor(Math.random() * buyable.length)];
-    S.deal = pick ? { wave: S.wave, id: pick.id, mult: 0.6 } : null;
-  }
-
-  for (const e of entries) {
-    const deal = (S.deal && S.deal.id === e.id) ? S.deal : null;
-    const cost = deal ? Math.round(e.cost * deal.mult) : e.cost;
-    const b = document.createElement('button');
-    b.textContent = e.cost > 0 ? (e.label + ' $' + cost) : e.label;
-    if (e.eq) b.className = 'eq';
-    if (deal) {
-      b.style.borderColor = '#e0b83a';
-      b.style.background = 'rgba(224,184,58,.14)';
-      b.textContent = '★ ' + e.label + ' $' + cost + ' (was $' + e.cost + ')';
-    }
-    b.disabled = cost > S.cash;
-    b.onclick = () => { S.cash -= cost; e.fn(); if (S.deal && S.deal.id === e.id) S.deal = null; rebuild(); };
-    s.appendChild(b);
-  }
 }
 
+
 function begin() {
-  ['start', 'over', 'shopov', 'pause', 'perk'].forEach(i => {
+  ['start', 'over', 'pause', 'perk'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
@@ -11344,6 +11675,14 @@ function tch(e) {
         return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38);
       });
       if (bi >= 0) { if (run) BT[bi].f(); continue; }
+      // Weapon strip chips first: they sit just above the reload/swap zones.
+      if (run && P && P.w) {
+        let hit = null;
+        for (const c of weaponBarLayout()) {
+          if (t.clientX >= c.x - 2 && t.clientX <= c.x + c.w + 2 && t.clientY >= c.y - 5 && t.clientY <= c.y + c.h + 5) { hit = c; break; }
+        }
+        if (hit) { selectWeapon(hit.i); continue; }
+      }
       if (run && t.clientY > H - 65 && t.clientY < H - 5) {
         if (Math.abs(t.clientX - W / 2) < 40) { startReload(); continue; }
         if (Math.abs(t.clientX - W / 2) < 75) { swap(t.clientX > W / 2 ? 1 : -1); continue; }
@@ -11502,7 +11841,7 @@ function drawPlayerEntity() {
 }
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v2.7 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.8 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -11895,11 +12234,14 @@ function nextGoal() {
     }
   }
   let bestW = null;
+  // Weapons are unlocked by account rank, not bought, so the goal is the next
+  // rank-gated gun rather than a credit price.
   WEAP.forEach((w, i) => {
     if (SV.own && SV.own[i]) return;
-    if (!bestW || w.c < bestW.c) bestW = { i, c: w.c, n: w.n };
+    const r = (typeof WEAP_RANK !== 'undefined' ? WEAP_RANK[i] : 0) || 0;
+    if (!bestW || r < bestW.r) bestW = { i, r, n: w.n };
   });
-  if (bestW) goals.push({ label: 'BUY ' + bestW.n.toUpperCase(), cur: Math.min(SV.cr || 0, bestW.c), max: bestW.c, unit: 'CR', col: '#ffd36b' });
+  if (bestW) goals.push({ label: 'UNLOCK ' + bestW.n.toUpperCase(), cur: Math.min(lvl, Math.max(1, bestW.r)), max: Math.max(1, bestW.r), unit: 'RANK', col: '#c9e08a' });
   if (!goals.length) return null;
   goals.sort((a, b) => (b.cur / b.max) - (a.cur / a.max));
   return goals[0];
@@ -11928,7 +12270,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v2.7 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.8 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -12302,7 +12644,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v2.7 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v2.8 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 let ANN = [];          // announcer queue (screen-space banners)
 let FX_STEP_T = 0;
@@ -12651,13 +12993,13 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v2.7 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.8 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
 
-function drawZonePreview(mIndex) {
-  const cv = document.getElementById('zone-preview');
+function drawZonePreview(mIndex, canvasId) {
+  const cv = document.getElementById(canvasId || 'zone-preview');
   if (!cv) return;
   const ctx = cv.getContext('2d');
   
@@ -12672,13 +13014,15 @@ function drawZonePreview(mIndex) {
   }
   const w = cv.width, h = cv.height;
 
-  // Crossfade transition animation
-  if (curPreviewZone !== mIndex) {
+  // Crossfade transition animation (tracked per canvas so the hub preview and
+  // the map window can show different sectors at the same time).
+  const prevKey = '__dzPreviewZone';
+  if (cv[prevKey] !== mIndex) {
     cv.style.transition = 'opacity 0.18s ease-out';
     cv.style.opacity = '0.4';
     setTimeout(() => { if (cv) cv.style.opacity = '1'; }, 40);
   }
-  curPreviewZone = mIndex;
+  cv[prevKey] = mIndex;
 
   const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[mIndex]) ? MAP_DATA[mIndex] : (MP[mIndex] || MP[0]);
   const worldSize = (typeof WS !== 'undefined') ? WS : 2400;
@@ -12820,7 +13164,7 @@ function drawZonePreview(mIndex) {
 
 function updateZoneMeta(mIndex) {
   const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[mIndex]) ? MAP_DATA[mIndex] : (MP[mIndex] || MP[0]);
-  const reqLvl = (typeof MREQ !== 'undefined' && MREQ[mIndex] != null) ? MREQ[mIndex] : (mIndex * 3);
+  const reqLvl = Math.max(1, (typeof MREQ !== 'undefined' && MREQ[mIndex] != null) ? MREQ[mIndex] : (mIndex * 3));
   const curLvl = (typeof SV !== 'undefined' && SV && SV.lvl) ? SV.lvl : 1;
   const isLocked = curLvl < reqLvl;
 
@@ -12875,6 +13219,25 @@ function updateZoneMeta(mIndex) {
     const tier = (typeof ascTier === 'function') ? ascTier(mIndex) : 0;
     ascEl.textContent = tier > 0 ? `ASCENSION ${tier}` : '';
   }
+
+  // Mirror the same readout into the MAP SELECTION window.
+  const mn = document.getElementById('map-modal-name');
+  if (mn) mn.textContent = `ZONE: ${(mapDef.name || mapDef.n || 'DOWNTOWN').toUpperCase()}`;
+  const mt = document.getElementById('map-modal-threat');
+  if (mt) mt.textContent = `THREAT ${['I','II','III','IV','V','VI','VII'][mIndex] || 'I'}`;
+  const md = document.getElementById('map-modal-desc');
+  if (md) md.textContent = mapDef.desc || mapDef.d || '';
+  const ms = document.getElementById('map-modal-stats');
+  if (ms) {
+    const base = mapDef.bountyMult || (MP[mIndex] && MP[mIndex].cm ? MP[mIndex].cm : 1.0);
+    const asc = (typeof ascRewardMult === 'function') ? ascRewardMult(mIndex) : 1;
+    const tier = (typeof ascTier === 'function') ? ascTier(mIndex) : 0;
+    ms.innerHTML = `<span style="font-weight:800;color:${isLocked ? '#ff5a3a' : '#e0b83a'}">${isLocked ? 'LOCKED' : 'REC. LEVEL'} ${reqLvl}</span>`
+      + `<span style="font-weight:700;color:#d5d0c2">BOUNTY <b style="color:#ffd36b">${(base * asc).toFixed(2)}x</b></span>`
+      + (tier > 0 ? `<span style="font-weight:800;color:#c084fc">ASCENSION ${tier}</span>` : '');
+  }
+  const me = document.getElementById('map-modal-enemies');
+  if (me && enemyCont) me.innerHTML = enemyCont.innerHTML;
 }
 
 function mapsUI() {
@@ -12908,8 +13271,47 @@ function mapsUI() {
     curPreviewZone = i;
     mapsUI();
     drawZonePreview(i);
+    drawZonePreview(i, 'map-modal-preview');
+    updateZoneMeta(i);
     b.scrollIntoView && b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   };
+}
+
+// ---- Window controls for the hub: each window is its own overlay ----
+function openMapModal() {
+  const m = document.getElementById('map-modal');
+  if (!m) return;
+  const cur = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  curPreviewZone = cur;
+  mapsUI();
+  updateZoneMeta(cur);
+  drawZonePreview(cur, 'map-modal-preview');
+  m.classList.add('on');
+}
+
+function closeMapModal() {
+  const m = document.getElementById('map-modal');
+  if (m) m.classList.remove('on');
+  const cur = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  mapsUI();
+  updateZoneMeta(cur);
+  drawZonePreview(cur);
+}
+
+function openMissionsModal() {
+  const m = document.getElementById('missions-modal');
+  if (!m) return;
+  if (typeof initDailyMissions === 'function') initDailyMissions();
+  if (typeof renderMissionsUI === 'function') renderMissionsUI();
+  if (typeof renderLoginTrackUI === 'function') renderLoginTrackUI();
+  if (typeof renderRankRewards === 'function') renderRankRewards();
+  if (typeof renderAchievements === 'function') renderAchievements();
+  m.classList.add('on');
+}
+
+function closeMissionsModal() {
+  const m = document.getElementById('missions-modal');
+  if (m) m.classList.remove('on');
 }
 
 function tab(i) {
@@ -12918,7 +13320,8 @@ function tab(i) {
   });
   document.querySelectorAll('.pp').forEach(p => p.classList.remove('on'));
 
-  const pids = ['p0', 'pe', 'p1', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
+  // GUNS/armory was retired; panels shift up by one after EVENTS.
+  const pids = ['p0', 'pe', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
   const target = document.getElementById(pids[i] || 'p0');
   if (target) {
     target.classList.add('on');
@@ -12926,20 +13329,19 @@ function tab(i) {
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
 
-  if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
+  if (i !== 2 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
     cancelAnimationFrame(TURNTABLE_RAF);
     TURNTABLE_RAF = null;
   }
 
-  if (i === 0) { mapsUI(); drawZonePreview(getCurMap()); }
+  if (i === 0) { mapsUI(); updateZoneMeta(getCurMap()); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
-  else if (i === 2) renderGunsUI();
-  else if (i === 3) renderSkinsUI();
+  else if (i === 2) renderSkinsUI();
+  else if (i === 3) lobby2();
   else if (i === 4) lobby2();
   else if (i === 5) lobby2();
-  else if (i === 6) lobby2();
-  else if (i === 7) relics();
-  else if (i === 8) renderSettingsUI();
+  else if (i === 6) relics();
+  else if (i === 7) renderSettingsUI();
 }
 
 function renderNextGoal() {
@@ -12957,6 +13359,7 @@ function renderNextGoal() {
 
 function lobby() {
   if (typeof sanitizeSV === 'function') SV = sanitizeSV(SV);
+  if (typeof refreshDailyBtn === 'function') refreshDailyBtn();
 
   const rankEl = document.getElementById('lvn') || document.getElementById('rnk');
   if (rankEl) rankEl.textContent = SV.lvl || 1;
@@ -12983,6 +13386,7 @@ function lobby() {
 
   drawZonePreview(getCurMap());
   mapsUI();
+  updateZoneMeta(getCurMap());
 
   initDailyMissions();
   renderMissionsUI();
@@ -12990,8 +13394,6 @@ function lobby() {
   if (typeof renderRankRewards === 'function') renderRankRewards();
   if (typeof renderAchievements === 'function') renderAchievements();
   if (typeof checkSkinUnlocks === 'function') checkSkinUnlocks();
-
-  renderGunsUI();
 }
 
 function openTacticalRecords() {
@@ -13023,90 +13425,6 @@ function openTacticalRecords() {
     `;
   }
   modal.classList.add('on');
-}
-
-function renderGunsUI() {
-  const arm = document.getElementById('arm');
-  if (!arm) return;
-
-  arm.innerHTML = WEAP.map((w, i) => {
-    const o = SV.own && SV.own[i], isCur = SV.start === i;
-    const isHeavy = [4, 9, 12, 14, 17].includes(i);
-    const tierCol = TIER_COLORS[w.tier || 1] || '#8fae4a';
-
-    // Weapon mastery: permanent per-gun XP that grants a damage tier bonus
-    const mLv = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
-    const mMax = (typeof MAST_MAX !== 'undefined') ? MAST_MAX : 6;
-    const mXp = (SV.mast && SV.mast[i]) || 0;
-    const mNext = (typeof MAST_XP !== 'undefined' && MAST_XP[mLv]) ? MAST_XP[mLv] : null;
-    const mPct = mNext ? Math.min(100, Math.round(100 * mXp / mNext)) : 100;
-    const mastBar = `<div style="margin-top:6px">
-        <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:.5px">
-          <span style="color:#c084fc">MASTERY LV ${mLv}${mLv >= mMax ? ' (MAX)' : ''}</span>
-          <span style="color:#a8a29e">${mNext ? mXp + ' / ' + mNext : 'COMPLETE'}${mLv > 1 ? '  +' + Math.round((mLv - 1) * 2.5) + '% DMG' : ''}</span>
-        </div>
-        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden;margin-top:2px">
-          <div style="width:${mPct}%;height:100%;background:#c084fc"></div>
-        </div>
-      </div>`;
-
-    return `<div class="card" style="display:flex;flex-direction:column;gap:8px;padding:10px;border-left:3.5px solid ${tierCol};background:rgba(20,24,18,0.95);border-radius:8px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <canvas id="gun-prev-${i}" width="140" height="48" style="width:105px;height:42px;background:rgba(0,0,0,0.35);border-radius:6px;border:1px solid rgba(255,255,255,0.08);flex-shrink:0"></canvas>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-            <b style="font-size:13px;color:#f0ece1">${w.n}</b>
-            ${isHeavy ? '<span style="font-size:8px;font-weight:800;color:#ff5a3a;background:rgba(255,90,58,0.15);padding:1px 4px;border-radius:3px">HEAVY</span>' : ''}
-          </div>
-          <div style="font-size:10px;opacity:0.85;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px">
-            <span>DMG: <b style="color:#ffd36b">${w.d}</b></span>
-            <span>ROF: <b style="color:#ffd36b">${Math.round(1 / w.r * 10) / 10}/s</b></span>
-            <span>MAG: <b style="color:#ffd36b">${w.mag || 12}</b></span>
-          </div>
-          ${o ? mastBar : ''}
-        </div>
-      </div>
-      <div style="display:flex;margin-top:auto;flex-shrink:0">
-        <button data-w="${i}" ${(!o && w.c > SV.cr) ? 'disabled' : ''} style="width:100%;min-height:30px;padding:4px 10px;font-size:11px;font-weight:700">
-          ${o ? (isCur ? 'EQUIPPED' : 'EQUIP') : `BUY $${w.c}`}
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Render high-fidelity procedural canvas preview for every gun card
-  WEAP.forEach((w, i) => {
-    const cv = document.getElementById('gun-prev-' + i);
-    if (!cv) return;
-    const cx = cv.getContext('2d');
-    const oldX = X; X = cx;
-    X.save();
-    X.translate(16, 22);
-    X.scale(1.35, 1.35);
-    try {
-      if (typeof gun === 'function') gun(i, 0);
-    } catch (e) {
-      console.warn('[DeadZone] Gun render error for index', i, e);
-    }
-    X.restore();
-    X = oldX;
-  });
-
-  arm.onclick = e => {
-    const b = e.target.closest('button');
-    if (!b || b.disabled) return;
-    const i = +b.dataset.w;
-    if (SV.own[i]) {
-      SV.start = i;
-    } else if (WEAP[i].c <= SV.cr) {
-      if (transactMetaCredits(WEAP[i].c, 'weap_' + i)) {
-        SV.own[i] = 1;
-        SV.start = i;
-      }
-    }
-    sv();
-    lobby();
-  };
 }
 
 const RI = {};
@@ -13597,22 +13915,30 @@ function initGameAssets() {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v2.7 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.8 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;
 const againBtn = document.getElementById('again');
 if (againBtn) againBtn.onclick = begin;
-const nextBtn = document.getElementById('next');
-if (nextBtn) nextBtn.onclick = () => {
-  const shopov = document.getElementById('shopov');
-  if (shopov) shopov.classList.remove('on');
-  startWave();
-};
+// The between-wave screen and its NEXT WAVE button are gone; waves roll on
+// automatically once the clear beat and any perk draft are finished. Space or
+// Enter still skips the beat if the player wants to move faster.
+addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && pendingNextWave && !S?.po) {
+    e.preventDefault();
+    startWave();
+  }
+});
 
 addEventListener('keydown', e => {
   K[e.key.toLowerCase()] = 1;
   if (e.key === 'Escape' || e.key === 'p') {
+    // Close any open hub window first so Escape always means "back one step".
+    const mm = document.getElementById('map-modal');
+    const ms = document.getElementById('missions-modal');
+    if (mm && mm.classList.contains('on')) { closeMapModal(); return; }
+    if (ms && ms.classList.contains('on')) { closeMissionsModal(); return; }
     if (run) pause();
     else {
       const p = document.getElementById('pause');
@@ -13692,16 +14018,37 @@ if (apBtn) {
   };
 }
 
+// Daily login credit. This used to write SV.day but never read it, so the
+// button could be tapped repeatedly for +200 each time. Gate on the stored date
+// and reflect the claimed state on the button itself.
+function refreshDailyBtn() {
+  const b = document.getElementById('daily');
+  if (!b || typeof SV === 'undefined' || !SV) return;
+  const claimed = SV.day === new Date().toDateString();
+  b.disabled = claimed;
+  b.textContent = claimed ? 'DAILY CLAIMED' : 'DAILY +200';
+  b.style.opacity = claimed ? '0.5' : '1';
+}
+
 const dailyBtn = document.getElementById('daily');
 if (dailyBtn) {
   dailyBtn.onclick = () => {
+    if (typeof SV === 'undefined' || !SV) return;
+    const today = new Date().toDateString();
+    if (SV.day === today) {
+      if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow');
+      return;
+    }
     SV.cr = (SV.cr || 0) + 200;
-    SV.day = new Date().toDateString();
+    SV.day = today;
     SV.rev = (SV.rev || 0) + 1;
     SV.ts = Date.now();
     sv();
+    if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits');
     lobby();
+    refreshDailyBtn();
   };
+  refreshDailyBtn();
 }
 
 addEventListener('pointerdown', () => ac());

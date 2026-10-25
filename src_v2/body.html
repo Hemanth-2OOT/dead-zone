@@ -9,6 +9,14 @@
 
 <canvas id="c"></canvas>
 
+<!-- Run HUD meta. #cash and #boonbar used to live inside the between-wave
+     shop overlay. The overlay is gone, so the boon draft now floats above the
+     play field and can be tapped at any point during the following wave. -->
+<div id="run-hud-meta" style="position:fixed;left:0;right:0;bottom:62px;z-index:60;display:flex;flex-direction:column;align-items:center;pointer-events:none">
+  <p id="cash" style="display:none"></p>
+  <div id="boonbar" style="display:none;pointer-events:auto;width:min(560px,94vw);margin:0;padding:8px 10px;background:rgba(20,24,18,.94);border:1.5px solid rgba(143,174,74,.45);border-radius:8px;text-align:left"></div>
+</div>
+
 <div class="ov on" id="start">
   <div id="top">
     <div id="lv">
@@ -25,65 +33,63 @@
   </div>
 
   <div id="pn">
-    <!-- TAB 0: LOBBY MAIN -->
+    <!-- TAB 0: PLAY HUB -->
     <div class="pp on" id="p0">
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.7.0</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.8.0</div>
         </div>
 
-        <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
+        <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0b83a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
           <span id="best">SURVIVAL RECORD: WAVE 0</span>
         </div>
 
         <div class="act-box" style="display:flex;gap:6px;align-items:center;width:100%;margin-top:2px">
-          <button class="go" id="play" style="flex:1;min-height:38px;font-size:15px;padding:6px 14px">DEPLOY</button>
-          <button id="daily" style="min-height:38px;font-size:9.5px;padding:4px 10px;font-weight:800;border-color:#e0b83a;color:#e0b83a;background:rgba(224,184,58,.12);white-space:nowrap">DAILY +200</button>
+          <button class="go" id="play" style="flex:1;min-height:40px;font-size:15px;padding:6px 14px">DEPLOY</button>
+          <button id="daily" style="min-height:40px;font-size:9.5px;padding:4px 10px;font-weight:800;border-color:#e0b83a;color:#e0b83a;background:rgba(224,184,58,.12);white-space:nowrap">DAILY +200</button>
         </div>
 
         <div id="next-goal" class="next-goal"></div>
 
-        <div class="rewards-box" id="lobby-panel">
-          <div class="rtabs">
-            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
-            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
-            <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
-            <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
+        <!-- Hub navigation. Each of these opens its own window so the hub stays
+             a hub instead of a wall of tabs and lists. -->
+        <div style="display:flex;gap:8px;width:100%;margin-top:4px">
+          <button class="hub-btn" onclick="openMapModal()" style="flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.6px;border:1.5px solid rgba(143,174,74,.55);background:rgba(143,174,74,.12);color:#c9e08a;border-radius:8px;cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z"/><path d="M9 4v16M15 6v16"/></svg>
+            MAPS
+          </button>
+          <button class="hub-btn" onclick="openMissionsModal()" style="flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.6px;border:1.5px solid rgba(224,184,58,.55);background:rgba(224,184,58,.12);color:#ffd36b;border-radius:8px;cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+            MISSIONS
+          </button>
+        </div>
+
+        <div id="hub-sector" style="width:100%;margin-top:4px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <b id="zone-name" style="font-size:13px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
+            <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
           </div>
-          <div class="rviews">
-            <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
-            <div id="rview-l" class="rview"><div id="login-track"></div></div>
-            <div id="rview-c" class="rview"><div id="rank-list"></div></div>
-            <div id="rview-s" class="rview"><div id="ach-list"></div></div>
+          <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
+            <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
+            <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
+            <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
+            <span id="zone-haz-tag" style="font-weight:800;color:#ff5a3a"></span>
+            <span id="zone-asc-tag" style="font-weight:800;color:#c084fc"></span>
           </div>
+          <div id="zone-enemy-icons" style="display:flex;gap:6px;align-items:center;padding-top:2px;border-top:1px solid rgba(255,255,255,.06)"></div>
         </div>
       </div>
 
       <div class="l-right">
-        <div class="map-box">
-          <!-- Real map preview canvas -->
+        <div class="map-box" id="hub-map">
           <canvas id="zone-preview" width="460" height="240"></canvas>
-          
-          <div id="zone-header" style="display:flex;flex-direction:column;gap:3px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 10px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <b id="zone-name" style="font-size:13.5px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
-              <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
-            </div>
-            <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:2px;font-size:9px">
-              <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
-              <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
-              <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
-              <span id="zone-haz-tag" style="font-weight:800;color:#ff5a3a"></span>
-              <span id="zone-asc-tag" style="font-weight:800;color:#c084fc"></span>
-            </div>
-            <div id="zone-enemy-icons" style="display:flex;gap:6px;align-items:center;margin-top:2px;padding-top:2px;border-top:1px solid rgba(255,255,255,.06)"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.6;text-transform:uppercase">CURRENT SECTOR</span>
+            <button onclick="openMapModal()" style="min-height:30px;font-size:9.5px;font-weight:800;padding:3px 10px;border:1px solid rgba(143,174,74,.5);background:rgba(143,174,74,.12);color:#c9e08a;border-radius:6px;cursor:pointer">CHANGE MAP</button>
           </div>
-
-          <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase;margin-top:2px">DEPLOYMENT SECTOR SELECTION</div>
-          <div id="maps"></div>
         </div>
       </div>
     </div>
@@ -105,7 +111,6 @@
     </div>
 
     <!-- TAB 2: GUNS ARMORY -->
-    <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
 
     <!-- TAB 3: SKINS HUB -->
     <div class="pp" id="psk">
@@ -171,23 +176,13 @@
   <nav id="nav">
     <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 9h10l2 2h7v3h-3l-1 2h-3v-2H10l-2 5H5l2-5H2V9z"/></svg>GUNS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
+        <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
   </nav>
-</div>
-
-<!-- IN-GAME SHOP OVERLAY -->
-<div class="ov" id="shopov">
-  <h2 id="st">WAVE CLEARED</h2>
-  <p id="cash" style="font-size:14px;color:#ffd36b;font-weight:800;margin-bottom:4px"></p>
-  <div id="boonbar" style="display:none;width:100%;max-width:560px;margin:0 0 10px;padding:8px 10px;background:rgba(20,24,18,.92);border:1.5px solid rgba(143,174,74,.45);border-radius:8px;text-align:left"></div>
-  <div id="shop"></div>
-  <button class="go" id="next">NEXT WAVE</button>
 </div>
 
 <!-- EVENT BRIEFING MODAL -->
@@ -237,6 +232,58 @@
   <div class="ov-btns">
     <button class="go" id="resume">RESUME</button>
     <button id="quit">ABORT RUN</button>
+  </div>
+</div>
+
+<!-- MAP SELECTION MODAL -->
+<div class="ov" id="map-modal">
+  <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <h2 style="color:#ffd36b;margin:0">DEPLOYMENT SECTORS</h2>
+      <button class="modal-x" onclick="closeMapModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      <canvas id="map-modal-preview" width="600" height="240" style="width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0c0f0a"></canvas>
+      <div id="map-modal-info" style="background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <b id="map-modal-name" style="font-size:13.5px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
+          <span id="map-modal-threat" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
+        </div>
+        <div id="map-modal-desc" style="font-size:10.5px;opacity:.85;color:#d5d0c2;line-height:1.3"></div>
+        <div id="map-modal-stats" style="display:flex;flex-wrap:wrap;gap:10px;font-size:9.5px"></div>
+        <div id="map-modal-enemies" style="display:flex;gap:6px;align-items:center;padding-top:4px;border-top:1px solid rgba(255,255,255,.06)"></div>
+      </div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
+      <div id="maps"></div>
+      <button class="go" onclick="closeMapModal()" style="min-height:40px">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- MISSIONS & REWARDS MODAL -->
+<div class="ov" id="missions-modal">
+  <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <h2 style="color:#ffd36b;margin:0">MISSIONS &amp; REWARDS</h2>
+      <button class="modal-x" onclick="closeMissionsModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      <div class="rewards-box" id="lobby-panel" style="max-height:none;margin:0">
+        <div class="rtabs">
+          <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
+          <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
+          <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
+          <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
+        </div>
+        <div class="rviews" style="min-height:240px">
+          <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
+          <div id="rview-l" class="rview"><div id="login-track"></div></div>
+          <div id="rview-c" class="rview"><div id="rank-list"></div></div>
+          <div id="rview-s" class="rview"><div id="ach-list"></div></div>
+        </div>
+      </div>
+      <button class="go" onclick="closeMissionsModal()" style="min-height:40px">CLOSE</button>
+    </div>
   </div>
 </div>
 

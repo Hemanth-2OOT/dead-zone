@@ -1,4 +1,4 @@
-// DEAD ZONE v2.7 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.8 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -587,7 +587,9 @@ function renderSkinsUI(){
       cardBorder = isEquipped ? '2px solid #8fae4a' : '1.5px solid #64748b';
     }
 
-    return `<div class="card" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${sk.col};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg}">
+    const flourish = (tier === 'EPIC' || tier === 'LEGENDARY');
+    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${sk.col};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${sk.col}66">
+      ${flourish ? '<div class="sk-pixel"></div><div class="sk-aura"></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="display:flex;align-items:center;gap:6px">

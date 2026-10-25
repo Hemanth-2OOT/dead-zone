@@ -1,10 +1,10 @@
-// DEAD ZONE v2.7 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.8 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
 
-function drawZonePreview(mIndex) {
-  const cv = document.getElementById('zone-preview');
+function drawZonePreview(mIndex, canvasId) {
+  const cv = document.getElementById(canvasId || 'zone-preview');
   if (!cv) return;
   const ctx = cv.getContext('2d');
   
@@ -19,13 +19,15 @@ function drawZonePreview(mIndex) {
   }
   const w = cv.width, h = cv.height;
 
-  // Crossfade transition animation
-  if (curPreviewZone !== mIndex) {
+  // Crossfade transition animation (tracked per canvas so the hub preview and
+  // the map window can show different sectors at the same time).
+  const prevKey = '__dzPreviewZone';
+  if (cv[prevKey] !== mIndex) {
     cv.style.transition = 'opacity 0.18s ease-out';
     cv.style.opacity = '0.4';
     setTimeout(() => { if (cv) cv.style.opacity = '1'; }, 40);
   }
-  curPreviewZone = mIndex;
+  cv[prevKey] = mIndex;
 
   const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[mIndex]) ? MAP_DATA[mIndex] : (MP[mIndex] || MP[0]);
   const worldSize = (typeof WS !== 'undefined') ? WS : 2400;
@@ -167,7 +169,7 @@ function drawZonePreview(mIndex) {
 
 function updateZoneMeta(mIndex) {
   const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[mIndex]) ? MAP_DATA[mIndex] : (MP[mIndex] || MP[0]);
-  const reqLvl = (typeof MREQ !== 'undefined' && MREQ[mIndex] != null) ? MREQ[mIndex] : (mIndex * 3);
+  const reqLvl = Math.max(1, (typeof MREQ !== 'undefined' && MREQ[mIndex] != null) ? MREQ[mIndex] : (mIndex * 3));
   const curLvl = (typeof SV !== 'undefined' && SV && SV.lvl) ? SV.lvl : 1;
   const isLocked = curLvl < reqLvl;
 
@@ -222,6 +224,25 @@ function updateZoneMeta(mIndex) {
     const tier = (typeof ascTier === 'function') ? ascTier(mIndex) : 0;
     ascEl.textContent = tier > 0 ? `ASCENSION ${tier}` : '';
   }
+
+  // Mirror the same readout into the MAP SELECTION window.
+  const mn = document.getElementById('map-modal-name');
+  if (mn) mn.textContent = `ZONE: ${(mapDef.name || mapDef.n || 'DOWNTOWN').toUpperCase()}`;
+  const mt = document.getElementById('map-modal-threat');
+  if (mt) mt.textContent = `THREAT ${['I','II','III','IV','V','VI','VII'][mIndex] || 'I'}`;
+  const md = document.getElementById('map-modal-desc');
+  if (md) md.textContent = mapDef.desc || mapDef.d || '';
+  const ms = document.getElementById('map-modal-stats');
+  if (ms) {
+    const base = mapDef.bountyMult || (MP[mIndex] && MP[mIndex].cm ? MP[mIndex].cm : 1.0);
+    const asc = (typeof ascRewardMult === 'function') ? ascRewardMult(mIndex) : 1;
+    const tier = (typeof ascTier === 'function') ? ascTier(mIndex) : 0;
+    ms.innerHTML = `<span style="font-weight:800;color:${isLocked ? '#ff5a3a' : '#e0b83a'}">${isLocked ? 'LOCKED' : 'REC. LEVEL'} ${reqLvl}</span>`
+      + `<span style="font-weight:700;color:#d5d0c2">BOUNTY <b style="color:#ffd36b">${(base * asc).toFixed(2)}x</b></span>`
+      + (tier > 0 ? `<span style="font-weight:800;color:#c084fc">ASCENSION ${tier}</span>` : '');
+  }
+  const me = document.getElementById('map-modal-enemies');
+  if (me && enemyCont) me.innerHTML = enemyCont.innerHTML;
 }
 
 function mapsUI() {
@@ -255,8 +276,47 @@ function mapsUI() {
     curPreviewZone = i;
     mapsUI();
     drawZonePreview(i);
+    drawZonePreview(i, 'map-modal-preview');
+    updateZoneMeta(i);
     b.scrollIntoView && b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   };
+}
+
+// ---- Window controls for the hub: each window is its own overlay ----
+function openMapModal() {
+  const m = document.getElementById('map-modal');
+  if (!m) return;
+  const cur = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  curPreviewZone = cur;
+  mapsUI();
+  updateZoneMeta(cur);
+  drawZonePreview(cur, 'map-modal-preview');
+  m.classList.add('on');
+}
+
+function closeMapModal() {
+  const m = document.getElementById('map-modal');
+  if (m) m.classList.remove('on');
+  const cur = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  mapsUI();
+  updateZoneMeta(cur);
+  drawZonePreview(cur);
+}
+
+function openMissionsModal() {
+  const m = document.getElementById('missions-modal');
+  if (!m) return;
+  if (typeof initDailyMissions === 'function') initDailyMissions();
+  if (typeof renderMissionsUI === 'function') renderMissionsUI();
+  if (typeof renderLoginTrackUI === 'function') renderLoginTrackUI();
+  if (typeof renderRankRewards === 'function') renderRankRewards();
+  if (typeof renderAchievements === 'function') renderAchievements();
+  m.classList.add('on');
+}
+
+function closeMissionsModal() {
+  const m = document.getElementById('missions-modal');
+  if (m) m.classList.remove('on');
 }
 
 function tab(i) {
@@ -265,7 +325,8 @@ function tab(i) {
   });
   document.querySelectorAll('.pp').forEach(p => p.classList.remove('on'));
 
-  const pids = ['p0', 'pe', 'p1', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
+  // GUNS/armory was retired; panels shift up by one after EVENTS.
+  const pids = ['p0', 'pe', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
   const target = document.getElementById(pids[i] || 'p0');
   if (target) {
     target.classList.add('on');
@@ -273,20 +334,19 @@ function tab(i) {
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
 
-  if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
+  if (i !== 2 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
     cancelAnimationFrame(TURNTABLE_RAF);
     TURNTABLE_RAF = null;
   }
 
-  if (i === 0) { mapsUI(); drawZonePreview(getCurMap()); }
+  if (i === 0) { mapsUI(); updateZoneMeta(getCurMap()); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
-  else if (i === 2) renderGunsUI();
-  else if (i === 3) renderSkinsUI();
+  else if (i === 2) renderSkinsUI();
+  else if (i === 3) lobby2();
   else if (i === 4) lobby2();
   else if (i === 5) lobby2();
-  else if (i === 6) lobby2();
-  else if (i === 7) relics();
-  else if (i === 8) renderSettingsUI();
+  else if (i === 6) relics();
+  else if (i === 7) renderSettingsUI();
 }
 
 function renderNextGoal() {
@@ -304,6 +364,7 @@ function renderNextGoal() {
 
 function lobby() {
   if (typeof sanitizeSV === 'function') SV = sanitizeSV(SV);
+  if (typeof refreshDailyBtn === 'function') refreshDailyBtn();
 
   const rankEl = document.getElementById('lvn') || document.getElementById('rnk');
   if (rankEl) rankEl.textContent = SV.lvl || 1;
@@ -330,6 +391,7 @@ function lobby() {
 
   drawZonePreview(getCurMap());
   mapsUI();
+  updateZoneMeta(getCurMap());
 
   initDailyMissions();
   renderMissionsUI();
@@ -337,8 +399,6 @@ function lobby() {
   if (typeof renderRankRewards === 'function') renderRankRewards();
   if (typeof renderAchievements === 'function') renderAchievements();
   if (typeof checkSkinUnlocks === 'function') checkSkinUnlocks();
-
-  renderGunsUI();
 }
 
 function openTacticalRecords() {
@@ -370,90 +430,6 @@ function openTacticalRecords() {
     `;
   }
   modal.classList.add('on');
-}
-
-function renderGunsUI() {
-  const arm = document.getElementById('arm');
-  if (!arm) return;
-
-  arm.innerHTML = WEAP.map((w, i) => {
-    const o = SV.own && SV.own[i], isCur = SV.start === i;
-    const isHeavy = [4, 9, 12, 14, 17].includes(i);
-    const tierCol = TIER_COLORS[w.tier || 1] || '#8fae4a';
-
-    // Weapon mastery: permanent per-gun XP that grants a damage tier bonus
-    const mLv = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
-    const mMax = (typeof MAST_MAX !== 'undefined') ? MAST_MAX : 6;
-    const mXp = (SV.mast && SV.mast[i]) || 0;
-    const mNext = (typeof MAST_XP !== 'undefined' && MAST_XP[mLv]) ? MAST_XP[mLv] : null;
-    const mPct = mNext ? Math.min(100, Math.round(100 * mXp / mNext)) : 100;
-    const mastBar = `<div style="margin-top:6px">
-        <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:.5px">
-          <span style="color:#c084fc">MASTERY LV ${mLv}${mLv >= mMax ? ' (MAX)' : ''}</span>
-          <span style="color:#a8a29e">${mNext ? mXp + ' / ' + mNext : 'COMPLETE'}${mLv > 1 ? '  +' + Math.round((mLv - 1) * 2.5) + '% DMG' : ''}</span>
-        </div>
-        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden;margin-top:2px">
-          <div style="width:${mPct}%;height:100%;background:#c084fc"></div>
-        </div>
-      </div>`;
-
-    return `<div class="card" style="display:flex;flex-direction:column;gap:8px;padding:10px;border-left:3.5px solid ${tierCol};background:rgba(20,24,18,0.95);border-radius:8px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <canvas id="gun-prev-${i}" width="140" height="48" style="width:105px;height:42px;background:rgba(0,0,0,0.35);border-radius:6px;border:1px solid rgba(255,255,255,0.08);flex-shrink:0"></canvas>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-            <b style="font-size:13px;color:#f0ece1">${w.n}</b>
-            ${isHeavy ? '<span style="font-size:8px;font-weight:800;color:#ff5a3a;background:rgba(255,90,58,0.15);padding:1px 4px;border-radius:3px">HEAVY</span>' : ''}
-          </div>
-          <div style="font-size:10px;opacity:0.85;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px">
-            <span>DMG: <b style="color:#ffd36b">${w.d}</b></span>
-            <span>ROF: <b style="color:#ffd36b">${Math.round(1 / w.r * 10) / 10}/s</b></span>
-            <span>MAG: <b style="color:#ffd36b">${w.mag || 12}</b></span>
-          </div>
-          ${o ? mastBar : ''}
-        </div>
-      </div>
-      <div style="display:flex;margin-top:auto;flex-shrink:0">
-        <button data-w="${i}" ${(!o && w.c > SV.cr) ? 'disabled' : ''} style="width:100%;min-height:30px;padding:4px 10px;font-size:11px;font-weight:700">
-          ${o ? (isCur ? 'EQUIPPED' : 'EQUIP') : `BUY $${w.c}`}
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Render high-fidelity procedural canvas preview for every gun card
-  WEAP.forEach((w, i) => {
-    const cv = document.getElementById('gun-prev-' + i);
-    if (!cv) return;
-    const cx = cv.getContext('2d');
-    const oldX = X; X = cx;
-    X.save();
-    X.translate(16, 22);
-    X.scale(1.35, 1.35);
-    try {
-      if (typeof gun === 'function') gun(i, 0);
-    } catch (e) {
-      console.warn('[DeadZone] Gun render error for index', i, e);
-    }
-    X.restore();
-    X = oldX;
-  });
-
-  arm.onclick = e => {
-    const b = e.target.closest('button');
-    if (!b || b.disabled) return;
-    const i = +b.dataset.w;
-    if (SV.own[i]) {
-      SV.start = i;
-    } else if (WEAP[i].c <= SV.cr) {
-      if (transactMetaCredits(WEAP[i].c, 'weap_' + i)) {
-        SV.own[i] = 1;
-        SV.start = i;
-      }
-    }
-    sv();
-    lobby();
-  };
 }
 
 const RI = {};

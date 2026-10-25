@@ -1,4 +1,4 @@
-// DEAD ZONE v2.7 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.8 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -391,11 +391,14 @@ function nextGoal() {
     }
   }
   let bestW = null;
+  // Weapons are unlocked by account rank, not bought, so the goal is the next
+  // rank-gated gun rather than a credit price.
   WEAP.forEach((w, i) => {
     if (SV.own && SV.own[i]) return;
-    if (!bestW || w.c < bestW.c) bestW = { i, c: w.c, n: w.n };
+    const r = (typeof WEAP_RANK !== 'undefined' ? WEAP_RANK[i] : 0) || 0;
+    if (!bestW || r < bestW.r) bestW = { i, r, n: w.n };
   });
-  if (bestW) goals.push({ label: 'BUY ' + bestW.n.toUpperCase(), cur: Math.min(SV.cr || 0, bestW.c), max: bestW.c, unit: 'CR', col: '#ffd36b' });
+  if (bestW) goals.push({ label: 'UNLOCK ' + bestW.n.toUpperCase(), cur: Math.min(lvl, Math.max(1, bestW.r)), max: Math.max(1, bestW.r), unit: 'RANK', col: '#c9e08a' });
   if (!goals.length) return null;
   goals.sort((a, b) => (b.cur / b.max) - (a.cur / a.max));
   return goals[0];

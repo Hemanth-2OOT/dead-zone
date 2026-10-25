@@ -1,4 +1,4 @@
-// DEAD ZONE v2.7 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.8 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -51,7 +51,15 @@ function transactMetaCredits(cost, desc) {
 
 function sanitizeSV(s) {
   if (!s || typeof s !== 'object') return null;
-  const out = Object.assign({}, SV, s);
+  const out = Object.assign({}, SV);
+  // Copy only keys the save schema actually defines, and never through the
+  // prototype. `Object.assign({}, SV, s)` would honour a `__proto__` key from a
+  // hand-edited save and rewrite the object's prototype; it also let arbitrary
+  // junk keys ride along into storage.
+  for (const k of Object.keys(s)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    if (Object.prototype.hasOwnProperty.call(out, k)) out[k] = s[k];
+  }
   out.lvl = Math.max(1, Math.floor(Number(out.lvl) || 1));
   out.xp = Math.max(0, Math.floor(Number(out.xp) || 0));
   out.cr = Math.max(0, Math.floor(Number(out.cr) || 0));
@@ -92,10 +100,17 @@ function sanitizeSV(s) {
 
 function ld() {
   let parsed = null;
-  try {
-    const raw = localStorage.getItem('dzs') || localStorage.getItem('dzs_bak');
-    if (raw) parsed = sanitizeSV(JSON.parse(raw));
-  } catch (e) {}
+  // Try the primary slot, then the backup. Reading `dzs || dzs_bak` only fell
+  // back when dzs was absent; a corrupt dzs threw and the good backup was never
+  // consulted, which is exactly the case the backup exists for.
+  for (const key of ['dzs', 'dzs_bak']) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const p = sanitizeSV(JSON.parse(raw));
+      if (p) { parsed = p; break; }
+    } catch (e) {}
+  }
   if (parsed) SV = parsed;
   MUTE = SV.mute ? 1 : 0;
   if (SV.col) PC = SV.col;
@@ -133,22 +148,40 @@ function ld() {
 function sv() {
   try {
     SV.lvl = Math.max(1, Math.floor(Number(SV.lvl) || 1));
+    if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
     SV.xp = Math.max(0, Math.floor(Number(SV.xp) || 0));
     SV.cr = Math.max(0, Math.floor(Number(SV.cr) || 0));
     SV.sp = Math.max(0, Math.floor(Number(SV.sp) || 0));
     const str = JSON.stringify(SV);
+    // Real rolling backup: keep the previous good save as dzs_bak so a corrupt
+    // write cannot take both slots down at once. It used to write the same
+    // string to both keys, which made the "backup" useless.
+    const prev = localStorage.getItem('dzs');
+    if (prev && prev !== str) localStorage.setItem('dzs_bak', prev);
     localStorage.setItem('dzs', str);
-    localStorage.setItem('dzs_bak', str);
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
       window.Capacitor.Plugins.Preferences.set({ key: 'dzs', value: str }).catch(() => {});
     }
   } catch (e) {}
 }
 
+// Guns are unlocked by account rank rather than bought, so ownership is
+// re-derived from the rank on every load and save. Folding it into the existing
+// SV.own flags keeps every other reader of SV.own working unchanged.
+function syncWeaponUnlocks() {
+  if (typeof SV === 'undefined' || !SV || typeof WEAP === 'undefined') return;
+  if (!SV.own || !SV.own.length) SV.own = WEAP.map((_, i) => (i === 0 ? 1 : 0));
+  const rank = SV.lvl || 1;
+  for (let i = 0; i < WEAP.length; i++) {
+    if (!SV.own[i] && rank >= (WEAP_RANK[i] || 0)) SV.own[i] = 1;
+  }
+}
+
 function need(l) { return 100 + l * 50; }
 function rneed(l) { return Math.round(55 + l * 32 + Math.pow(l, 1.35) * 10); }
 
 function applySV() {
+  if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
   const cl = (typeof CL !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0] : (CL ? CL[0] : { hp: 100, dm: 1 });
   if (typeof SK !== 'undefined' && SK.dash) {
     SK.dash.max = SV.cls === 2 ? 2 : 3;

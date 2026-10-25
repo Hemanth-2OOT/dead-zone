@@ -1,4 +1,4 @@
-// DEAD ZONE v2.7 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v2.8 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -155,9 +155,14 @@ function drawBulletDefault(b) {
   // computed here and then ignored, so a 1050px/s railgun slug smeared exactly
   // as far as a 240px/s flamer puff.
   const spd = Math.hypot(b.vx, b.vy) || 700;
-  const vk = Math.max(0.45, Math.min(1.9, spd / 700));
-  const base = heavy ? 0.075 : (b.isCrit ? 0.05 : 0.036);
-  const tlen = Math.min(0.13, base * (1 + tier * 0.12) * vk);
+  const vk = Math.max(0.55, Math.min(1.35, spd / 700));
+  const base = heavy ? 0.055 : (b.isCrit ? 0.042 : 0.030);
+  // Trail time, not trail pixels. The old 0.13s ceiling multiplied by a 1.9
+  // velocity factor smeared a 1050px/s slug across ~260px - longer than most
+  // enemies are tall - which read as the bullet itself being stuck in the air.
+  // Capping the time to 55ms and the velocity factor to 1.35 keeps the longest
+  // tracer under ~80px while still scaling visibly with muzzle speed.
+  const tlen = Math.min(0.055, base * (1 + tier * 0.12) * vk);
   // Muzzle bloom: a fresh round stretches for ~45ms before it settles, which
   // reads as the round being spat out of the barrel rather than teleporting.
   const bloom = 1 + 1.15 * Math.max(0, 1 - ft / 0.045);
@@ -190,18 +195,37 @@ function drawBulletDefault(b) {
   X.lineTo(b.x, b.y);
   X.stroke();
 
-  // Muzzle-to-impact energy sheath for the energy archetypes.
+  // Muzzle-to-impact energy sheath for the energy archetypes. Kept shorter than
+  // the body tracer (1.15x) so the sheath reads as a glow around the round, not
+  // as a second, longer bullet.
   if (hot && arch !== 'rocket') {
     X.globalAlpha = 0.5;
     X.strokeStyle = arch === 'cryo' ? '#d8f6ff' : arch === 'arc' ? '#bff4ff' : '#bff4ff';
     X.lineWidth = heavy ? 2 : 1.4;
     X.beginPath();
-    X.moveTo(b.x - b.vx * tl * 1.5, b.y - b.vy * tl * 1.5);
+    X.moveTo(b.x - b.vx * tl * 1.15, b.y - b.vy * tl * 1.15);
     X.lineTo(b.x, b.y);
     X.stroke();
     X.globalAlpha = 1;
   }
   X.restore();
+
+  // Tracer detail: a couple of dim afterimages strung behind the head give a
+  // fast round a sense of direction without lengthening the hard trail. Only
+  // drawn for the hot archetypes so 100-round SMG fire stays cheap.
+  if (hot && F.length < 240) {
+    X.save();
+    X.globalCompositeOperation = 'lighter';
+    for (let k = 1; k <= 2; k++) {
+      const f = k * 0.55 + Math.sin(ft * 26 + k) * 0.12;
+      const dx = b.x - b.vx * tl * f, dy = b.y - b.vy * tl * f;
+      X.globalAlpha = 0.22 / k;
+      X.fillStyle = col;
+      X.beginPath(); X.arc(dx, dy, Math.max(1.1, 2.4 - k * 0.5), 0, 6.28); X.fill();
+    }
+    X.globalAlpha = 1;
+    X.restore();
+  }
 
   // Per-archetype head silhouette: a slug, a shard, a needle, a rocket or a
   // pulsing orb, instead of one white dot for all 22 guns.
