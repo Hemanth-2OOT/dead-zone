@@ -173,6 +173,8 @@ function bodyFront(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV
 
 // 4-LAYER GUN SPRITE RENDERING
 function gun(i, rc) {
+  if (i == null || typeof i !== 'number' || i < 0 || i > 17 || isNaN(i)) i = 0;
+  rc = rc || 0;
   X.save();
   X.translate(10 - rc, 0);
   const ga = X.globalAlpha;

@@ -1777,12 +1777,19 @@ function renderHUD() {
   X.strokeStyle = P.reloading ? '#ffd36b' : '#3d4f34'; X.lineWidth = 1.5;
   X.stroke();
 
+  // Draw equipped weapon sprite
+  X.save();
+  X.translate(W / 2 - 14, H - 24);
+  X.scale(0.68, 0.68);
+  if (typeof gun === 'function') gun(P.cur, 0);
+  X.restore();
+
   X.textAlign = 'center'; X.fillStyle = WC[P.cur] || '#fff'; X.font = 'bold 11px Arial';
-  X.fillText((WEAP[P.cur] || WEAP[0]).n.toUpperCase(), W / 2, H - 33);
+  X.fillText((WEAP[P.cur] || WEAP[0]).n.toUpperCase(), W / 2, H - 35);
   const ammoStr = P.reloading ? 'RELOADING' : ((P.ammo != null ? P.ammo : 12) + ' / ' + (WEAP[P.cur].mag || 12));
   X.fillStyle = P.reloading ? '#ffd36b' : (P.ammo <= 3 ? '#ff5a3a' : '#d5d0c2');
   X.font = 'bold 10px Arial';
-  X.fillText(ammoStr, W / 2, H - 21);
+  X.fillText(ammoStr, W / 2, H - 9);
 
   // Screen-edge damage vignette
   if (HURT_VIGNETTE_TIMER > 0) {
