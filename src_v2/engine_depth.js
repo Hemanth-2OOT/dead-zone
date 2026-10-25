@@ -214,22 +214,63 @@ function renderAmbient(cx, cy, W, H) {
 // Turrets, zombies and the player used to be painted in three fixed bands, so a
 // zombie standing below the player was always drawn behind him. The band keeps
 // one list, sorts it by foot position and paints back-to-front.
+// Persistent band scratch: entry objects are recycled every frame instead of
+// allocating a fresh array of wrappers, and anything well outside the camera
+// rect is skipped so draw cost tracks what is actually on screen.
+const BAND_LIST = [];
+let BAND_N = 0;
+
+function bandPush(y, k, o) {
+  let e = BAND_LIST[BAND_N];
+  if (!e) e = { y: 0, k: 0, o: null };
+  BAND_LIST[BAND_N] = e;
+  BAND_N++;
+  e.y = y; e.k = k; e.o = o;
+}
+
 function drawEntityBand() {
-  const list = [];
+  BAND_N = 0;
+  const haveCam = typeof CX === 'number' && typeof CY === 'number' && typeof W === 'number' && typeof H === 'number' && W > 0 && H > 0;
+  const mx = haveCam ? CX - 140 : -Infinity, my = haveCam ? CY - 140 : -Infinity;
+  const mx2 = haveCam ? CX + W + 140 : Infinity, my2 = haveCam ? CY + H + 140 : Infinity;
+
   if (typeof TR !== 'undefined' && TR) {
-    for (const t of TR) list.push({ y: t.y || 0, k: 0, o: t });
-  }
-  if (typeof Z !== 'undefined' && Z) {
-    for (const z of Z) {
-      if (z.dead) continue;
-      list.push({ y: z.y || 0, k: 1, o: z });
+    for (let i = 0; i < TR.length; i++) {
+      const t = TR[i];
+      const ty = t.y || 0;
+      if (t.x < mx || t.x > mx2 || ty < my || ty > my2) continue;
+      bandPush(ty, 0, t);
     }
   }
-  if (typeof P !== 'undefined' && P) list.push({ y: P.y || 0, k: 2, o: P });
+  if (typeof Z !== 'undefined' && Z) {
+    for (let i = 0; i < Z.length; i++) {
+      const z = Z[i];
+      if (z.dead) continue;
+      const zy = z.y || 0;
+      if (z.x < mx || z.x > mx2 || zy < my || zy > my2) continue;
+      bandPush(zy, 1, z);
+    }
+  }
+  if (typeof P !== 'undefined' && P) bandPush(P.y || 0, 2, P);
 
-  list.sort((a, b) => a.y - b.y);
+  // Writing index BAND_N-1 may have lengthened the array, so clamp it back down
+  // to drop entries left over from a busier frame.
+  BAND_LIST.length = BAND_N;
 
-  for (let i = 0; i < list.length; i++) {
+  const list = BAND_LIST;
+  const n = BAND_N;
+  if (n > 1) {
+    // Insertion sort: band sizes are tiny (dozens) and this keeps the frame
+    // allocation-free while staying near-linear on nearly-sorted input.
+    for (let i = 1; i < n; i++) {
+      const cur = list[i];
+      let j = i - 1;
+      while (j >= 0 && list[j].y > cur.y) { list[j + 1] = list[j]; j--; }
+      list[j + 1] = cur;
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
     const e = list[i];
     if (e.k === 0) { if (typeof drawTurret === 'function') drawTurret(e.o); }
     else if (e.k === 1) { if (typeof drawZombie === 'function') drawZombie(e.o); }
@@ -398,6 +439,106 @@ function renderLightingPass(cx, cy, W, H) {
   X.globalCompositeOperation = 'overlay';
   X.globalAlpha = mood.ta;
   X.fillStyle = mood.tint;
+  X.fillRect(0, 0, W, H);
+  X.restore();
+  X.globalAlpha = 1;
+  X.globalCompositeOperation = 'source-over';
+}
+
+/* ------------------------------------------------------------------ */
+/* VISUAL DEPTH: PARALLAX GROUND SCATTER                               */
+/* ------------------------------------------------------------------ */
+// A slow-scrolling detail layer sitting under the real ground art. Because it
+// tracks the camera at 55%, nearby props slide past it and the arena gains a
+// convincing sense of height without any extra geometry or collision cost.
+const PARALLAX_FACTOR = 0.55;
+const PARALLAX_INV = 1 - PARALLAX_FACTOR;
+const PARALLAX_CELL = 92;
+
+function parallaxHash(ix, iy) {
+  // Stable per-cell pseudo-random so scatter never shimmers as the camera pans.
+  let h = (ix * 374761393 + iy * 668265263) | 0;
+  h = (h ^ (h >> 13)) * 1274126177 | 0;
+  return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+}
+
+function renderParallax(cx, cy, W, H, mapDef) {
+  if (typeof getQualityProfile === 'function') {
+    const q = getQualityProfile();
+    if (q && (q.name === 'low' || q.level === 0)) return;
+  }
+  const ox = cx * PARALLAX_INV;
+  const oy = cy * PARALLAX_INV;
+  const x0 = Math.floor((cx - ox - PARALLAX_CELL) / PARALLAX_CELL);
+  const x1 = Math.ceil((cx - ox + W + PARALLAX_CELL) / PARALLAX_CELL);
+  const y0 = Math.floor((cy - oy - PARALLAX_CELL) / PARALLAX_CELL);
+  const y1 = Math.ceil((cy - oy + H + PARALLAX_CELL) / PARALLAX_CELL);
+  // Guard against absurd camera values producing an unbounded loop.
+  if (!isFinite(x0) || !isFinite(x1) || !isFinite(y0) || !isFinite(y1)) return;
+  if ((x1 - x0) * (y1 - y0) > 900) return;
+
+  const pebble = (mapDef && mapDef.pebble) || 'rgba(255,255,255,0.055)';
+  const crack = (mapDef && mapDef.crack) || 'rgba(0,0,0,0.16)';
+
+  X.save();
+  for (let iy = y0; iy <= y1; iy++) {
+    for (let ix = x0; ix <= x1; ix++) {
+      const h = parallaxHash(ix, iy);
+      if (h > 0.42) continue;                       // sparse scatter
+      const px = ix * PARALLAX_CELL + h * 61 + ox;
+      const py = iy * PARALLAX_CELL + ((h * 977) % 1) * 71 + oy;
+      const kind = h * 10 | 0;
+      if (kind < 6) {                               // pebble / rubble chip
+        const s = 1.1 + h * 2.2;
+        X.fillStyle = pebble;
+        X.beginPath(); X.ellipse(px, py, s, s * 0.62, h * 3.1, 0, 6.28); X.fill();
+      } else {                                      // hairline crack in the slab
+        X.strokeStyle = crack;
+        X.lineWidth = 1;
+        X.beginPath();
+        X.moveTo(px, py);
+        X.lineTo(px + 6 + h * 14, py + (h - 0.5) * 16);
+        X.lineTo(px + 12 + h * 20, py + (h - 0.5) * 26);
+        X.stroke();
+      }
+    }
+  }
+  X.restore();
+}
+
+/* ------------------------------------------------------------------ */
+/* VISUAL DEPTH: ATMOSPHERIC EDGE FOG                                  */
+/* ------------------------------------------------------------------ */
+// Screen-space haze that thickens toward the frame edge. It reads as distance
+// and also softens the hard rectangle where the arena meets the viewport.
+let FOG_GRAD = null, FOG_W = 0, FOG_H = 0, FOG_TINT = '';
+
+function renderDepthFog(cx, cy, W, H) {
+  if (typeof getQualityProfile === 'function') {
+    const q = getQualityProfile();
+    if (q && (q.name === 'low' || q.level === 0)) return;
+  }
+  const mood = (typeof getMapMood === 'function') ? getMapMood() : null;
+  const tint = (mood && mood.tint) ? mood.tint : '#0b1220';
+  const key = W + 'x' + H + tint;
+  if (!FOG_GRAD || FOG_W !== W || FOG_H !== H || FOG_TINT !== key) {
+    const cxg = W * 0.5, cyg = H * 0.5;
+    const g = X.createRadialGradient(cxg, cyg, Math.min(W, H) * 0.30, cxg, cyg, Math.max(W, H) * 0.78);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.62, 'rgba(0,0,0,0.10)');
+    g.addColorStop(1, 'rgba(4,7,14,0.42)');
+    FOG_GRAD = g; FOG_W = W; FOG_H = H; FOG_TINT = key;
+  }
+  X.save();
+  X.globalCompositeOperation = 'source-over';
+  X.globalAlpha = 1;
+  X.fillStyle = FOG_GRAD;
+  X.fillRect(0, 0, W, H);
+  // A whisper of sector colour riding on top of the darkening keeps the haze
+  // from reading as a flat black frame.
+  X.globalCompositeOperation = 'overlay';
+  X.globalAlpha = 0.06;
+  X.fillStyle = tint;
   X.fillRect(0, 0, W, H);
   X.restore();
   X.globalAlpha = 1;

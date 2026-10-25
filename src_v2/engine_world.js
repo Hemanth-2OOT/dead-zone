@@ -357,15 +357,16 @@ function fire() {
   const mOff = ((ML[P.cur] || 45) * 0.87);
 
   // Point-blank check: if an enemy is directly between player and muzzle, spawn close so bullets don't bypass them
-  let pbTarget = null, minD = mOff + 25;
+  let pbTarget = null, minD2 = (mOff + 25) * (mOff + 25);
   for (const z of Z) {
     if (z.dead) continue;
-    const d = Math.hypot(z.x - P.x, z.y - P.y);
-    if (d < minD) {
-      const angDiff = Math.abs(Math.atan2(z.y - P.y, z.x - P.x) - P.a);
+    const pbx = z.x - P.x, pby = z.y - P.y;
+    const d2 = pbx * pbx + pby * pby;
+    if (d2 < minD2) {
+      const angDiff = Math.abs(Math.atan2(pby, pbx) - P.a);
       const normDiff = Math.atan2(Math.sin(angDiff), Math.cos(angDiff));
       if (Math.abs(normDiff) < 0.65) {
-        minD = d;
+        minD2 = d2;
         pbTarget = z;
       }
     }
@@ -994,7 +995,7 @@ function update(dt) {
       }
     }
   }
-  B = B.filter(b => b.l > 0);
+  pruneArr(B, b => b.l > 0);
   if (B.length > 300) B.splice(0, B.length - 300);
 
   // Update Turrets
@@ -1014,18 +1015,18 @@ function update(dt) {
     if (c.vx || c.vy) {
       c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= 0.85; c.vy *= 0.85;
       c.a += c.va * dt; c.va *= 0.85;
-      if (Math.hypot(c.vx, c.vy) < 5) { c.vx = 0; c.vy = 0; c.va = 0; }
+      if (c.vx * c.vx + c.vy * c.vy < 25) { c.vx = 0; c.vy = 0; c.va = 0; }
     }
   }
   for (const m of MAG) {
     if (m.vx || m.vy) {
       m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.82; m.vy *= 0.82;
       m.a += m.va * dt; m.va *= 0.82;
-      if (Math.hypot(m.vx, m.vy) < 5) { m.vx = 0; m.vy = 0; m.va = 0; }
+      if (m.vx * m.vx + m.vy * m.vy < 25) { m.vx = 0; m.vy = 0; m.va = 0; }
     }
     m.l -= dt;
   }
-  MAG = MAG.filter(m => m.l > 0);
+  pruneArr(MAG, m => m.l > 0);
 
   // Player recoil decay
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt * 26);
@@ -1062,7 +1063,7 @@ function update(dt) {
 
     const decay = Math.exp(-dt * 9);
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
-    if (Math.hypot(z.kx, z.ky) < 4 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
+    if (z.kx * z.kx + z.ky * z.ky < 16 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
 
     const mvA = (typeof zombieHeading === 'function') ? zombieHeading(z, dt, zRadius) : a;
     z.x += Math.cos(mvA) * speed * dt * sl + z.kx * dt;
@@ -1071,6 +1072,17 @@ function update(dt) {
 
     z.ph = (z.ph || 0) + dt * speed / 8;
     z.age = (z.age || 0) + dt;
+    // Footstep dust: a cheap motion cue that also sells the ground plane and
+    // gives the shambling walk a physical footprint. Throttled and capped so
+    // it can never crowd out combat particles.
+    if (sl > 0.35 && typeof F !== 'undefined' && F.length < 220 && Math.random() < dt * 6) {
+      F.push({
+        x: z.x - Math.cos(mvA) * (zRadius * 0.55) + (Math.random() - 0.5) * 7,
+        y: z.y - Math.sin(mvA) * (zRadius * 0.55) + (Math.random() - 0.5) * 7,
+        vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14 - 5,
+        l: 0.42 + Math.random() * 0.2, c: 'rgba(146,134,112,0.30)', s: 2.4 + Math.random() * 1.6
+      });
+    }
     push(z, zRadius);
 
     // Boundary constraints
@@ -1115,7 +1127,9 @@ function update(dt) {
     // Bullet collisions with zombie
     for (const b of B) {
       if (z.dead) break;
-      if (b.l > 0 && !(b.h && b.h.includes(z)) && Math.hypot(b.x - z.x, b.y - z.y) < T.r + 4) {
+      const bdx = b.x - z.x, bdy = b.y - z.y;
+      const bR = T.r + 4;
+      if (b.l > 0 && !(b.h && b.h.includes(z)) && bdx * bdx + bdy * bdy < bR * bR) {
         damageZ(z, b.d, 'bullet', b.isCrit, Math.atan2(b.vy, b.vx), b.wi);
         if (b.ls && P.hp < P.mx && (S.lsTok = (S.lsTok == null ? 4 : S.lsTok)) > 0) { const hv = Math.min(1.1, b.d * 0.12); healP(hv); S.lsTok -= hv; if (Math.random() < 0.25) F.push({ x: z.x, y: z.y, vx: (P.x - z.x) * 2, vy: (P.y - z.y) * 2, l: 0.35, c: '#ff4d6d', s: 2.4 }); }
         if (b.ex) boom(b);
@@ -1135,7 +1149,7 @@ function update(dt) {
     }
   }
 
-  Z = Z.filter(z => !z.dead);
+  pruneArr(Z, z => !z.dead);
 
   // Update Spitter Acid Projectiles (AB)
   for (let i = AB.length - 1; i >= 0; i--) {
@@ -1146,7 +1160,8 @@ function update(dt) {
     if (Math.random() < 0.4 && typeof F !== 'undefined') {
       F.push({ x: ab.x, y: ab.y, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, l: 0.25, c: '#4ade80', s: 2.5 });
     }
-    const hitP = (P && Math.hypot(P.x - ab.x, P.y - ab.y) < 14);
+    const abx = P ? P.x - ab.x : 0, aby = P ? P.y - ab.y : 0;
+    const hitP = (P && abx * abx + aby * aby < 196);
     if (ab.l <= 0 || hitP) {
       if (hitP) hurtP(16, ab.x, ab.y);
       // Spawn Spitter Acid Puddle that damages and shrinks
@@ -1167,7 +1182,8 @@ function update(dt) {
     ap.l -= dt;
     ap.r = ap.maxR * Math.max(0.12, ap.l / ap.maxL);
     if (P && P.hp > 0 && !(P.dash > 0) && !(S && S.sh2 > 0)) {
-      if (Math.hypot(P.x - ap.x, P.y - ap.y) < ap.r + 10) {
+      const apx = P.x - ap.x, apy = P.y - ap.y, apR = ap.r + 10;
+      if (apx * apx + apy * apy < apR * apR) {
         hurtP(18 * dt, ap.x, ap.y);
         if (Math.random() < 0.25 && typeof F !== 'undefined') {
           F.push({ x: P.x + (Math.random() - 0.5) * 12, y: P.y + (Math.random() - 0.5) * 12, vx: 0, vy: -25, l: 0.3, c: '#4ade80' });
@@ -1196,7 +1212,7 @@ function update(dt) {
       openChest(c);
     }
   }
-  CH = CH.filter(c => !c.o);
+  pruneArr(CH, c => !c.o);
 
   // Floating text / particles decay
   for (const f of F) {
@@ -1204,11 +1220,11 @@ function update(dt) {
     if (f.fr) { f.vx *= 0.9; f.vy *= 0.9; }
     f.l -= dt;
   }
-  F = F.filter(f => f.l > 0);
+  pruneArr(F, f => f.l > 0);
 
   // Shockwave rings decay
   for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }
-  RG = RG.filter(r => r.l > 0);
+  pruneArr(RG, r => r.l > 0);
 
   // Skill VFX lifetimes, dash afterimages, grenade flight and bullet smoke.
   if (typeof updateFeelFX === 'function') updateFeelFX(dt);
@@ -1288,6 +1304,10 @@ function draw() {
   // 1. World Ground Base Fill
   X.fillStyle = mapDef.ground || '#181f15';
   X.fillRect(0, 0, WS, WS);
+
+  // 1b. Parallax ground scatter: a slow layer under the grid so movement gains
+  //     depth. Cosmetic only - no collision, no gameplay state.
+  if (typeof renderParallax === 'function') renderParallax(cx, cy, W, H, mapDef);
 
   // Subtle tactical ground grid
   X.strokeStyle = mapDef.grid || 'rgba(0,0,0,0.18)';
@@ -1738,6 +1758,10 @@ function draw() {
 
   // 17. Depth post-process: light mask, additive lights, bloom and colour grade
   if (typeof renderLightingPass === "function") renderLightingPass(CX, CY, W, H);
+
+  // 17b. Atmospheric edge fog: distance haze that softens the arena rectangle
+  //      and pushes the centre of action forward. Cosmetic only.
+  if (typeof renderDepthFog === 'function') renderDepthFog(CX, CY, W, H);
 
   // 18. HUD OVERLAY
   renderHUD();
@@ -2429,7 +2453,8 @@ function drawPlayerEntity() {
   }
 
   // Breathing bob
-  const breathe = (Math.hypot(P.vx || 0, P.vy || 0) < 15) ? Math.sin((S.t || 0) * 3) * 0.8 : 0;
+  const bvx = P.vx || 0, bvy = P.vy || 0;
+  const breathe = (bvx * bvx + bvy * bvy < 225) ? Math.sin((S.t || 0) * 3) * 0.8 : 0;
   X.translate(0, breathe);
 
   // Layer 1-3 Player body

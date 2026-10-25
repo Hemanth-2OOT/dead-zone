@@ -767,7 +767,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.4.1</div>
+                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.4.2</div>
         </div>
 
         <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -1143,6 +1143,22 @@ function getMaxBloodDrops() {
   if (QUALITY_SETTINGS.profile === 'low') return 25;
   if (QUALITY_SETTINGS.profile === 'med') return 60;
   return 120;
+}
+
+// In-place array compaction. Array.prototype.filter() allocates a brand new
+// array on every call, and the update loop runs a dozen of them per frame over
+// pools that can hold hundreds of particles/debris. This keeps the same array
+// (so any module holding a reference stays valid) and simply compacts the live
+// entries to the front, preserving order. Order-preserving and allocation-free.
+function pruneArr(arr, keep) {
+  if (!arr || !arr.length) return arr;
+  let w = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    if (keep(v)) arr[w++] = v;
+  }
+  arr.length = w;
+  return arr;
 }
 
 // Runtime Performance & FPS Monitor (Active on Low profile or low-spec devices)
@@ -3476,7 +3492,7 @@ function updateGoreSystem(dt) {
       b.l = -1;
     }
   }
-  BLD = BLD.filter(b => b.l > 0);
+  pruneArr(BLD, b => b.l > 0);
 
   // 2. Streaks
   for (const s of STREAKS) {
@@ -3486,7 +3502,7 @@ function updateGoreSystem(dt) {
     s.vy *= 0.82;
     s.l -= dt;
   }
-  STREAKS = STREAKS.filter(s => s.l > 0);
+  pruneArr(STREAKS, s => s.l > 0);
 
   // 3. Mist
   for (const m of MISTS) {
@@ -3497,7 +3513,7 @@ function updateGoreSystem(dt) {
     m.r += dt * 8;
     m.l -= dt;
   }
-  MISTS = MISTS.filter(m => m.l > 0);
+  pruneArr(MISTS, m => m.l > 0);
 
   // 4. Expanding & drying pools under corpses
   for (const p of POOLS) {
@@ -3506,19 +3522,19 @@ function updateGoreSystem(dt) {
       p.r = Math.min(p.maxR, p.r + dt * 4.5);
     }
   }
-  POOLS = POOLS.filter(p => p.age < p.maxAge);
+  pruneArr(POOLS, p => p.age < p.maxAge);
 
   // 5. Active decals fading
   for (const d of DEC) {
     d.l -= dt;
   }
-  DEC = DEC.filter(d => d.l > 0);
+  pruneArr(DEC, d => d.l > 0);
 
   // 6. Footprints
   for (const f of FOOTPRINTS) {
     f.l -= dt;
   }
-  FOOTPRINTS = FOOTPRINTS.filter(f => f.l > 0);
+  pruneArr(FOOTPRINTS, f => f.l > 0);
 
   // 7. Gibs tumble & friction
   for (const g of GIBS) {
@@ -3533,7 +3549,7 @@ function updateGoreSystem(dt) {
     }
     g.l -= dt;
   }
-  GIBS = GIBS.filter(g => g.l > 0);
+  pruneArr(GIBS, g => g.l > 0);
 }
 
 // Renders the entire blood & gore ground pass
@@ -3798,7 +3814,7 @@ function updatePickups(dt) {
     }
   }
 
-  D = D.filter(d => d.l > 0);
+  pruneArr(D, d => d.l > 0);
   if (D.length > 90) D.splice(0, D.length - 90);
 
   // 5. Update HUD flying particles
@@ -3816,7 +3832,7 @@ function updatePickups(dt) {
       burst(targetX + CX, targetY + CY, '#ffd36b', 5, 2, 60);
     }
   }
-  HUD_FLYING_ICONS = HUD_FLYING_ICONS.filter(h => h.progress < 1);
+  pruneArr(HUD_FLYING_ICONS, h => h.progress < 1);
 
   // Decay HUD bounce
   if (HUD_BOUNCE > 1.0) {
@@ -5929,22 +5945,63 @@ function renderAmbient(cx, cy, W, H) {
 // Turrets, zombies and the player used to be painted in three fixed bands, so a
 // zombie standing below the player was always drawn behind him. The band keeps
 // one list, sorts it by foot position and paints back-to-front.
+// Persistent band scratch: entry objects are recycled every frame instead of
+// allocating a fresh array of wrappers, and anything well outside the camera
+// rect is skipped so draw cost tracks what is actually on screen.
+const BAND_LIST = [];
+let BAND_N = 0;
+
+function bandPush(y, k, o) {
+  let e = BAND_LIST[BAND_N];
+  if (!e) e = { y: 0, k: 0, o: null };
+  BAND_LIST[BAND_N] = e;
+  BAND_N++;
+  e.y = y; e.k = k; e.o = o;
+}
+
 function drawEntityBand() {
-  const list = [];
+  BAND_N = 0;
+  const haveCam = typeof CX === 'number' && typeof CY === 'number' && typeof W === 'number' && typeof H === 'number' && W > 0 && H > 0;
+  const mx = haveCam ? CX - 140 : -Infinity, my = haveCam ? CY - 140 : -Infinity;
+  const mx2 = haveCam ? CX + W + 140 : Infinity, my2 = haveCam ? CY + H + 140 : Infinity;
+
   if (typeof TR !== 'undefined' && TR) {
-    for (const t of TR) list.push({ y: t.y || 0, k: 0, o: t });
-  }
-  if (typeof Z !== 'undefined' && Z) {
-    for (const z of Z) {
-      if (z.dead) continue;
-      list.push({ y: z.y || 0, k: 1, o: z });
+    for (let i = 0; i < TR.length; i++) {
+      const t = TR[i];
+      const ty = t.y || 0;
+      if (t.x < mx || t.x > mx2 || ty < my || ty > my2) continue;
+      bandPush(ty, 0, t);
     }
   }
-  if (typeof P !== 'undefined' && P) list.push({ y: P.y || 0, k: 2, o: P });
+  if (typeof Z !== 'undefined' && Z) {
+    for (let i = 0; i < Z.length; i++) {
+      const z = Z[i];
+      if (z.dead) continue;
+      const zy = z.y || 0;
+      if (z.x < mx || z.x > mx2 || zy < my || zy > my2) continue;
+      bandPush(zy, 1, z);
+    }
+  }
+  if (typeof P !== 'undefined' && P) bandPush(P.y || 0, 2, P);
 
-  list.sort((a, b) => a.y - b.y);
+  // Writing index BAND_N-1 may have lengthened the array, so clamp it back down
+  // to drop entries left over from a busier frame.
+  BAND_LIST.length = BAND_N;
 
-  for (let i = 0; i < list.length; i++) {
+  const list = BAND_LIST;
+  const n = BAND_N;
+  if (n > 1) {
+    // Insertion sort: band sizes are tiny (dozens) and this keeps the frame
+    // allocation-free while staying near-linear on nearly-sorted input.
+    for (let i = 1; i < n; i++) {
+      const cur = list[i];
+      let j = i - 1;
+      while (j >= 0 && list[j].y > cur.y) { list[j + 1] = list[j]; j--; }
+      list[j + 1] = cur;
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
     const e = list[i];
     if (e.k === 0) { if (typeof drawTurret === 'function') drawTurret(e.o); }
     else if (e.k === 1) { if (typeof drawZombie === 'function') drawZombie(e.o); }
@@ -6113,6 +6170,106 @@ function renderLightingPass(cx, cy, W, H) {
   X.globalCompositeOperation = 'overlay';
   X.globalAlpha = mood.ta;
   X.fillStyle = mood.tint;
+  X.fillRect(0, 0, W, H);
+  X.restore();
+  X.globalAlpha = 1;
+  X.globalCompositeOperation = 'source-over';
+}
+
+/* ------------------------------------------------------------------ */
+/* VISUAL DEPTH: PARALLAX GROUND SCATTER                               */
+/* ------------------------------------------------------------------ */
+// A slow-scrolling detail layer sitting under the real ground art. Because it
+// tracks the camera at 55%, nearby props slide past it and the arena gains a
+// convincing sense of height without any extra geometry or collision cost.
+const PARALLAX_FACTOR = 0.55;
+const PARALLAX_INV = 1 - PARALLAX_FACTOR;
+const PARALLAX_CELL = 92;
+
+function parallaxHash(ix, iy) {
+  // Stable per-cell pseudo-random so scatter never shimmers as the camera pans.
+  let h = (ix * 374761393 + iy * 668265263) | 0;
+  h = (h ^ (h >> 13)) * 1274126177 | 0;
+  return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+}
+
+function renderParallax(cx, cy, W, H, mapDef) {
+  if (typeof getQualityProfile === 'function') {
+    const q = getQualityProfile();
+    if (q && (q.name === 'low' || q.level === 0)) return;
+  }
+  const ox = cx * PARALLAX_INV;
+  const oy = cy * PARALLAX_INV;
+  const x0 = Math.floor((cx - ox - PARALLAX_CELL) / PARALLAX_CELL);
+  const x1 = Math.ceil((cx - ox + W + PARALLAX_CELL) / PARALLAX_CELL);
+  const y0 = Math.floor((cy - oy - PARALLAX_CELL) / PARALLAX_CELL);
+  const y1 = Math.ceil((cy - oy + H + PARALLAX_CELL) / PARALLAX_CELL);
+  // Guard against absurd camera values producing an unbounded loop.
+  if (!isFinite(x0) || !isFinite(x1) || !isFinite(y0) || !isFinite(y1)) return;
+  if ((x1 - x0) * (y1 - y0) > 900) return;
+
+  const pebble = (mapDef && mapDef.pebble) || 'rgba(255,255,255,0.055)';
+  const crack = (mapDef && mapDef.crack) || 'rgba(0,0,0,0.16)';
+
+  X.save();
+  for (let iy = y0; iy <= y1; iy++) {
+    for (let ix = x0; ix <= x1; ix++) {
+      const h = parallaxHash(ix, iy);
+      if (h > 0.42) continue;                       // sparse scatter
+      const px = ix * PARALLAX_CELL + h * 61 + ox;
+      const py = iy * PARALLAX_CELL + ((h * 977) % 1) * 71 + oy;
+      const kind = h * 10 | 0;
+      if (kind < 6) {                               // pebble / rubble chip
+        const s = 1.1 + h * 2.2;
+        X.fillStyle = pebble;
+        X.beginPath(); X.ellipse(px, py, s, s * 0.62, h * 3.1, 0, 6.28); X.fill();
+      } else {                                      // hairline crack in the slab
+        X.strokeStyle = crack;
+        X.lineWidth = 1;
+        X.beginPath();
+        X.moveTo(px, py);
+        X.lineTo(px + 6 + h * 14, py + (h - 0.5) * 16);
+        X.lineTo(px + 12 + h * 20, py + (h - 0.5) * 26);
+        X.stroke();
+      }
+    }
+  }
+  X.restore();
+}
+
+/* ------------------------------------------------------------------ */
+/* VISUAL DEPTH: ATMOSPHERIC EDGE FOG                                  */
+/* ------------------------------------------------------------------ */
+// Screen-space haze that thickens toward the frame edge. It reads as distance
+// and also softens the hard rectangle where the arena meets the viewport.
+let FOG_GRAD = null, FOG_W = 0, FOG_H = 0, FOG_TINT = '';
+
+function renderDepthFog(cx, cy, W, H) {
+  if (typeof getQualityProfile === 'function') {
+    const q = getQualityProfile();
+    if (q && (q.name === 'low' || q.level === 0)) return;
+  }
+  const mood = (typeof getMapMood === 'function') ? getMapMood() : null;
+  const tint = (mood && mood.tint) ? mood.tint : '#0b1220';
+  const key = W + 'x' + H + tint;
+  if (!FOG_GRAD || FOG_W !== W || FOG_H !== H || FOG_TINT !== key) {
+    const cxg = W * 0.5, cyg = H * 0.5;
+    const g = X.createRadialGradient(cxg, cyg, Math.min(W, H) * 0.30, cxg, cyg, Math.max(W, H) * 0.78);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.62, 'rgba(0,0,0,0.10)');
+    g.addColorStop(1, 'rgba(4,7,14,0.42)');
+    FOG_GRAD = g; FOG_W = W; FOG_H = H; FOG_TINT = key;
+  }
+  X.save();
+  X.globalCompositeOperation = 'source-over';
+  X.globalAlpha = 1;
+  X.fillStyle = FOG_GRAD;
+  X.fillRect(0, 0, W, H);
+  // A whisper of sector colour riding on top of the darkening keeps the haze
+  // from reading as a flat black frame.
+  X.globalCompositeOperation = 'overlay';
+  X.globalAlpha = 0.06;
+  X.fillStyle = tint;
   X.fillRect(0, 0, W, H);
   X.restore();
   X.globalAlpha = 1;
@@ -6466,12 +6623,12 @@ function updateFeelFX(dt) {
   // Dash afterimages (GH was pushed every dash frame but never aged or drawn).
   if (typeof GH !== 'undefined' && GH.length) {
     for (const g of GH) g.l -= dt;
-    GH = GH.filter(g => g.l > 0);
+    pruneArr(GH, g => g.l > 0);
   }
   for (const e of SKILL_FX) e.l -= dt;
-  SKILL_FX = SKILL_FX.filter(e => e.l > 0);
+  pruneArr(SKILL_FX, e => e.l > 0);
   for (const a of ARCS) a.l -= dt;
-  ARCS = ARCS.filter(a => a.l > 0);
+  pruneArr(ARCS, a => a.l > 0);
   if (ARCS.length > 40) ARCS.splice(0, ARCS.length - 40);
 
   // Grenade flight: visual + delayed detonation.
@@ -7083,15 +7240,16 @@ function fire() {
   const mOff = ((ML[P.cur] || 45) * 0.87);
 
   // Point-blank check: if an enemy is directly between player and muzzle, spawn close so bullets don't bypass them
-  let pbTarget = null, minD = mOff + 25;
+  let pbTarget = null, minD2 = (mOff + 25) * (mOff + 25);
   for (const z of Z) {
     if (z.dead) continue;
-    const d = Math.hypot(z.x - P.x, z.y - P.y);
-    if (d < minD) {
-      const angDiff = Math.abs(Math.atan2(z.y - P.y, z.x - P.x) - P.a);
+    const pbx = z.x - P.x, pby = z.y - P.y;
+    const d2 = pbx * pbx + pby * pby;
+    if (d2 < minD2) {
+      const angDiff = Math.abs(Math.atan2(pby, pbx) - P.a);
       const normDiff = Math.atan2(Math.sin(angDiff), Math.cos(angDiff));
       if (Math.abs(normDiff) < 0.65) {
-        minD = d;
+        minD2 = d2;
         pbTarget = z;
       }
     }
@@ -7720,7 +7878,7 @@ function update(dt) {
       }
     }
   }
-  B = B.filter(b => b.l > 0);
+  pruneArr(B, b => b.l > 0);
   if (B.length > 300) B.splice(0, B.length - 300);
 
   // Update Turrets
@@ -7740,18 +7898,18 @@ function update(dt) {
     if (c.vx || c.vy) {
       c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= 0.85; c.vy *= 0.85;
       c.a += c.va * dt; c.va *= 0.85;
-      if (Math.hypot(c.vx, c.vy) < 5) { c.vx = 0; c.vy = 0; c.va = 0; }
+      if (c.vx * c.vx + c.vy * c.vy < 25) { c.vx = 0; c.vy = 0; c.va = 0; }
     }
   }
   for (const m of MAG) {
     if (m.vx || m.vy) {
       m.x += m.vx * dt; m.y += m.vy * dt; m.vx *= 0.82; m.vy *= 0.82;
       m.a += m.va * dt; m.va *= 0.82;
-      if (Math.hypot(m.vx, m.vy) < 5) { m.vx = 0; m.vy = 0; m.va = 0; }
+      if (m.vx * m.vx + m.vy * m.vy < 25) { m.vx = 0; m.vy = 0; m.va = 0; }
     }
     m.l -= dt;
   }
-  MAG = MAG.filter(m => m.l > 0);
+  pruneArr(MAG, m => m.l > 0);
 
   // Player recoil decay
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt * 26);
@@ -7788,7 +7946,7 @@ function update(dt) {
 
     const decay = Math.exp(-dt * 9);
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
-    if (Math.hypot(z.kx, z.ky) < 4 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
+    if (z.kx * z.kx + z.ky * z.ky < 16 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
 
     const mvA = (typeof zombieHeading === 'function') ? zombieHeading(z, dt, zRadius) : a;
     z.x += Math.cos(mvA) * speed * dt * sl + z.kx * dt;
@@ -7797,6 +7955,17 @@ function update(dt) {
 
     z.ph = (z.ph || 0) + dt * speed / 8;
     z.age = (z.age || 0) + dt;
+    // Footstep dust: a cheap motion cue that also sells the ground plane and
+    // gives the shambling walk a physical footprint. Throttled and capped so
+    // it can never crowd out combat particles.
+    if (sl > 0.35 && typeof F !== 'undefined' && F.length < 220 && Math.random() < dt * 6) {
+      F.push({
+        x: z.x - Math.cos(mvA) * (zRadius * 0.55) + (Math.random() - 0.5) * 7,
+        y: z.y - Math.sin(mvA) * (zRadius * 0.55) + (Math.random() - 0.5) * 7,
+        vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14 - 5,
+        l: 0.42 + Math.random() * 0.2, c: 'rgba(146,134,112,0.30)', s: 2.4 + Math.random() * 1.6
+      });
+    }
     push(z, zRadius);
 
     // Boundary constraints
@@ -7841,7 +8010,9 @@ function update(dt) {
     // Bullet collisions with zombie
     for (const b of B) {
       if (z.dead) break;
-      if (b.l > 0 && !(b.h && b.h.includes(z)) && Math.hypot(b.x - z.x, b.y - z.y) < T.r + 4) {
+      const bdx = b.x - z.x, bdy = b.y - z.y;
+      const bR = T.r + 4;
+      if (b.l > 0 && !(b.h && b.h.includes(z)) && bdx * bdx + bdy * bdy < bR * bR) {
         damageZ(z, b.d, 'bullet', b.isCrit, Math.atan2(b.vy, b.vx), b.wi);
         if (b.ls && P.hp < P.mx && (S.lsTok = (S.lsTok == null ? 4 : S.lsTok)) > 0) { const hv = Math.min(1.1, b.d * 0.12); healP(hv); S.lsTok -= hv; if (Math.random() < 0.25) F.push({ x: z.x, y: z.y, vx: (P.x - z.x) * 2, vy: (P.y - z.y) * 2, l: 0.35, c: '#ff4d6d', s: 2.4 }); }
         if (b.ex) boom(b);
@@ -7861,7 +8032,7 @@ function update(dt) {
     }
   }
 
-  Z = Z.filter(z => !z.dead);
+  pruneArr(Z, z => !z.dead);
 
   // Update Spitter Acid Projectiles (AB)
   for (let i = AB.length - 1; i >= 0; i--) {
@@ -7872,7 +8043,8 @@ function update(dt) {
     if (Math.random() < 0.4 && typeof F !== 'undefined') {
       F.push({ x: ab.x, y: ab.y, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, l: 0.25, c: '#4ade80', s: 2.5 });
     }
-    const hitP = (P && Math.hypot(P.x - ab.x, P.y - ab.y) < 14);
+    const abx = P ? P.x - ab.x : 0, aby = P ? P.y - ab.y : 0;
+    const hitP = (P && abx * abx + aby * aby < 196);
     if (ab.l <= 0 || hitP) {
       if (hitP) hurtP(16, ab.x, ab.y);
       // Spawn Spitter Acid Puddle that damages and shrinks
@@ -7893,7 +8065,8 @@ function update(dt) {
     ap.l -= dt;
     ap.r = ap.maxR * Math.max(0.12, ap.l / ap.maxL);
     if (P && P.hp > 0 && !(P.dash > 0) && !(S && S.sh2 > 0)) {
-      if (Math.hypot(P.x - ap.x, P.y - ap.y) < ap.r + 10) {
+      const apx = P.x - ap.x, apy = P.y - ap.y, apR = ap.r + 10;
+      if (apx * apx + apy * apy < apR * apR) {
         hurtP(18 * dt, ap.x, ap.y);
         if (Math.random() < 0.25 && typeof F !== 'undefined') {
           F.push({ x: P.x + (Math.random() - 0.5) * 12, y: P.y + (Math.random() - 0.5) * 12, vx: 0, vy: -25, l: 0.3, c: '#4ade80' });
@@ -7922,7 +8095,7 @@ function update(dt) {
       openChest(c);
     }
   }
-  CH = CH.filter(c => !c.o);
+  pruneArr(CH, c => !c.o);
 
   // Floating text / particles decay
   for (const f of F) {
@@ -7930,11 +8103,11 @@ function update(dt) {
     if (f.fr) { f.vx *= 0.9; f.vy *= 0.9; }
     f.l -= dt;
   }
-  F = F.filter(f => f.l > 0);
+  pruneArr(F, f => f.l > 0);
 
   // Shockwave rings decay
   for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }
-  RG = RG.filter(r => r.l > 0);
+  pruneArr(RG, r => r.l > 0);
 
   // Skill VFX lifetimes, dash afterimages, grenade flight and bullet smoke.
   if (typeof updateFeelFX === 'function') updateFeelFX(dt);
@@ -8014,6 +8187,10 @@ function draw() {
   // 1. World Ground Base Fill
   X.fillStyle = mapDef.ground || '#181f15';
   X.fillRect(0, 0, WS, WS);
+
+  // 1b. Parallax ground scatter: a slow layer under the grid so movement gains
+  //     depth. Cosmetic only - no collision, no gameplay state.
+  if (typeof renderParallax === 'function') renderParallax(cx, cy, W, H, mapDef);
 
   // Subtle tactical ground grid
   X.strokeStyle = mapDef.grid || 'rgba(0,0,0,0.18)';
@@ -8464,6 +8641,10 @@ function draw() {
 
   // 17. Depth post-process: light mask, additive lights, bloom and colour grade
   if (typeof renderLightingPass === "function") renderLightingPass(CX, CY, W, H);
+
+  // 17b. Atmospheric edge fog: distance haze that softens the arena rectangle
+  //      and pushes the centre of action forward. Cosmetic only.
+  if (typeof renderDepthFog === 'function') renderDepthFog(CX, CY, W, H);
 
   // 18. HUD OVERLAY
   renderHUD();
@@ -9155,7 +9336,8 @@ function drawPlayerEntity() {
   }
 
   // Breathing bob
-  const breathe = (Math.hypot(P.vx || 0, P.vy || 0) < 15) ? Math.sin((S.t || 0) * 3) * 0.8 : 0;
+  const bvx = P.vx || 0, bvy = P.vy || 0;
+  const breathe = (bvx * bvx + bvy * bvy < 225) ? Math.sin((S.t || 0) * 3) * 0.8 : 0;
   X.translate(0, breathe);
 
   // Layer 1-3 Player body
@@ -10054,7 +10236,7 @@ function fxReset() {
 
 function fxUpdate(dt) {
   for (const a of ANN) a.t += dt;
-  ANN = ANN.filter(a => a.t < a.life);
+  pruneArr(ANN, a => a.t < a.life);
 
   // Footstep dust while moving
   if (P && P.hp > 0 && !(P.dash > 0)) {
@@ -10196,6 +10378,24 @@ function renderDirectorOverlay(W, H) {
     X.fillStyle = def.col; X.strokeStyle = '#000'; X.lineWidth = 2;
     X.beginPath(); X.moveTo(14, 0); X.lineTo(-8, -10); X.lineTo(-3, 0); X.lineTo(-8, 10); X.closePath(); X.stroke(); X.fill();
     X.restore();
+  }
+
+  // Combo heat: as the kill chain climbs, the frame edge warms up so a long
+  // streak is felt across the whole screen and not only read off the meter.
+  // The tint escalates with the combo tier (gold -> orange -> rose -> violet)
+  // and flares briefly on every kill via the shared combo kick.
+  if (S.cmb && S.cmb >= 8) {
+    let tier = null;
+    for (let i = 0; i < COMBO_TIERS.length; i++) if (S.cmb >= COMBO_TIERS[i].at) tier = COMBO_TIERS[i];
+    const col = hexToRgbTriplet(tier ? tier.col : '#ffd36b');
+    const base = tier ? 0.16 : 0.09;
+    const pulse = 0.86 + Math.sin(t * (5 + Math.min(4, S.cmb * 0.06))) * 0.14;
+    const kick = Math.min(0.14, (S.cmbKick || 0) * 0.30);
+    const a = base * pulse + kick;
+    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.78);
+    g.addColorStop(0, 'rgba(' + col + ',0)');
+    g.addColorStop(1, 'rgba(' + col + ',' + a.toFixed(3) + ')');
+    X.save(); X.fillStyle = g; X.fillRect(0, 0, W, H); X.restore();
   }
 
   drawComboMeter(W, H);

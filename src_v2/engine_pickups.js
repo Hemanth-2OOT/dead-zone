@@ -119,7 +119,7 @@ function updatePickups(dt) {
     }
   }
 
-  D = D.filter(d => d.l > 0);
+  pruneArr(D, d => d.l > 0);
   if (D.length > 90) D.splice(0, D.length - 90);
 
   // 5. Update HUD flying particles
@@ -137,7 +137,7 @@ function updatePickups(dt) {
       burst(targetX + CX, targetY + CY, '#ffd36b', 5, 2, 60);
     }
   }
-  HUD_FLYING_ICONS = HUD_FLYING_ICONS.filter(h => h.progress < 1);
+  pruneArr(HUD_FLYING_ICONS, h => h.progress < 1);
 
   // Decay HUD bounce
   if (HUD_BOUNCE > 1.0) {

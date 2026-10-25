@@ -156,6 +156,22 @@ function getMaxBloodDrops() {
   return 120;
 }
 
+// In-place array compaction. Array.prototype.filter() allocates a brand new
+// array on every call, and the update loop runs a dozen of them per frame over
+// pools that can hold hundreds of particles/debris. This keeps the same array
+// (so any module holding a reference stays valid) and simply compacts the live
+// entries to the front, preserving order. Order-preserving and allocation-free.
+function pruneArr(arr, keep) {
+  if (!arr || !arr.length) return arr;
+  let w = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    if (keep(v)) arr[w++] = v;
+  }
+  arr.length = w;
+  return arr;
+}
+
 // Runtime Performance & FPS Monitor (Active on Low profile or low-spec devices)
 let CURRENT_FPS = 60;
 let FPS_SMOOTH = 60;

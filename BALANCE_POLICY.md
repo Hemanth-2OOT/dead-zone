@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.4.1**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **the new depth/retention layer (Section 6)** and **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
+> **Status:** Updated for **v2.4.2**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **the new depth/retention layer (Section 6)** and **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
 
 ---
 
@@ -330,3 +330,44 @@ tier-2-crit impacts and *not* for light hits, the desaturated blood palette, all
 toggling with a non-collapsing service record, skin rule progress/unlock idempotency, grenade flight timing,
 and a live in-run probe proving chain arcs appear from real bullet hits and that a Pistol shot deals damage.
 
+## 8. v2.4.2 — Depth, Animation & Allocation-free Optimisation
+
+8.1 **Visual-depth layer (cosmetic only).** Two new screen-space systems sit in `engine_depth.js` and add
+no gameplay state:
+  - `renderParallax()` — a deterministic, per-cell ground scatter layer that tracks the camera at
+    `PARALLAX_FACTOR = 0.55`, so props slide past it and the arena reads as having height. The cell hash
+    (`parallaxHash`) is stable, so scatter never shimmers as the camera pans; the layer is skipped on the
+    `low` profile and hard-bounded (`(x1-x0)*(y1-y0) > 900` -> bail) against absurd camera values.
+  - `renderDepthFog()` — a cached radial haze that thickens toward the frame edge, tinted by the sector
+    mood, softening the hard rectangle where the arena meets the viewport. The gradient is cached per
+    `W x H x tint` and skipped on `low`.
+  Both are wired into `draw()` (parallax under the ground grid, fog after the lighting pass and before the
+  HUD) and are covered by harness assertions.
+
+8.2 **Combo heat.** `renderDirectorOverlay()` now warms the frame edge as the kill chain climbs: intensity
+ramps from 8 combo, the tint escalates by `COMBO_TIERS` colour (gold -> orange -> rose -> violet), and each
+kill flares it via the shared `S.cmbKick`. Purely presentational - the cash multiplier is untouched.
+
+8.3 **Footstep dust.** Walking zombies emit throttled, capped dust particles
+(`sl > 0.35 && F.length < 220 && Math.random() < dt * 6`), giving the shambles a ground footprint without
+ever crowding out combat particles.
+
+8.4 **Allocation-free array pruning.** `Array.prototype.filter()` allocates a new array on every call, and
+the update loop ran a dozen of them per frame over pools holding hundreds of particles/debris. The new
+`pruneArr(arr, keep)` helper (in `engine_core.js`) compacts live entries to the front **in place** -
+order-preserving, zero allocation, and it keeps the same array reference so any module holding a reference
+stays valid. All per-frame filters in `engine_world.js`, `engine_feel.js`, `engine_fx.js`, `engine_gore.js`
+and `engine_pickups.js` were converted. One-off UI `.filter()` calls are intentionally left as-is.
+
+8.5 **Squared-distance collision.** The hottest loop in the game - bullet x zombie, up to `B(<=300) x Z`
+per frame - no longer calls `Math.hypot`. Distances that are only *compared* to a radius now use
+`dx*dx + dy*dy < r*r` (bullet x zombie, acid projectile, acid puddle, nearest-target search, casing/magazine
+and knockback dead-stops, idle-breathing gate). Distances consumed as a *magnitude* (`boom()` falloff,
+spitter flight length) keep the real distance.
+
+8.6 **Mandatory coverage (v2.4.2).** The `_deep.html` harness must report `DEEP PASS` with zero failures
+including: `pruneArr` order/reference identity, that no hot loop still allocates via `.filter()`,
+parallax determinism and factor, that both depth passes are wired into `draw()`, that `drawEntityBand()`
+reuses pooled entries and culls off-screen entities while still drawing in-view ones, that moving zombies
+emit dust, that the combo-heat overlay renders at high combo, and that bullet x zombie collision uses
+squared distance. Current run: **126 PASS / 0 FAIL**.

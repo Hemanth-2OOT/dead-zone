@@ -343,12 +343,12 @@ function updateFeelFX(dt) {
   // Dash afterimages (GH was pushed every dash frame but never aged or drawn).
   if (typeof GH !== 'undefined' && GH.length) {
     for (const g of GH) g.l -= dt;
-    GH = GH.filter(g => g.l > 0);
+    pruneArr(GH, g => g.l > 0);
   }
   for (const e of SKILL_FX) e.l -= dt;
-  SKILL_FX = SKILL_FX.filter(e => e.l > 0);
+  pruneArr(SKILL_FX, e => e.l > 0);
   for (const a of ARCS) a.l -= dt;
-  ARCS = ARCS.filter(a => a.l > 0);
+  pruneArr(ARCS, a => a.l > 0);
   if (ARCS.length > 40) ARCS.splice(0, ARCS.length - 40);
 
   // Grenade flight: visual + delayed detonation.

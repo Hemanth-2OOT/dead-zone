@@ -27,6 +27,19 @@ Top-down zombie survival roguelite. Vanilla JS (no framework, no bundler deps), 
 - `git status` should never contain `www/_deep.html` / `www/_live.html`; they are scratch harnesses.
 - `GUN_LOGIC.md` holds the derived per-weapon DPS/TTK table; re-run its script after any `WEAP` change.
 
+## Depth & performance systems
+- `renderParallax()` / `renderDepthFog()` live in `engine_depth.js` and are cosmetic only — parallax is a
+  slow (0.55x) hashed ground-scatter layer under the grid, fog is a cached edge haze drawn after the
+  lighting pass. Both bail out on the `low` quality profile.
+- Combo heat (edge glow that escalates by `COMBO_TIERS`) lives in `renderDirectorOverlay()` in `engine_fx.js`.
+- **Never use `Array.prototype.filter()` on a per-frame pool** (`B`, `Z`, `F`, `BLD`, `DEC`, `GIBS`, …) —
+  it reallocates every frame. Use `pruneArr(arr, keep)` from `engine_core.js`: it compacts in place, keeps
+  order and the same array reference. One-off UI/derivation filters are fine.
+- For radius tests only ever call `Math.hypot` when the real distance is consumed (e.g. `boom()` falloff).
+  Pure comparisons use squared distance (`dx*dx + dy*dy < r*r`) — this matters in the bullet×zombie loop.
+- `drawEntityBand()` (`engine_depth.js`) pools its entries in `BAND_LIST` and culls entities outside the
+  camera rect ±140 px; it must not allocate per frame.
+
 ## Balance contract
 `BALANCE_POLICY.md` is authoritative for caps and is updated every release. Hard ceilings that must
 never be exceeded: crit ≤ 75%, damage reduction ≤ 65% (armour floor 0.35), cooldown reduction ≤ 50%,

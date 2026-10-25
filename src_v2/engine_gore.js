@@ -274,7 +274,7 @@ function updateGoreSystem(dt) {
       b.l = -1;
     }
   }
-  BLD = BLD.filter(b => b.l > 0);
+  pruneArr(BLD, b => b.l > 0);
 
   // 2. Streaks
   for (const s of STREAKS) {
@@ -284,7 +284,7 @@ function updateGoreSystem(dt) {
     s.vy *= 0.82;
     s.l -= dt;
   }
-  STREAKS = STREAKS.filter(s => s.l > 0);
+  pruneArr(STREAKS, s => s.l > 0);
 
   // 3. Mist
   for (const m of MISTS) {
@@ -295,7 +295,7 @@ function updateGoreSystem(dt) {
     m.r += dt * 8;
     m.l -= dt;
   }
-  MISTS = MISTS.filter(m => m.l > 0);
+  pruneArr(MISTS, m => m.l > 0);
 
   // 4. Expanding & drying pools under corpses
   for (const p of POOLS) {
@@ -304,19 +304,19 @@ function updateGoreSystem(dt) {
       p.r = Math.min(p.maxR, p.r + dt * 4.5);
     }
   }
-  POOLS = POOLS.filter(p => p.age < p.maxAge);
+  pruneArr(POOLS, p => p.age < p.maxAge);
 
   // 5. Active decals fading
   for (const d of DEC) {
     d.l -= dt;
   }
-  DEC = DEC.filter(d => d.l > 0);
+  pruneArr(DEC, d => d.l > 0);
 
   // 6. Footprints
   for (const f of FOOTPRINTS) {
     f.l -= dt;
   }
-  FOOTPRINTS = FOOTPRINTS.filter(f => f.l > 0);
+  pruneArr(FOOTPRINTS, f => f.l > 0);
 
   // 7. Gibs tumble & friction
   for (const g of GIBS) {
@@ -331,7 +331,7 @@ function updateGoreSystem(dt) {
     }
     g.l -= dt;
   }
-  GIBS = GIBS.filter(g => g.l > 0);
+  pruneArr(GIBS, g => g.l > 0);
 }
 
 // Renders the entire blood & gore ground pass

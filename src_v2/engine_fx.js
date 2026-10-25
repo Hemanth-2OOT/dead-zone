@@ -18,7 +18,7 @@ function fxReset() {
 
 function fxUpdate(dt) {
   for (const a of ANN) a.t += dt;
-  ANN = ANN.filter(a => a.t < a.life);
+  pruneArr(ANN, a => a.t < a.life);
 
   // Footstep dust while moving
   if (P && P.hp > 0 && !(P.dash > 0)) {
@@ -160,6 +160,24 @@ function renderDirectorOverlay(W, H) {
     X.fillStyle = def.col; X.strokeStyle = '#000'; X.lineWidth = 2;
     X.beginPath(); X.moveTo(14, 0); X.lineTo(-8, -10); X.lineTo(-3, 0); X.lineTo(-8, 10); X.closePath(); X.stroke(); X.fill();
     X.restore();
+  }
+
+  // Combo heat: as the kill chain climbs, the frame edge warms up so a long
+  // streak is felt across the whole screen and not only read off the meter.
+  // The tint escalates with the combo tier (gold -> orange -> rose -> violet)
+  // and flares briefly on every kill via the shared combo kick.
+  if (S.cmb && S.cmb >= 8) {
+    let tier = null;
+    for (let i = 0; i < COMBO_TIERS.length; i++) if (S.cmb >= COMBO_TIERS[i].at) tier = COMBO_TIERS[i];
+    const col = hexToRgbTriplet(tier ? tier.col : '#ffd36b');
+    const base = tier ? 0.16 : 0.09;
+    const pulse = 0.86 + Math.sin(t * (5 + Math.min(4, S.cmb * 0.06))) * 0.14;
+    const kick = Math.min(0.14, (S.cmbKick || 0) * 0.30);
+    const a = base * pulse + kick;
+    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.78);
+    g.addColorStop(0, 'rgba(' + col + ',0)');
+    g.addColorStop(1, 'rgba(' + col + ',' + a.toFixed(3) + ')');
+    X.save(); X.fillStyle = g; X.fillRect(0, 0, W, H); X.restore();
   }
 
   drawComboMeter(W, H);

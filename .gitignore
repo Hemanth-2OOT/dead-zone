@@ -13,3 +13,5 @@ android/*.iml
 android/app/*.iml
 android/.navigation/
 android/captures/
+www/_deep.html
+www/_live.html
