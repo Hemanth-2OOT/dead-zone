@@ -33,6 +33,13 @@ Top-down zombie survival roguelite. Vanilla JS (no framework, no bundler deps), 
   slow (0.55x) hashed ground-scatter layer under the grid, fog is a cached edge haze drawn after the
   lighting pass. Both bail out on the `low` quality profile.
 - Combo heat (edge glow that escalates by `COMBO_TIERS`) lives in `renderDirectorOverlay()` in `engine_fx.js`.
+- **The particle pool `F` has a hard budget** (`getMaxParticles()`: 250 high / 140 med / 60 low) enforced
+  by `trimParticleBudget()` (`engine_core.js`), which `update()` calls at **both ends** of the frame:
+  above the hit-stop early return (hit-stop skips the rest of the frame, so nothing else trims on those
+  frames) and again after the sim (a mass-kill frame pushes a gore burst per corpse, and every emissive
+  particle costs an additive `drawImage` in `renderParticles()`). The `F.length < 250` guards on
+  individual emitters are a soft throttle only — they are read-then-push and not atomic, and `burst()`
+  plus the turret emitters do not guard at all. `_soak.html` asserts the pool peaks at the budget.
 - **Never use `Array.prototype.filter()` on a per-frame pool** (`B`, `Z`, `F`, `BLD`, `DEC`, `GIBS`, …) —
   it reallocates every frame. Use `pruneArr(arr, keep)` from `engine_core.js`: it compacts in place, keeps
   order and the same array reference. One-off UI/derivation filters are fine.
@@ -152,6 +159,10 @@ and not an extra block in `engine_world.js`).
     variants, pixel power-up bursts, the four elite affixes and roster-aware wave modifiers).
   * `/tmp/mkshot.py` → `www/_shot.html` (contact sheet; panels 1–9 — check the `PER-PANEL INK`
     report for non-zero ink and colour variety rather than eyeballing it).
+  * `/tmp/mksoak.py` → `www/_soak.html` (the long-run invariant sweep: 14000 frames across all seven
+    sectors with every archetype, boss variant and elite affix forced, checking for NaN, pool growth
+    and exceptions). This is the harness that catches what per-frame assertions miss — it found the
+    particle budget being blown 6x by mass-kill frames. Must be **0 FAIL**.
 * Harnesses read their result out of `localStorage` (`V27_LAST`, `DEEP_LAST`, `BUL_LAST`,
   `SHOT_REPORT`) and several **wipe storage on load**, so run them one at a time and read the result
   through a small reader page before loading the next harness.

@@ -113,9 +113,12 @@ function renderParticles(cx, cy, W, H) {
   const maxP = typeof getMaxParticles === 'function' ? getMaxParticles() : 250;
 
   // Emissive sparks first, additively, so they bloom against the dark ground.
+  // Capped at the profile budget: update() already trims F, this keeps the draw
+  // pass honest if a caller ever pushes after the trim.
+  const nP = Math.min(F.length, maxP);
   let additive = false;
   X.save();
-  for (let i = 0; i < F.length; i++) {
+  for (let i = 0; i < nP; i++) {
     const f = F[i];
     if (f.x < cx - 40 || f.x > cx + W + 40 || f.y < cy - 40 || f.y > cy + H + 40) continue;
     const want = f.fr ? 1 : 0;

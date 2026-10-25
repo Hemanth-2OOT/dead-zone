@@ -666,3 +666,24 @@ CDR ≤ 50%, `spMul` ≤ 2, `eliteBoost` ≤ 0.8, ascension ≤ 5.
 * `_bul.html` — per-weapon bullet coverage: **36 PASS / 0 FAIL**.
 * `_shot.html` — visual contact sheet; panels 7–9 (new archetypes + affix rings, pixel
   bursts, ground detail + restored props) must report non-zero ink and colour variety.
+* `_soak.html` (built by `/tmp/mksoak.py`) — 20 assertions over 14000 simulated frames
+  across all seven sectors with every archetype, boss variant and elite affix forced.
+  Current run: **20 PASS / 0 FAIL**.
+
+### 12.9 Particle budget was documented but not enforced (fixed in v2.7.0)
+
+A soak found `F` peaking at **1552** particles against a documented ceiling of 250. Root
+cause: the cap only existed as non-atomic `F.length < 250` read-then-push guards on
+*individual* emitters, `burst()` and the four turret emitters pushed unguarded, and
+`renderParticles()` computed `getMaxParticles()` into a `maxP` that was **never read**.
+A mass-kill frame (a gore burst per corpse) therefore reached the draw pass several times
+over budget — and every emissive particle costs an additive sprite blit there, which is
+exactly the mobile cost the budget existed to cap.
+
+`trimParticleBudget()` now enforces it in one place, called from `update()` at **both ends
+of the frame**: above the hit-stop early return (hit-stop skips the rest of the frame,
+including `F`'s decay, so those are the frames the pool grows on) and again after the sim
+so the frame's own pushes are trimmed before `draw()`. `renderParticles()` additionally
+caps its loop at the budget instead of iterating `F.length`. Measured after the fix: peak
+`F` = **250** exactly. No balance or gameplay value is affected — this is a render-cost
+invariant only.

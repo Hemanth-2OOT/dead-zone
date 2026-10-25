@@ -1054,6 +1054,12 @@ function applyPerk(p) {
 function update(dt) {
   if (!P) return;
   sanitizePlayer();
+
+  // Particle budget, pass 1 of 2. Must sit ABOVE the hit-stop return below:
+  // hit-stop skips the rest of the frame (including F's decay), so on those
+  // frames this is the only thing keeping the pool bounded.
+  if (typeof trimParticleBudget === 'function') trimParticleBudget();
+
   if (typeof updateAmbient === 'function') updateAmbient(dt);
 
   // Damage-chip health bar: the ghost value lags behind real HP after a hit and
@@ -1553,6 +1559,11 @@ function update(dt) {
     f.l -= dt;
   }
   pruneArr(F, f => f.l > 0);
+  // Particle budget, pass 2 of 2. Every emitter guards with a non-atomic
+  // `F.length < 250` read-then-push, and burst()/the turret emitters do not
+  // guard at all, so a frame that kills a crowd pushes a gore burst per corpse
+  // and lands in the draw pass several times over budget.
+  if (typeof trimParticleBudget === 'function') trimParticleBudget();
 
   // Shockwave rings decay
   for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }

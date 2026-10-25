@@ -150,6 +150,18 @@ function getMaxParticles() {
   return 250;
 }
 
+// Oldest-first trim of the particle pool down to the profile budget.
+// Callers in engine_world.js's update() run this at BOTH ends of the frame:
+// once at the top (the hit-stop return skips the rest of the frame, so nothing
+// else would trim on those frames) and once after the sim, because a mass-kill
+// frame pushes a gore burst per corpse and can otherwise reach the draw pass
+// far over budget - which is the cost the budget exists to cap.
+function trimParticleBudget() {
+  if (typeof F === 'undefined') return;
+  const maxP = getMaxParticles();
+  if (F.length > maxP) F.splice(0, F.length - maxP);
+}
+
 function getMaxBloodDrops() {
   if (QUALITY_SETTINGS.profile === 'low') return 25;
   if (QUALITY_SETTINGS.profile === 'med') return 60;
