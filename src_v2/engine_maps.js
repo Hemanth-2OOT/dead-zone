@@ -305,6 +305,76 @@ function buildMapData() {
 
 buildMapData();
 
+// === MAP ENRICHMENT: tactical cover clusters + themed decor (deterministic per map) ===
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const COVER_THEME = [
+  /* 0 Downtown   */ { kinds: [['barrier', 92, 22, '#505648'], ['crate', 38, 38, '#5b5444'], ['cover', 62, 26, '#3f4638']], clusters: 16 },
+  /* 1 Dust Bowl  */ { kinds: [['crate', 40, 40, '#6b4a2a'], ['fence', 96, 14, '#614328'], ['cover', 58, 30, '#7a5a30']], clusters: 15 },
+  /* 2 Frozen     */ { kinds: [['cover', 64, 34, '#7e98a8'], ['crate', 36, 36, '#9db4c2'], ['barrier', 84, 22, '#6d8696']], clusters: 14 },
+  /* 3 Swamp      */ { kinds: [['cover', 74, 24, '#3a2f1e'], ['crate', 34, 34, '#2d3a22'], ['cover', 54, 30, '#34402a']], clusters: 15 },
+  /* 4 Ashlands   */ { kinds: [['cover', 66, 32, '#3d2a24'], ['barrier', 88, 22, '#4a2f26'], ['crate', 38, 38, '#2b1d1a']], clusters: 16 },
+  /* 5 Neon Lab   */ { kinds: [['barrier', 96, 20, '#1c2a44'], ['crate', 40, 40, '#16213a'], ['cover', 64, 26, '#22314f']], clusters: 16 },
+  /* 6 Bio-Dome   */ { kinds: [['cover', 70, 28, '#1f4030'], ['crate', 36, 36, '#173324'], ['barrier', 86, 20, '#2a5240']], clusters: 14 }
+];
+
+function enrichMapData() {
+  for (let mi = 0; mi < MAP_DATA.length; mi++) {
+    const md = MAP_DATA[mi], th = COVER_THEME[mi];
+    if (!md || !th || md._enriched) continue;
+    md._enriched = true;
+    md.walls = md.walls || []; md.props = md.props || [];
+    const rnd = mulberry32(9001 + mi * 7919);
+    const hz = md.hazards || [];
+    const clear = (x, y, w, h, pad) => {
+      if (x < 80 || y < 80 || x + w > WS - 80 || y + h > WS - 80) return false;
+      if (Math.hypot(x + w / 2 - WS / 2, y + h / 2 - WS / 2) < 300) return false;
+      for (const o of md.walls) if (x < o.x + o.w + pad && x + w > o.x - pad && y < o.y + o.h + pad && y + h > o.y - pad) return false;
+      for (const h2 of hz) if (Math.hypot(x + w / 2 - h2.x, y + h / 2 - h2.y) < h2.r + 50) return false;
+      return true;
+    };
+    let placed = 0;
+    for (let c = 0; c < th.clusters; c++) {
+      for (let tries = 0; tries < 40; tries++) {
+        const cx = 120 + rnd() * (WS - 240), cy = 120 + rnd() * (WS - 240);
+        const kind = th.kinds[Math.floor(rnd() * th.kinds.length)];
+        const shape = rnd() < 0.5 ? 'row' : 'L';
+        const horiz = rnd() < 0.5;
+        const pieces = [];
+        const [t, w, h, col] = kind;
+        const n = shape === 'row' ? 2 + Math.floor(rnd() * 2) : 2;
+        for (let i = 0; i < n; i++) {
+          pieces.push(horiz ? { x: cx + i * (w + 8), y: cy, w, h } : { x: cx, y: cy + i * (h + 8), w: h > w ? w : h, h: h > w ? h : w });
+        }
+        if (shape === 'L') pieces.push(horiz ? { x: cx, y: cy + h + 8, w: h, h: w } : { x: cx + w + 8, y: cy, w: h, h: w });
+        if (!pieces.every(p => clear(p.x, p.y, p.w, p.h, 70))) continue;
+        for (const p of pieces) md.walls.push({ x: Math.round(p.x), y: Math.round(p.y), w: Math.round(p.w), h: Math.round(p.h), t, col });
+        placed++;
+        break;
+      }
+    }
+    // Decor: re-scatter the map's own prop types in open ground for a lived-in feel
+    const types = [...new Set(md.props.filter(p => ['barrel', 'crate', 'hay_bale', 'pine', 'swamp_tree', 'charred_tree', 'slag_heap', 'cairn', 'log', 'planter_bed', 'server_rack', 'dumpster', 'neon_light', 'grow_light', 'alien_vine', 'ice_patch', 'glowing_puddle'].includes(p.type)).map(p => p.type))];
+    if (types.length) {
+      let added = 0;
+      for (let tries = 0; tries < 400 && added < 26; tries++) {
+        const x = 100 + rnd() * (WS - 200), y = 100 + rnd() * (WS - 200);
+        if (!clear(x - 18, y - 18, 36, 36, 30)) continue;
+        md.props.push({ x: Math.round(x), y: Math.round(y), type: types[Math.floor(rnd() * types.length)], rot: rnd() * 6.28 });
+        added++;
+      }
+    }
+  }
+}
+enrichMapData();
+
 // Initializes obstacles O, props P_PROPS, hazards HZ for the active map
 let P_PROPS = [];
 let AMB_PARTICLES = [];

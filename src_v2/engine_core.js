@@ -256,6 +256,10 @@ function sfx(i) {
   else if (i == 12) { noise(0.15, 0.12); snd(160, 0.2, 'sine', 0.08, 0.3); }
   else if (i == 13) { noise(0.09, 0.07); snd(780, 0.14, 'triangle', 0.05, 1.2); }
   else if (i == 14) { snd(1150, 0.24, 'sawtooth', 0.13, 0.1); noise(0.18, 0.14); }
+  else if (i == 18) { noise(0.05, 0.05); snd(210, 0.1, 'triangle', 0.08, 0.4); }
+  else if (i == 19) { noise(0.05, 0.05); snd(340, 0.06, 'square', 0.04, 0.6); }
+  else if (i == 20) { noise(0.16, 0.12); snd(720, 0.14, 'sine', 0.07, 0.4); }
+  else if (i == 21) { snd(150, 0.12, 'sawtooth', 0.08, 0.4); noise(0.07, 0.07); }
   else noise(0.07, 0.06);
 }
 

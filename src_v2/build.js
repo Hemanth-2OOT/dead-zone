@@ -27,6 +27,8 @@ const jsModules = [
   'engine_render_zombies.js',
   'engine_render_turret.js',
   'engine_world.js',
+  'engine_director.js',
+  'engine_fx.js',
   'engine_lobby.js',
   'engine_bootstrap.js'
 ];

@@ -229,23 +229,27 @@ function mapsUI() {
     const locked = userLvl < req;
     const isSelected = curMap === i;
 
-    return `<button class="map-tile ${isSelected ? 'on' : ''} ${locked ? 'locked' : ''}" data-m="${i}" ${locked ? 'disabled' : ''}>
+    const isPrev = curPreviewZone === i;
+    return `<button class="map-tile ${isSelected ? 'on' : ''} ${isPrev ? 'prev' : ''} ${locked ? 'locked' : ''}" data-m="${i}">
       <span class="m-num">SEC 0${i + 1}</span>
-      <span class="m-title">${m.n}</span>
-      <span class="m-req">${locked ? `LV ${req} REQ` : (isSelected ? 'DEPLOY READY' : 'SELECT')}</span>
+      <span class="m-title">${locked ? '🔒 ' : ''}${m.n}</span>
+      <span class="m-req">${locked ? `RANK ${req} TO UNLOCK` : (isSelected ? 'DEPLOY READY' : 'TAP TO SELECT')}</span>
     </button>`;
   }).join('');
 
   c.onclick = e => {
     const b = e.target.closest('button');
-    if (!b || b.disabled) return;
+    if (!b) return;
     const i = +b.dataset.m;
-    if (typeof SV !== 'undefined') {
+    const req = (typeof MREQ !== 'undefined' && MREQ[i] != null) ? MREQ[i] : (i * 3);
+    if (userLvl >= req && typeof SV !== 'undefined') {
       SV.map = i;
       if (typeof sv === 'function') sv();
     }
+    curPreviewZone = i;
     mapsUI();
     drawZonePreview(i);
+    b.scrollIntoView && b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   };
 }
 
@@ -257,7 +261,11 @@ function tab(i) {
 
   const pids = ['p0', 'pe', 'p1', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
   const target = document.getElementById(pids[i] || 'p0');
-  if (target) target.classList.add('on');
+  if (target) {
+    target.classList.add('on');
+    target.style.animation = 'none'; void target.offsetWidth; target.style.animation = '';
+    setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
+  }
 
   if (i === 0) { mapsUI(); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
@@ -270,6 +278,19 @@ function tab(i) {
   else if (i === 8) renderSettingsUI();
 }
 
+function renderNextGoal() {
+  const el = document.getElementById('next-goal');
+  if (!el || typeof nextGoal !== 'function') return;
+  const g = nextGoal();
+  if (!g) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const pct = Math.max(2, Math.min(100, Math.round(100 * g.cur / g.max)));
+  const close = pct >= 80;
+  el.innerHTML = `<div class="ng-row"><span class="ng-lbl">NEXT GOAL</span><b style="color:${g.col}">${g.label}</b><span class="ng-val">${g.cur.toLocaleString()}/${g.max.toLocaleString()} ${g.unit}</span></div>`
+    + `<div class="ng-bar"><div class="ng-fill ${close ? 'close' : ''}" style="width:${pct}%;background:${g.col}"></div></div>`
+    + (close ? '<div class="ng-hint">SO CLOSE — ONE MORE RUN</div>' : '');
+}
+
 function lobby() {
   if (typeof sanitizeSV === 'function') SV = sanitizeSV(SV);
 
@@ -278,7 +299,8 @@ function lobby() {
   const bestEl = document.getElementById('best') || document.getElementById('bst');
   if (bestEl) bestEl.textContent = 'SURVIVAL RECORD: WAVE ' + (SV.best || 0);
   const crEl = document.getElementById('cr') || document.getElementById('scr');
-  if (crEl) crEl.textContent = SV.cr || 0;
+  if (crEl) { if (typeof animateNumber === 'function') animateNumber(crEl, SV.cr || 0, 650); else crEl.textContent = SV.cr || 0; }
+  renderNextGoal();
 
   const xpFill = document.getElementById('xpf') || document.getElementById('xp-fill');
   const xpLbl = document.getElementById('xptxt') || document.getElementById('xp-label');

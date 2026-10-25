@@ -15,8 +15,8 @@ function spawnDrop(x, y, type, value) {
     vy: Math.sin(ang) * popSpd,
     k: type || 'c', // 'c'=coin, 'cb'=cash bundle, 'h'=health, 'a'=ammo, 'r'=relic
     v: value || 5,
-    l: 15,
-    maxL: 15,
+    l: type === 'pu' ? 16 : 15,
+    maxL: type === 'pu' ? 16 : 15,
     scale: 1.0,
     rot: Math.random() * 6.28,
     vrot: (Math.random() - 0.5) * 6,
@@ -28,7 +28,7 @@ function spawnDrop(x, y, type, value) {
 
 // Updates drop physics, bounce, curve magnetization, and collection
 function updatePickups(dt) {
-  const magnetRadius = 36 * (S.mg || 1) * (S.magRing ? 1.5 : 1);
+  const magnetRadius = 36 * (S.mg || 1) * (S.magRing ? 1.5 : 1) * (S.mgTime > 0 ? 9 : 1);
 
   for (const d of D) {
     d.l -= dt;
@@ -55,7 +55,7 @@ function updatePickups(dt) {
 
     // 3. Magnetization & curved acceleration towards player
     const dist = Math.hypot(P.x - d.x, P.y - d.y);
-    if (dist < magnetRadius && d.z === 0) {
+    if ((dist < magnetRadius || d.mgPull) && d.z === 0 && !(d.k === 'pu' && !(S.mgTime > 0 && dist < 120))) {
       const aimAng = Math.atan2(P.y - d.y, P.x - d.x);
       // Curved trajectory force
       const curveForce = 0.3 * Math.sin(d.l * 8);
@@ -84,10 +84,10 @@ function updatePickups(dt) {
     }
 
     // 4. Contact & collection
-    if (dist < 20) {
+    if (dist < (d.k === 'pu' ? 28 : 20)) {
       d.l = 0; // consumed
       // Sound with chained pitch shift
-      sndPickup(d.k);
+      if (d.k !== 'pu') sndPickup(d.k);
 
       // Contact sparkle burst
       burst(d.x, d.y, d.k === 'c' ? '#ffd36b' : (d.k === 'h' ? '#ff5a3a' : '#00e5ff'), 8, 2, 75);
@@ -110,6 +110,8 @@ function updatePickups(dt) {
       } else if (d.k === 'a') {
         if (P) P.ammo = P.maxAmmo;
         txt(d.x, d.y - 12, 'AMMO RESTORED', '#00e5ff', true);
+      } else if (d.k === 'pu') {
+        if (typeof applyPowerup === 'function') applyPowerup(d.v);
       } else if (d.k === 'r') {
         S.cash += d.v;
         txt(d.x, d.y - 12, '+' + d.v + ' CR', '#be8cff', true);
@@ -147,6 +149,7 @@ function updatePickups(dt) {
 
 // Renders drops with 4-layer depth, idle shine, and soft shadow
 function renderPickupsPass(cx, cy, W, H) {
+  if (typeof renderPowerupBeacons === 'function') renderPowerupBeacons(cx, cy, W, H);
   for (const d of D) {
     if (d.x < cx - 30 || d.x > cx + W + 30 || d.y < cy - 30 || d.y > cy + H + 30) continue;
 
@@ -170,6 +173,7 @@ function renderPickupsPass(cx, cy, W, H) {
 
     // 2. Idle aura glow
     const glowPulse = 0.2 + Math.sin(S.t * 5 + d.x) * 0.1;
+    if (d.k === 'pu' && typeof PU_DEFS !== 'undefined' && PU_DEFS[d.v]) { X.globalAlpha = 0.35 + glowPulse; X.fillStyle = PU_DEFS[d.v].col; X.beginPath(); X.arc(0, 0, 22, 0, 6.28); X.fill(); X.globalAlpha = 1; }
     X.fillStyle = d.k === 'c' ? `rgba(224,184,58,${glowPulse})` : (d.k === 'h' ? `rgba(239,68,68,${glowPulse})` : `rgba(0,229,255,${glowPulse})`);
     X.beginPath();
     X.arc(0, 0, d.k === 'c' ? 14 : 16, 0, 6.28);
@@ -212,6 +216,8 @@ function renderPickupsPass(cx, cy, W, H) {
       X.beginPath(); X.roundRect(-8, -5, 16, 10, 1.5); X.fill();
       X.fillStyle = '#f59e0b';
       X.fillRect(-4, -1, 8, 2);
+    } else if (d.k === 'pu') {
+      if (typeof drawPowerupIcon === 'function') drawPowerupIcon(d.v, S.t);
     } else if (d.k === 'r') {
       // Relic Shard: faceted violet crystal with specular shimmer
       X.fillStyle = '#4c1d95';

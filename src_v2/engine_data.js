@@ -18,7 +18,11 @@ const WEAP = [
   { n: 'Railgun', d: 340, r: 1.40, sp: 0, p: 1, c: 4200, pr: 10, rg: 1.35, kb: 2.8, mag: 3, rl: 2.3, tier: 'LEGENDARY' },
   { n: 'Dual Pistols', d: 13, r: 0.16, sp: 0.04, p: 2, c: 350, kb: 0.55, mag: 24, rl: 1.3, tier: 'UNCOMMON' },
   { n: 'Burst Rifle', d: 22, r: 0.38, sp: 0.015, p: 3, c: 850, kb: 0.75, mag: 24, rl: 1.4, tier: 'RARE' },
-  { n: 'Arc Shotgun', d: 18, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' }
+  { n: 'Arc Shotgun', d: 18, r: 0.65, sp: 0.22, p: 6, c: 3800, cl: 1, kb: 0.7, mag: 10, rl: 1.6, tier: 'LEGENDARY' },
+  { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE' },
+  { n: 'Siphon SMG', d: 10, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC' },
+  { n: 'Glacier Breaker', d: 13, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC' },
+  { n: 'Hornet', d: 26, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC' }
 ];
 
 const TIER_COLORS = {
@@ -45,7 +49,7 @@ ZT.brute = ZT.tank;
 ZT.exploder = ZT.exp;
 ZT.spitter = ZT.spit;
 
-const ML = [36, 46, 60, 64, 60, 39, 62, 84, 56, 78, 60, 70, 54, 62, 86, 40, 66, 58];
+const ML = [36, 46, 60, 64, 60, 39, 62, 84, 56, 78, 60, 70, 54, 62, 86, 40, 66, 58, 62, 52, 48, 50];
 const GL = {
   5: [24, 6, '#9a9a9a'],
   6: [46, 8, '#6a5a3c'],
@@ -56,7 +60,7 @@ const GL = {
   13: [52, 14, '#2e4254'],
   14: [74, 16, '#1c2432']
 };
-const WC = ['#ffe08a', '#ffb347', '#ff9a4a', '#9be7ff', '#ff5a3a', '#ffd36b', '#ff7a4a', '#9be7ff', '#5ae0ff', '#ff4a2a', '#ffaa33', '#00e5ff', '#ff9a4a', '#a6f0ff', '#ffe640', '#ffe08a', '#ffb347', '#00e5ff'];
+const WC = ['#ffe08a', '#ffb347', '#ff9a4a', '#9be7ff', '#ff5a3a', '#ffd36b', '#ff7a4a', '#9be7ff', '#5ae0ff', '#ff4a2a', '#ffaa33', '#00e5ff', '#ff9a4a', '#a6f0ff', '#ffe640', '#ffe08a', '#ffb347', '#00e5ff', '#d9c58a', '#ff4d6d', '#9be7ff', '#ffb347'];
 
 const CL = [
   { n: 'Infantry', hp: 100, spd: 175, dm: 1, crit: 0.05, d: 'Standard frontline operator. Balanced mobility and firepower.', sk: ['dash', 'gren', 'turret'], pk: '#4a5738', ac: '#7a8e5a', hm: '#364024', vz: '#ffd36b' },

@@ -95,6 +95,7 @@ function hurtP(dmg, srcX, srcY) {
   const d = Math.max(1, Math.round(dmg * armor));
   P.hp -= d;
   P.hurt = 0.28;
+  if (S) { S.hitWave = true; if (S.cmb > 0) S.cmt = Math.min(S.cmt, 1.2); }
   HURT_VIGNETTE_TIMER = 0.35; // Trigger red damage screen vignette
 
   // Directional knockback away from damage source
@@ -126,8 +127,10 @@ function init() {
     wave: 0, cash: 0, kills: 0, dm: 1, t: 0, q: [], sp: 0, bn: 0, gr: 5,
     lv: 1, xp: 0, axp: 0, pk: {}, pend: 0, po: 0, dd: 0, fz: 0, sh2: 0,
     tt: 0, ts: '', saved: 0, isEvent: isEv, evId, evDef, evElites: evEl,
-    evTargetWave: evTw, evWon: false
+    evTargetWave: evTw, evWon: false,
+    cmb: 0, cmt: 0, cmbMax: 0, puPity: 0, flawless: 0, flawlessBest: 0, hitWave: false, adr: 0, mgTime: 0
   };
+  if (typeof fxReset === 'function') fxReset();
 
   P = {
     x: WS / 2, y: WS / 2, hp: 100, mx: 100, a: 0,
@@ -167,6 +170,9 @@ function init() {
   // Load obstacles from MAP_DATA or procedural fallback
   if (mapDef.obstacles && mapDef.obstacles.length) {
     mapDef.obstacles.forEach(o => O.push({ ...o }));
+  } else if (mapDef.walls && mapDef.walls.length) {
+    // Authored layout: buildings, barriers & fences become real colliders
+    mapDef.walls.forEach(wl => O.push({ x: wl.x, y: wl.y, w: wl.w, h: wl.h, k: 1, t: wl.t || 'building', col: wl.col, roof: wl.roof, name: wl.name || '' }));
   } else {
     const bases = MP[curM].b ? [[200, 200], [WS - 560, 200], [200, WS - 460], [WS - 560, WS - 460]] : [];
     for (const [bx, by] of bases) {
@@ -237,6 +243,7 @@ function startWave() {
   if (S.wave >= 25 && S.wave % 5 === 0) S.q.push('boss'); // Twin bosses on wave 25+
   S.sp = 0;
   run = 1;
+  if (typeof applyWaveModifier === 'function') applyWaveModifier();
 
   if (S.wave === 1 || (S.wave % 3 === 0 && S.wave % 5 !== 0)) {
     if (CH.length < 3) spawnChest(1);
@@ -301,7 +308,7 @@ function fire() {
   }
 
   S.shots = (S.shots || 0) + 1;
-  P.cd = w.r / ((SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1));
+  P.cd = w.r / ((SK.rage.on > 0 ? 1.8 : 1) * (1 + 0.06 * (SV.rof || 0)) * (S.rf || 1) * (S.bz && S.bl2 > 0 ? 1 + 0.15 * S.bz : 1) * (S.cst > 0 ? 1 + 0.25 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.5 : 1) * (S.adr > 0 ? 1.45 : 1));
   P.fl = 0.07;
   sfx(P.cur);
 
@@ -371,6 +378,7 @@ function fire() {
       cl: S.cl || 0,
       fz: w.fz || 0,
       flm: w.flm || 0,
+      ls: w.ls || 0,
       wi: P.cur,
       isCrit
     });
@@ -494,7 +502,7 @@ function killZ(z, src) {
   // Cash drop with arc pop physics
   const curM = getCurMap();
   const cm = (MP[curM] && MP[curM].cm) ? MP[curM].cm : 1;
-  const cashVal = Math.round(T.c * (S.ev ? 1.5 : 1) * cm * (S.cm || 1) * (z.el ? 4 : 1));
+  const cashVal = Math.round(T.c * (S.ev ? 1.5 : 1) * cm * (S.cm || 1) * (z.el ? 4 : 1) * (S.wmCash || 1) * (typeof comboCashMult === 'function' ? comboCashMult() : 1));
   if (typeof spawnDrop === 'function') {
     spawnDrop(z.x, z.y, 'c', cashVal);
   }
@@ -507,8 +515,7 @@ function killZ(z, src) {
 
   // XP progression & combo
   gainXP(z.el ? 35 : (z.t === 'boss' ? 120 : 10));
-  S.cmb = (S.cmb || 0) + 1;
-  S.cmt = 2.5;
+  if (typeof directorOnKill === 'function') directorOnKill(z);
 
   // Lifesteal perk
   if (S.ls) healP(S.ls);
@@ -800,7 +807,7 @@ function update(dt) {
 
   const isMinigunFiring = (firing && P.cur === 4);
   const clsData = (typeof CL !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0] : { spd: 180 };
-  let sp = clsData.spd * (1 + 0.04 * (SV.spd || 0)) * (S.ms || 1) * (S.cst > 0 ? 1 + 0.15 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.3 : 1) * (isMinigunFiring ? 0.78 : 1);
+  let sp = clsData.spd * (1 + 0.04 * (SV.spd || 0)) * (S.ms || 1) * (S.cst > 0 ? 1 + 0.15 * (S.cs || 0) : 1) * (S.hd > 0 ? 1.3 : 1) * (S.adr > 0 ? 1.22 : 1) * (isMinigunFiring ? 0.78 : 1);
   let vx = mx, vy = my;
 
   if (P.dash > 0) {
@@ -831,6 +838,7 @@ function update(dt) {
   S.sh2 -= dt;
   if (S.nukeFlash > 0) S.nukeFlash -= dt;
   if (S.mgTime > 0) S.mgTime -= dt;
+  S.lsTok = Math.min(4, (S.lsTok == null ? 4 : S.lsTok) + dt * 4);
   if (S.lu > 0) S.lu -= dt;
 
   // Hurt vignette decay
@@ -846,6 +854,8 @@ function update(dt) {
     }
   }
 
+  if (typeof directorUpdate === 'function') directorUpdate(dt);
+
   // Firing check
   if (firing && P.cd <= 0) fire();
 
@@ -855,7 +865,7 @@ function update(dt) {
     const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
     if (S.sp <= 0 && Z.length < 55) {
       spawn(S.q.shift());
-      S.sp = Math.max(0.15, (1.0 - S.wave * 0.055) / densityMult);
+      S.sp = Math.max(0.15, (1.0 - S.wave * 0.055) * (S.spMul || 1) / densityMult);
     }
   }
 
@@ -866,7 +876,7 @@ function update(dt) {
       if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) {
         b.l = 0;
         if (b.ex) boom(b);
-        burst(b.x, b.y, '#bbb', 3);
+        if (typeof impactFX === 'function') impactFX(b.x, b.y, b.vx, b.vy, o.col); else burst(b.x, b.y, '#bbb', 3);
       }
     }
   }
@@ -938,8 +948,9 @@ function update(dt) {
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
     if (Math.hypot(z.kx, z.ky) < 4 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
 
-    z.x += Math.cos(a) * speed * dt * sl + z.kx * dt;
-    z.y += Math.sin(a) * speed * dt * sl + z.ky * dt;
+    const mvA = (typeof zombieHeading === 'function') ? zombieHeading(z, dt, zRadius) : a;
+    z.x += Math.cos(mvA) * speed * dt * sl + z.kx * dt;
+    z.y += Math.sin(mvA) * speed * dt * sl + z.ky * dt;
     if (!isFinite(z.x) || !isFinite(z.y)) { z.dead = 1; continue; }
 
     z.ph = (z.ph || 0) + dt * speed / 8;
@@ -979,6 +990,7 @@ function update(dt) {
       if (z.dead) break;
       if (b.l > 0 && !(b.h && b.h.includes(z)) && Math.hypot(b.x - z.x, b.y - z.y) < T.r + 4) {
         damageZ(z, b.d, 'bullet', b.isCrit);
+        if (b.ls && P.hp < P.mx && (S.lsTok = (S.lsTok == null ? 4 : S.lsTok)) > 0) { const hv = Math.min(1.1, b.d * 0.12); healP(hv); S.lsTok -= hv; if (Math.random() < 0.25) F.push({ x: z.x, y: z.y, vx: (P.x - z.x) * 2, vy: (P.y - z.y) * 2, l: 0.35, c: '#ff4d6d', s: 2.4 }); }
         if (b.ex) boom(b);
         (b.h = b.h || []).push(z);
         if (b.pr > 0) b.pr--; else b.l = 0;
@@ -1084,10 +1096,13 @@ function update(dt) {
     if (typeof snd === 'function') snd(300, 0.5, 'sine', 0.12, 2);
   }
 
+  if (P.hp <= 0 && !S.lsUsed && typeof triggerLastStand === 'function') triggerLastStand();
+
   if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
 
   if (P.hp <= 0) {
     run = 0;
+    const prevBest = SV.best || 0;
     saveBest();
     if (S.isEvent && S.evDef) {
       document.getElementById('sum').innerHTML = `<div style="font-size:15px;color:#ff5a3a;font-weight:900;margin-bottom:6px">✕ ${S.evDef.title} FAILED</div>`
@@ -1095,16 +1110,17 @@ function update(dt) {
         + (S.evDef.targetElites ? `Elites Eliminated: <b>${S.evElites || 0}/${S.evDef.targetElites}</b><br>` : '')
         + `Wave Reached: <b>Wave ${S.wave}</b> (Target: Wave ${S.evTargetWave || 5})</div>`;
     } else {
-      const eb = S.earnBreakdown || { wave: S.wave * 35, kills: Math.floor(S.kills * 1.5), cash: 0 };
       document.getElementById('sum').innerHTML = '<div style="font-size:13.5px;margin-bottom:6px"><b>WAVE ' + S.wave + '</b> &bull; ' + S.kills + ' KILLS &bull; SURVIVOR LV ' + S.lv + '</div>'
         + '<div style="font-size:11.5px;opacity:.9;line-height:1.6;margin-bottom:6px">'
-        + 'Wave Bounty: <b>+' + eb.wave + ' cr</b> | Kills: <b>+' + eb.kills + ' cr</b> | Cash Converted ($' + (S.cash || 0) + '): <b>+' + eb.cash + ' cr</b><br>'
-        + '<span style="color:#ffd36b;font-weight:800;font-size:13.5px">Total Earned: +' + S.earn + ' CREDITS</span></div>'
+        + 'Cash collected this run: <b>$' + (S.cash || 0) + '</b> &rarr; banked 1:1 as credits<br>'
+        + '<span style="color:#ffd36b;font-weight:800;font-size:13.5px">Total Earned: +' + (S.cash || 0) + ' CREDITS</span></div>'
         + '<div style="font-size:11px;color:#8fae4a">Account Rank: ' + SV.lvl + (S.up ? ' (+' + S.up + ' Skill Points!)' : '') + '</div>';
     }
+    if (typeof metaHooksHTML === 'function' && !S.isEvent) document.getElementById('sum').innerHTML += metaHooksHTML(prevBest);
     document.getElementById('over').classList.add('on');
   } else if (!S.q.length && !Z.length && !S.po) {
     run = 0;
+    if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
     openShop();
   }
 }
@@ -1202,6 +1218,7 @@ function draw() {
   // 6. 3D Extruded Obstacles & Buildings
   for (const o of O) {
     if (o.x + o.w < cx - 100 || o.x > cx + W + 100 || o.y + o.h < cy - 100 || o.y > cy + H + 100) continue;
+    if (o.t && typeof drawObstacleDetailed === 'function' && drawObstacleDetailed(o, mapDef)) continue;
     // Ambient drop shadow (bottom-right: light from top-left)
     X.fillStyle = 'rgba(0,0,0,0.52)';
     X.fillRect(o.x + 6, o.y + 8, o.w, o.h);
@@ -1482,6 +1499,33 @@ function draw() {
       continue;
     }
 
+    if (b.wi === 18) {
+      const ba = Math.atan2(b.vy, b.vx);
+      X.save(); X.translate(b.x, b.y); X.rotate(ba);
+      X.strokeStyle = 'rgba(226,232,240,0.25)'; X.lineWidth = 4; X.beginPath(); X.moveTo(-34, 0); X.lineTo(-6, 0); X.stroke();
+      X.strokeStyle = '#cbd5e1'; X.lineWidth = 2; X.beginPath(); X.moveTo(-18, 0); X.lineTo(6, 0); X.stroke();
+      X.fillStyle = '#f8fafc'; X.beginPath(); X.moveTo(10, 0); X.lineTo(3, -3); X.lineTo(3, 3); X.closePath(); X.fill();
+      X.fillStyle = '#ef4444'; X.fillRect(-19, -2.5, 4, 1.5); X.fillRect(-19, 1, 4, 1.5);
+      X.restore();
+      continue;
+    }
+    if (b.wi === 20) {
+      const ba = Math.atan2(b.vy, b.vx);
+      X.save(); X.translate(b.x, b.y); X.rotate(ba);
+      X.fillStyle = 'rgba(155,231,255,0.35)'; X.beginPath(); X.moveTo(-14, 0); X.lineTo(-2, -3); X.lineTo(-2, 3); X.closePath(); X.fill();
+      X.fillStyle = '#e0f2fe'; X.beginPath(); X.moveTo(7, 0); X.lineTo(-3, -3); X.lineTo(-1, 0); X.lineTo(-3, 3); X.closePath(); X.fill();
+      X.restore();
+      continue;
+    }
+    if (b.wi === 21) {
+      const ba = Math.atan2(b.vy, b.vx), fl2 = 0.6 + Math.random() * 0.4;
+      X.save(); X.translate(b.x, b.y); X.rotate(ba);
+      X.fillStyle = 'rgba(255,170,60,' + (0.55 * fl2) + ')'; X.beginPath(); X.moveTo(-3, 0); X.lineTo(-16 * fl2 - 6, -3); X.lineTo(-16 * fl2 - 6, 3); X.closePath(); X.fill();
+      X.fillStyle = '#d4d4d8'; X.fillRect(-4, -2, 9, 4);
+      X.fillStyle = '#f97316'; X.beginPath(); X.moveTo(5, -2); X.lineTo(9, 0); X.lineTo(5, 2); X.closePath(); X.fill();
+      X.restore();
+      continue;
+    }
     if (b.flm || (b.wi != null && WEAP[b.wi] && WEAP[b.wi].flm)) {
       // Flamethrower layered fire particles (yellow core, orange body, smoke rim)
       const fR = 7 + (1 - Math.max(0, b.l / 0.5)) * 14;
@@ -1817,10 +1861,12 @@ function renderHUD() {
 
   // Active Powerups HUD with Circular Timer Rings & 3-Second Blink
   const activePowerups = [];
-  if (S && S.dd > 0) activePowerups.push({ id: 'dd', name: '2X DMG', col: '#ef4444', time: S.dd, maxTime: 15 });
-  if (S && S.fz > 0) activePowerups.push({ id: 'fz', name: 'FREEZE', col: '#38bdf8', time: S.fz, maxTime: 10 });
-  if (S && S.sh2 > 0) activePowerups.push({ id: 'sh', name: 'SHIELD', col: '#eab308', time: S.sh2, maxTime: 12 });
-  if (S && S.mgTime > 0) activePowerups.push({ id: 'mg', name: 'MAGNET', col: '#a855f7', time: S.mgTime, maxTime: 12 });
+  if (S && typeof PU_DEFS !== 'undefined') {
+    for (const id in PU_DEFS) {
+      const pd = PU_DEFS[id];
+      if (pd.key && S[pd.key] > 0) activePowerups.push({ id, name: pd.tag, col: pd.col, time: S[pd.key], maxTime: pd.dur });
+    }
+  }
 
   const pStartX = rx + 36;
   const pStartY = ry + 26;
@@ -1889,12 +1935,7 @@ function renderHUD() {
   X.fillText('ZOMBIES ' + (Z.length + (S ? S.q.length : 0)), W - 50, 36);
 
   // Combo multiplier
-  if (S && S.cmb > 2) {
-    const sc = 1 + Math.min(0.25, (S.cmb - 2) * 0.03);
-    X.save(); X.translate(W - 50, 54); X.scale(sc, sc);
-    X.fillStyle = '#ffd36b'; X.font = '900 12px Impact,Arial Black,sans-serif';
-    X.fillText('COMBO x' + S.cmb, 0, 0); X.restore();
-  }
+  if (typeof renderDirectorOverlay === 'function') renderDirectorOverlay(W, H);
 
   // Active weapon card at bottom center
   X.fillStyle = '#1c211bdd';
@@ -2031,7 +2072,8 @@ function loop(t) {
 
   if (run) {
     try {
-      update(dt);
+      if (S && S.bt > 0) S.bt -= dt;
+      update(dt * (typeof directorTimeScale === 'function' ? directorTimeScale() : 1));
     } catch (e) {
       console.error('[DeadZone update error]', e);
     }
