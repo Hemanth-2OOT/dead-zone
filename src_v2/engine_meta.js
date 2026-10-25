@@ -167,6 +167,59 @@ function achReady() {
   }).length;
 }
 
+/* ================================================================== */
+/* SKIN UNLOCK RULES                                                   */
+/* ================================================================== */
+// Skins carrying rk/rg (lifetime stat + goal) or rf (custom counter) unlock
+// themselves the moment their condition is met, evaluated on every lobby
+// refresh. Reward-gated event/login skins are untouched by this system.
+function skinRuleState(k) {
+  const s = (typeof SKINS !== 'undefined') ? SKINS[k] : null;
+  if (!s || (!s.rk && !s.rf)) return null;
+  let cur = 0;
+  try {
+    const lt = (SV && SV.lt) || {};
+    cur = s.rf ? (s.rf() || 0) : (lt[s.rk] || 0);
+  } catch (e) { cur = 0; }
+  const goal = s.rg || 1;
+  return { cur: Math.min(cur, goal), goal, pct: Math.max(0, Math.min(100, Math.round(100 * cur / goal))) };
+}
+
+function checkSkinUnlocks() {
+  if (typeof SV === 'undefined' || typeof SKINS === 'undefined') return 0;
+  SV.skins = SV.skins || {};
+  const unlocked = [];
+  for (const k in SKINS) {
+    if (SV.skins[k]) continue;
+    const st = skinRuleState(k);
+    if (!st || st.cur < st.goal) continue;
+    SV.skins[k] = 1;
+    unlocked.push(SKINS[k]);
+  }
+  if (!unlocked.length) return 0;
+  if (typeof sv === 'function') sv();
+  if (typeof snd === 'function') snd(880, 0.28, 'triangle', 0.06, 1.5);
+  lobbySkinToast(unlocked);
+  return unlocked.length;
+}
+
+function lobbySkinToast(list) {
+  if (typeof document === 'undefined') return;
+  let host = document.getElementById('skin-toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'skin-toast-host';
+    document.body.appendChild(host);
+  }
+  host.innerHTML = list.map((s, i) => `<div class="skin-toast" style="animation-delay:${i * 120}ms;border-left:5px solid ${s.col || '#ffd36b'}">
+      <div class="st-k">SKIN UNLOCKED</div>
+      <div class="st-n">${s.name}</div>
+      <div class="st-d">${s.type === 'op' ? 'OPERATIVE CAMO' : 'WEAPON FINISH'} &bull; EQUIP IN SKINS TAB</div>
+    </div>`).join('');
+  clearTimeout(host._t);
+  host._t = setTimeout(() => { host.innerHTML = ''; }, 5200);
+}
+
 function renderAchievements() {
   const el = document.getElementById('ach-list');
   if (!el) return;

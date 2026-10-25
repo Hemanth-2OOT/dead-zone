@@ -332,7 +332,7 @@ function drawZombie(z) {
     for (let k = -3; k <= 1; k++) X.fillRect(k * r * 0.2 - 2, -2, 3, 4);
 
     if (isDamaged && !fc) {
-      X.fillStyle = '#b91c1c';
+      X.fillStyle = '#6b2a24';
       X.fillRect(-r * 0.3, -r * 0.3, 5, 3);
       X.fillRect(-r * 0.1, r * 0.2, 6, 3);
     }
@@ -386,7 +386,7 @@ function drawZombie(z) {
 
     // Exploder under 50% HP damaged state: ruptured burning fissures
     if (isDamaged && !fc) {
-      X.strokeStyle = '#ef4444';
+      X.strokeStyle = '#e2603c';
       X.lineWidth = 2.2;
       X.beginPath();
       X.moveTo(-r * 0.3, -r * 0.2); X.lineTo(r * 0.1, 0); X.lineTo(-r * 0.1, r * 0.3);
@@ -428,7 +428,7 @@ function drawZombie(z) {
     X.fillRect(r * 0.85, r * 0.55, 4, 3);
 
     // Deep battle scars
-    X.strokeStyle = isDamaged ? '#b91c1c' : '#221a14';
+    X.strokeStyle = isDamaged ? '#6b2a24' : '#221a14';
     X.lineWidth = 2.4;
     X.beginPath();
     X.moveTo(-r * 0.3, -r * 0.4); X.lineTo(r * 0.2, -r * 0.1);
@@ -519,7 +519,7 @@ function drawZombie(z) {
 
     // Under 50% HP damaged state: cracked armor horn
     if (isDamaged && !fc) {
-      X.strokeStyle = '#b91c1c';
+      X.strokeStyle = '#6b2a24';
       X.lineWidth = 2.4;
       X.beginPath();
       X.moveTo(r * 0.4, -r * 0.3); X.lineTo(r * 0.8, -r * 0.1);
@@ -646,7 +646,7 @@ function drawZombie(z) {
 
     // Boss under 50% HP damaged state: raging glowing fractures & sparked exhaust
     if (isDamaged && !fc) {
-      X.strokeStyle = '#f87171';
+      X.strokeStyle = '#ff8a5c';
       X.lineWidth = 3.0;
       X.beginPath();
       X.arc(0, 0, r * 0.75, -1.2, 1.2);

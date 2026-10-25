@@ -20,7 +20,12 @@ Top-down zombie survival roguelite. Vanilla JS (no framework, no bundler deps), 
   `update()` in a tight loop ignores the `run` flag that `loop()` honours, so keep assertions inside
   `update()`-reachable state machines idempotent (see `S.clearedWave`).
 - Adding a module requires editing `jsModules` in `build.js` **and** bumping the version header.
+- **All modules share one script scope.** A duplicate top-level `function`/`class` name does not error — the
+  later module silently wins by load order. `build.js` now fails the build on any duplicate; if you hit it,
+  rename your symbol (this is how `engine_feel.js`'s impact pass came to be called `combatImpactFX`, because
+  `engine_fx.js` already owned `impactFX`).
 - `git status` should never contain `www/_deep.html` / `www/_live.html`; they are scratch harnesses.
+- `GUN_LOGIC.md` holds the derived per-weapon DPS/TTK table; re-run its script after any `WEAP` change.
 
 ## Balance contract
 `BALANCE_POLICY.md` is authoritative for caps and is updated every release. Hard ceilings that must

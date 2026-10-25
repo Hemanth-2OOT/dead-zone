@@ -34,49 +34,67 @@ function clearGoreDecals() {
   initDecalBakingCanvas();
 }
 
-// Surface-aware blood color palettes based on active map
+// Surface-aware blood colour palettes based on active map.
+// Deliberately desaturated, oxidised and slightly brown so sprays read as dark
+// congealed fluid against the muted ground rather than bright cherry red.
 function getBloodColors(curM) {
   if (curM === 3 || curM === 6) {
-    // Toxic Swamp & Bio-Dome: Caustic dark green/black bile
+    // Toxic Swamp & Bio-Dome: caustic dark green/black bile
     return {
-      core: '#14532d',
-      rim: '#22c55e',
-      pool: '#0f3d20',
-      mist: 'rgba(34,197,94,0.35)',
-      gib: '#166534',
+      core: '#12351f',
+      rim: '#3f7a4c',
+      pool: '#0c2818',
+      mist: 'rgba(63,122,76,0.28)',
+      gib: '#1b4526',
       type: 'toxic'
     };
   } else if (curM === 2) {
-    // Frozen Peak: Frozen crimson ice crystals
+    // Frozen Peak: frozen, washed-out rust crystals
     return {
-      core: '#881337',
-      rim: '#fb7185',
-      pool: '#700d2b',
-      mist: 'rgba(251,113,133,0.3)',
-      gib: '#9f1239',
+      core: '#5e2430',
+      rim: '#a86a72',
+      pool: '#4a1c26',
+      mist: 'rgba(168,106,114,0.26)',
+      gib: '#6d2a34',
       type: 'crystal'
     };
   } else if (curM === 4) {
-    // Ashlands: Scorched dark charred stains
+    // Ashlands: scorched charred stains
     return {
-      core: '#1c1917',
-      rim: '#7f1d1d',
-      pool: '#171210',
-      mist: 'rgba(127,29,29,0.35)',
-      gib: '#450a0a',
+      core: '#1a1614',
+      rim: '#4e2a26',
+      pool: '#151110',
+      mist: 'rgba(78,42,38,0.3)',
+      gib: '#2e1512',
       type: 'charred'
     };
   } else {
-    // Standard: Downtown & Dust Bowl deep arterial crimson
+    // Standard: Downtown & Dust Bowl, oxidised maroon
     return {
-      core: '#7f1d1d',
-      rim: '#dc2626',
-      pool: '#581111',
-      mist: 'rgba(220,38,38,0.35)',
-      gib: '#991b1b',
+      core: '#4a1c1c',
+      rim: '#78352f',
+      pool: '#361312',
+      mist: 'rgba(120,53,47,0.3)',
+      gib: '#57211c',
       type: 'blood'
     };
   }
+}
+
+// Pixel-art quantisation grid. Every gore primitive snaps to this lattice and
+// is drawn as hard-edged blocks instead of smooth arcs, so blood matches the
+// chunky sprite work rather than looking like an airbrushed overlay.
+const GORE_PX = 3;
+function pxSnap(v) { return Math.round(v / GORE_PX) * GORE_PX; }
+function goreBlock(x, y, col, a) {
+  X.globalAlpha = a;
+  X.fillStyle = col;
+  X.fillRect(pxSnap(x) - GORE_PX * 0.5, pxSnap(y) - GORE_PX * 0.5, GORE_PX, GORE_PX);
+}
+// Deterministic 2D hash so a splatter keeps its pixel pattern between frames.
+function pxHash(x, y) {
+  const n = Math.sin(pxSnap(x) * 12.9898 + pxSnap(y) * 78.233) * 43758.5453;
+  return n - Math.floor(n);
 }
 
 // Spawns hit blood burst with droplets, streaks, and mist
@@ -332,17 +350,19 @@ function renderGoreGroundPass(cx, cy, W, H) {
     const alpha = Math.max(0, Math.min(0.85, timeLeft / 3.0));
     if (alpha <= 0.005) continue;
     X.save();
-    X.globalAlpha = alpha;
-    // Outer thin rim
-    X.fillStyle = p.rimCol || '#dc2626';
-    X.beginPath();
-    X.arc(p.x, p.y, p.r, 0, 6.28);
-    X.fill();
-    // Inner thick drying core
-    X.fillStyle = dryPct > 0.5 ? '#110a0a' : (p.col || '#581111');
-    X.beginPath();
-    X.arc(p.x, p.y, p.r * 0.75, 0, 6.28);
-    X.fill();
+    // Stepped pixel disc instead of a smooth circle: walk the bounding box on
+    // the 3px lattice and only paint cells inside the radius, with a jittered
+    // rim so the pool edge is ragged rather than geometric.
+    const pr = p.r;
+    const core = dryPct > 0.5 ? '#171010' : (p.col || '#361312');
+    for (let gy = -pr; gy <= pr; gy += GORE_PX) {
+      for (let gx = -pr; gx <= pr; gx += GORE_PX) {
+        const d = Math.hypot(gx, gy);
+        if (d > pr) continue;
+        const inner = d <= pr * 0.72 && pxHash(p.x + gx, p.y + gy) > 0.12;
+        goreBlock(p.x + gx, p.y + gy, inner ? core : (p.rimCol || '#78352f'), alpha * (inner ? 1 : 0.85));
+      }
+    }
     X.restore();
   }
 
@@ -356,23 +376,20 @@ function renderGoreGroundPass(cx, cy, W, H) {
     X.translate(d.x, d.y);
     X.rotate(d.ang || 0);
 
-    if (d.type === 'crystal') {
-      // Frozen crystalline blood facets
-      X.fillStyle = d.rimCol;
-      X.beginPath();
-      X.moveTo(-d.r, 0); X.lineTo(0, -d.r * 0.6); X.lineTo(d.r * 1.3, 0); X.lineTo(0, d.r * 0.6);
-      X.closePath(); X.fill();
-    } else {
-      // Outer lighter rim
-      X.fillStyle = d.rimCol;
-      X.beginPath();
-      X.ellipse(0, 0, d.r * (d.stretch || 1.1), d.r * 0.85, 0, 0, 6.28);
-      X.fill();
-      // Inner darker core
-      X.fillStyle = d.col;
-      X.beginPath();
-      X.ellipse(0, 0, d.r * 0.65 * (d.stretch || 1.1), d.r * 0.55, 0, 0, 6.28);
-      X.fill();
+    // Blocky splatter: lattice cells inside a stretched disc, with a ragged
+    // edge and a darker core, so every landing reads as chunky pixel spray.
+    const sx = d.r * (d.stretch || 1.1), sy = d.r * 0.85;
+    for (let gy = -sy; gy <= sy; gy += GORE_PX) {
+      for (let gx = -sx; gx <= sx; gx += GORE_PX) {
+        const nrm = Math.hypot(gx / sx, gy / sy);
+        if (nrm > 1) continue;
+        const edge = nrm > 0.66;
+        if (edge && pxHash(d.x + gx, d.y + gy) < 0.28) continue;
+        X.globalAlpha = alpha * (edge ? 0.75 : 1);
+        X.fillStyle = (edge || d.type === 'crystal') ? d.rimCol : d.col;
+        // Local space: the context is already translated to (d.x, d.y).
+        X.fillRect(pxSnap(gx) - GORE_PX * 0.5, pxSnap(gy) - GORE_PX * 0.5, GORE_PX, GORE_PX);
+      }
     }
     X.restore();
   }
@@ -400,13 +417,14 @@ function renderGoreGroundPass(cx, cy, W, H) {
     // Shadow
     X.fillStyle = '#00000055';
     X.beginPath(); X.ellipse(2, 3, g.r, g.r * 0.6, 0, 0, 6.28); X.fill();
-    // Meat chunk
+    // Meat chunk: hard pixel block with a stepped highlight, no soft corners.
+    const gw = Math.max(GORE_PX, pxSnap(g.r * 2)), gh = Math.max(GORE_PX, pxSnap(g.r * 1.4));
     X.fillStyle = g.col;
-    X.beginPath();
-    X.roundRect(-g.r, -g.r * 0.7, g.r * 2, g.r * 1.4, 2);
-    X.fill();
-    X.fillStyle = '#f87171';
-    X.fillRect(-g.r * 0.4, -g.r * 0.3, g.r * 0.8, g.r * 0.6);
+    X.fillRect(-gw * 0.5, -gh * 0.5, gw, gh);
+    X.fillStyle = 'rgba(0,0,0,0.35)';
+    X.fillRect(-gw * 0.5, gh * 0.5 - GORE_PX, gw, GORE_PX);
+    X.fillStyle = 'rgba(214,180,150,0.35)';
+    X.fillRect(-gw * 0.15, -gh * 0.25, Math.max(GORE_PX, pxSnap(gw * 0.3)), GORE_PX);
     X.restore();
   }
 }
@@ -439,12 +457,18 @@ function renderGoreAirPass(cx, cy, W, H) {
     X.restore();
   }
 
-  // 3. Droplets in flight
+  // 3. Droplets in flight: square pixel chunks, not round blobs.
+  X.save();
   for (const b of BLD) {
     if (b.x < cx - 20 || b.x > cx + W + 20 || b.y < cy - 20 || b.y > cy + H + 20) continue;
-    X.fillStyle = b.col;
-    X.beginPath();
-    X.arc(b.x, b.y, b.r, 0, 6.28);
-    X.fill();
+    X.globalAlpha = Math.max(0.25, Math.min(1, b.l / b.maxL));
+    const sz = Math.max(GORE_PX, pxSnap(b.r * 1.6));
+    X.fillStyle = b.rimCol || b.col;
+    X.fillRect(pxSnap(b.x) - sz * 0.5, pxSnap(b.y) - sz * 0.5, sz, sz);
+    if (sz > GORE_PX) {
+      X.fillStyle = b.col;
+      X.fillRect(pxSnap(b.x) - sz * 0.5 + 1, pxSnap(b.y) - sz * 0.5 + 1, sz - 2, sz - 2);
+    }
   }
+  X.restore();
 }

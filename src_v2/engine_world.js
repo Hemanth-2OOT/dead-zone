@@ -154,6 +154,8 @@ function init() {
   if (typeof CHARGER_TRAILS !== 'undefined') CHARGER_TRAILS = [];
   if (typeof TURRET_DEBRIS !== 'undefined') TURRET_DEBRIS = [];
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
+  if (typeof clearFeelFX === 'function') clearFeelFX();
+  if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = 0;
 
   SK = {
     dash: { cd: 0, max: 3 },
@@ -325,6 +327,10 @@ function fire() {
   P.fl = 0.07;
   sfx(P.cur);
 
+  // Damage-scaled muzzle smoke so a railgun blast smokes hard and an SMG tick
+  // barely puffs. Purely cosmetic.
+  if (typeof muzzleSmokeFX === 'function') muzzleSmokeFX(P.cur, P.a, P.x + Math.cos(P.a) * (((typeof ML !== 'undefined' && ML[P.cur]) || 45) * 0.87), P.y + Math.sin(P.a) * (((typeof ML !== 'undefined' && ML[P.cur]) || 45) * 0.87));
+
   // Muzzle smoke
   F.push({
     x: P.x, y: P.y,
@@ -390,7 +396,7 @@ function fire() {
       c: bulletCol,
       pr: (w.pr || 0) + (S.pc || 0),
       ex: w.ex || (S.eb ? 1 : 0),
-      cl: S.cl || 0,
+      cl: (S.cl || 0) + (w.cl || 0),
       fz: w.fz || 0,
       flm: w.flm || 0,
       ls: w.ls || 0,
@@ -440,6 +446,11 @@ function damageZ(z, rawDmg, src, isCrit, hitAngle, wi) {
   if (typeof spawnBloodHit === 'function') {
     spawnBloodHit(z.x, z.y, bloodAngle, finalD, !!isCrit, (typeof getCurMap === 'function' ? getCurMap() : 0));
   }
+
+  // Impact feedback: sparks, dust, shockwave, hit-stop and screen punch all
+  // scale with the damage actually dealt, so heavy single shots finally feel
+  // heavier than an SMG tick.
+  if (typeof combatImpactFX === "function") combatImpactFX(z.x, z.y, bloodAngle, finalD, !!isCrit, wi);
 
   if (!isFinite(z.hp) || z.hp <= 0) {
     z.hp = 0;
@@ -666,7 +677,11 @@ function skill(k) {
   if (!P || P.hp <= 0) return;
   const s = SK[k];
   if (!s || s.cd > 0) return;
+  if (k === 'gren' && S.gr <= 0) return;
   s.cd = s.max;
+
+  // Cast VFX fire before the gameplay effect so the animation leads the hit.
+  if (typeof skillCastFX === 'function') skillCastFX(k, P.x, P.y, P.a);
 
   if (k === 'dash') {
     P.dash = 0.22;
@@ -688,10 +703,16 @@ function skill(k) {
     burst(P.x, P.y, '#ffb347', 16);
     if (typeof snd === 'function') snd(350, 0.3, 'sawtooth', 0.08, 1.8);
   } else if (k === 'gren') {
-    if (S.gr <= 0) return;
     S.gr--;
+    // Thrown, arcing grenade (same payload, 0.34s later) so the skill has a
+    // visible flight instead of an instant off-screen detonation.
     const gx = P.x + Math.cos(P.a) * 120, gy = P.y + Math.sin(P.a) * 120;
-    boom({ x: gx, y: gy, ex: 110, d: 110 * S.dm });
+    if (typeof GREN !== 'undefined') {
+      GREN.push({ sx: P.x + Math.cos(P.a) * 12, sy: P.y + Math.sin(P.a) * 12, x: P.x, y: P.y, tx: gx, ty: gy, t: 0, dur: 0.34, h: 0, dmg: 110 * S.dm });
+    } else {
+      boom({ x: gx, y: gy, ex: 110, d: 110 * S.dm });
+    }
+    if (typeof snd === 'function') snd(180, 0.16, 'triangle', 0.05, 1.4);
   } else if (k === 'turret') {
     TR.push({ x: P.x + Math.cos(P.a) * 28, y: P.y + Math.sin(P.a) * 28, l: 18, cd: 0, a: P.a });
     burst(P.x, P.y, '#ffd36b', 14);
@@ -873,9 +894,10 @@ function update(dt) {
     S.hpChip = Math.max(P.hp, S.hpChip + (P.hp - S.hpChip) * Math.min(1, dt * 2.2));
   }
 
-  // Hit-stop micro-pause (35ms)
+  // Hit-stop micro-pause, now actually triggered by heavy/critical impacts.
   if (HIT_STOP_TIMER > 0) {
     HIT_STOP_TIMER -= dt;
+    if (typeof updateFeelFX === 'function') updateFeelFX(dt);
     return;
   }
 
@@ -1098,6 +1120,7 @@ function update(dt) {
         if (b.ls && P.hp < P.mx && (S.lsTok = (S.lsTok == null ? 4 : S.lsTok)) > 0) { const hv = Math.min(1.1, b.d * 0.12); healP(hv); S.lsTok -= hv; if (Math.random() < 0.25) F.push({ x: z.x, y: z.y, vx: (P.x - z.x) * 2, vy: (P.y - z.y) * 2, l: 0.35, c: '#ff4d6d', s: 2.4 }); }
         if (b.ex) boom(b);
         (b.h = b.h || []).push(z);
+        if (b.cl && !b.arced) { b.arced = 1; if (typeof chainLightning === 'function') chainLightning(z, b); }
         if (b.pr > 0) b.pr--; else b.l = 0;
         if (b.fz) z.fz = 2.5;
 
@@ -1186,6 +1209,9 @@ function update(dt) {
   // Shockwave rings decay
   for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }
   RG = RG.filter(r => r.l > 0);
+
+  // Skill VFX lifetimes, dash afterimages, grenade flight and bullet smoke.
+  if (typeof updateFeelFX === 'function') updateFeelFX(dt);
 
   // Player death check
   if (P.hp <= 0 && S.ph > 0) {
@@ -1653,8 +1679,9 @@ function draw() {
       continue;
     }
 
-    // Two-pass trail instead of a per-bullet linear gradient allocation:
-    // a translucent coloured tail with a bright white core on the last third.
+    // Weight-scaled tracer: heavy rounds get a bloomed halo, a fat body and a
+    // smoke ribbon; light rounds stay a thin two-pass streak.
+    if (typeof drawBulletDefault === 'function') { drawBulletDefault(b); continue; }
     const trailLen = b.isCrit ? 0.05 : 0.035;
     const tx = b.x - b.vx * trailLen, ty = b.y - b.vy * trailLen;
     X.save();
@@ -1684,6 +1711,10 @@ function draw() {
     renderGoreAirPass(cx, cy, W, H);
   }
 
+  // 13b. Skill VFX are ground-anchored (dash trails, nova scorch, grenade
+  //      arcs, rage aura) so they sit beneath entities and above the decals.
+  if (typeof renderSkillFX === 'function') renderSkillFX(cx, cy, W, H);
+
   // 14. Telegraphed attacks are ground markers, drawn beneath every entity
   for (const z of Z) { if (typeof drawTelegraph === "function") drawTelegraph(z); }
 
@@ -1694,6 +1725,9 @@ function draw() {
   // 14c. Particle pass - impact sparks, blood, muzzle smoke and debris. F was
   //      simulated every frame in update() but never actually rendered.
   if (typeof renderParticles === 'function') renderParticles(cx, cy, W, H);
+
+  // 14d. Electric arcs (chain lightning) ride on top of the entity band.
+  if (typeof renderArcs === 'function') renderArcs();
 
   // 16. Floating texts
   if (typeof renderFloatingTextsPass === 'function') {
@@ -2400,6 +2434,9 @@ function drawPlayerEntity() {
 
   // Layer 1-3 Player body
   if (typeof bodyBack === 'function') bodyBack();
+
+  // Extra rig detail: legs, belt pouches, holster, shoulder knife, headlamp
+  if (typeof drawPlayerGear === 'function') drawPlayerGear();
 
   // Weapon with recoil kickback
   X.save();

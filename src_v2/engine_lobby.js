@@ -336,6 +336,7 @@ function lobby() {
   renderLoginTrackUI();
   if (typeof renderRankRewards === 'function') renderRankRewards();
   if (typeof renderAchievements === 'function') renderAchievements();
+  if (typeof checkSkinUnlocks === 'function') checkSkinUnlocks();
 
   renderGunsUI();
 }

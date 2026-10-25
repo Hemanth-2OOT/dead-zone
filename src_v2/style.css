@@ -175,7 +175,9 @@ button.eq {
   align-items: center;
 }
 #lvn {
-  background: var(--acc);
+  background: radial-gradient(circle at 32% 26%, #ffb08a, var(--acc) 62%, #8e3116);
+  color: #100d08;
+  border: 1.5px solid rgba(255, 190, 150, 0.5);
   border-radius: 50%;
   width: 32px;
   height: 32px;
@@ -183,7 +185,8 @@ button.eq {
   place-items: center;
   font-size: 15px;
   font-weight: 900;
-  box-shadow: 0 2px 8px rgba(200, 80, 45, 0.4);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(200, 80, 45, 0.4), inset 0 -3px 6px rgba(0, 0, 0, 0.35);
 }
 .bar {
   width: clamp(90px, 24vw, 140px);
@@ -289,6 +292,60 @@ button.eq {
   overflow: hidden;
   margin-top: 2px;
 }
+
+/* Lobby reward panel: always exactly ONE scrollable view so nested
+   boxes can never collapse to zero height and clip the content. */
+.rtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 4px;
+  flex: 0 0 auto;
+}
+.rtabs .ev-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 4px;
+  min-height: 30px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rtabs .ev-tab span { margin-left: 4px; font-size: 8.5px; opacity: 0.75; font-weight: 800; }
+.rviews { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rview { display: none; }
+.rview.on {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+}
+.rview-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(14, 18, 12, 0.97);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 0 4px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #e0b83a;
+}
+.rview-hd .rhs { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; color: #8fae4a; opacity: 0.9; }
 #rview-m {
   flex: 1;
   min-height: 0;
@@ -308,6 +365,7 @@ button.eq {
   touch-action: pan-x;
   padding: 6px 4px 10px 4px;
 }
+#rview-c, #rview-s { padding-right: 4px; }
 #login-track {
   display: flex;
   gap: 8px;
@@ -502,6 +560,37 @@ button.eq {
 /* ===================================================================
    v2.4 MOBILE-FIRST LOBBY, MOTION & TOUCH POLISH
    =================================================================== */
+/* Milestone skin unlock toast */
+#skin-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+  width: min(360px, 88vw);
+}
+.skin-toast {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(20, 26, 16, 0.97), rgba(10, 13, 8, 0.97));
+  border: 1.5px solid rgba(143, 174, 74, 0.5);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+  animation: skinToastIn 0.34s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.skin-toast .st-k { font-size: 8.5px; font-weight: 900; letter-spacing: 1.6px; color: #8fae4a; }
+.skin-toast .st-n { font-size: 15px; font-weight: 900; letter-spacing: 0.6px; color: #ffd36b; margin: 1px 0; }
+.skin-toast .st-d { font-size: 9px; letter-spacing: 0.6px; opacity: 0.75; }
+@keyframes skinToastIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:active:not(:disabled) { transform: scale(0.96); }
 
@@ -533,7 +622,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 /* Next goal strip (goal-gradient hook) */
 .next-goal { width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 10px; padding: 7px 10px; flex-shrink: 0; }
 .ng-row { display: flex; align-items: baseline; gap: 8px; font-size: 11px; letter-spacing: 0.6px; }
-.ng-lbl { font-size: 8.5px; font-weight: 900; opacity: 0.6; }
+.ng-lbl { font-size: 9.5px; font-weight: 900; opacity: 0.72; letter-spacing: 0.8px; }
 .ng-val { margin-left: auto; font-size: 10px; opacity: 0.85; font-weight: 700; }
 .ng-bar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); margin-top: 5px; overflow: hidden; }
 .ng-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }

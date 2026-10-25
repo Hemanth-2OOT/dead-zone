@@ -1,7 +1,7 @@
 /* === DATA: WEAPONS, CLASSES, SKILLS, RELICS, PERKS, SKINS & EVENTS === */
 
 const WEAP = [
-  { n: 'Pistol', d: 20, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON' },
+  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON' },
   { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON' },
   { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON' },
   { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE' },
@@ -182,7 +182,20 @@ const SKINS = {
   hazmat_scout: { id: 'hazmat_scout', type: 'op', name: 'Biohazard Scout', ci: 2, col: '#84cc16', ac: '#4d7c0f', hm: '#365314', vz: '#a3e635', pk: '#1a2e05', desc: 'Chemical containment suit with toxin filter respirator.', tagCol: '#84cc16', how: 'Survive Wave 15 in Toxic Swamp', tier: 'RARE' },
   arctic_commando: { id: 'arctic_commando', type: 'op', name: 'Arctic Frost', ci: 1, col: '#38bdf8', ac: '#0369a1', hm: '#0c4a6e', vz: '#7dd3fc', pk: '#082f49', desc: 'Sub-zero insulated tactical armor with frost-resistant optics.', tagCol: '#38bdf8', how: 'Survive Wave 15 in Frozen Peak', tier: 'RARE' },
   desert_infantry: { id: 'desert_infantry', type: 'op', name: 'Desert Vanguard', ci: 0, col: '#eab308', ac: '#a16207', hm: '#713f12', vz: '#fde047', pk: '#422006', desc: 'Dune-camo heavy field uniform with sandstorm goggles.', tagCol: '#eab308', how: 'Survive Wave 15 in Dust Bowl', tier: 'COMMON' },
-  blood_hunter: { id: 'blood_hunter', type: 'op', name: 'Crimson Hunter', ci: 0, col: '#ef4444', ac: '#991b1b', hm: '#450a0a', vz: '#f87171', pk: '#2d0606', desc: 'Ceremonial crimson battle armor worn by veteran zombie slayers.', tagCol: '#ef4444', how: 'Survive 50 Total Cumulative Waves', tier: 'EPIC' }
+  blood_hunter: { id: 'blood_hunter', type: 'op', name: 'Crimson Hunter', ci: 0, col: '#ef4444', ac: '#991b1b', hm: '#450a0a', vz: '#f87171', pk: '#2d0606', desc: 'Ceremonial crimson battle armor worn by veteran zombie slayers.', tagCol: '#ef4444', how: 'Survive 50 Total Cumulative Waves', tier: 'EPIC' },
+
+  // Milestone skins - unlocked automatically by the rule engine in
+  // engine_meta.js (rk = lifetime stat key, rg = goal, rf = custom counter).
+  wasteland_rifle: { id: 'wasteland_rifle', type: 'weap', name: 'Wasteland Rust', wi: 3, wName: 'Rifle', col: '#b45309', ac: '#78350f', desc: 'Oxidised scrap plating with a scavenged iron sight.', tagCol: '#d97706', how: 'Eliminate 500 infected (lifetime)', tier: 'RARE', rk: 'kills', rg: 500 },
+  frostbite_cryo: { id: 'frostbite_cryo', type: 'weap', name: 'Frostbite Core', wi: 13, wName: 'Cryo Blaster', col: '#7dd3fc', ac: '#0369a1', desc: 'Sub-zero coolant loop that frosts the barrel between bursts.', tagCol: '#38bdf8', how: 'Reach wave 25 in a single run', tier: 'EPIC', rk: 'highestWave', rg: 25 },
+  golden_revolver: { id: 'golden_revolver', type: 'weap', name: 'Marshal Gold', wi: 5, wName: 'Revolver', col: '#fbbf24', ac: '#92400e', desc: 'Hand-tooled gilded cylinder reserved for titan hunters.', tagCol: '#e0b83a', how: 'Eliminate 5 bosses (lifetime)', tier: 'LEGENDARY', rk: 'bosses', rg: 5 },
+  storm_tesla: { id: 'storm_tesla', type: 'weap', name: 'Storm Coil', wi: 11, wName: 'Tesla', col: '#60a5fa', ac: '#1d4ed8', desc: 'Supercharged coil array with a crawling blue arc discharge.', tagCol: '#00e5ff', how: 'Eliminate 50 elites (lifetime)', tier: 'RARE', rk: 'elites', rg: 50 },
+  plague_rocket: { id: 'plague_rocket', type: 'weap', name: 'Plague Lance', wi: 9, wName: 'Rocket', col: '#65a30d', ac: '#3f6212', desc: 'Bio-warhead launcher leaking a sickly green exhaust plume.', tagCol: '#84cc16', how: 'Clear 300 waves in total', tier: 'EPIC', rk: 'waves', rg: 300 },
+  sanguine_siphon: { id: 'sanguine_siphon', type: 'weap', name: 'Sanguine Draw', wi: 19, wName: 'Siphon SMG', col: '#9f1239', ac: '#4c0519', desc: 'Dark maroon frame that pulses red on every siphon tick.', tagCol: '#be123c', how: 'Complete 10 runs', tier: 'RARE', rk: 'runs', rg: 10 },
+  swarm_hornet: { id: 'swarm_hornet', type: 'weap', name: 'Swarm Regent', wi: 21, wName: 'Hornet', col: '#ca8a04', ac: '#713f12', desc: 'Hive-forged carapace shell with a bone-white impact core.', tagCol: '#facc15', how: 'Reach a 50 kill combo', tier: 'EPIC', rk: 'bestCombo', rg: 50 },
+  apex_glacier: { id: 'apex_glacier', type: 'weap', name: 'Apex Glacier', wi: 20, wName: 'Glacier Breaker', col: '#a5f3fc', ac: '#0e7490', desc: 'Max-mastery ice relic: the barrel never stops steaming.', tagCol: '#22d3ee', how: 'Max out mastery on any weapon', tier: 'LEGENDARY', rf: () => Object.keys((typeof SV !== 'undefined' && SV && SV.mast) || {}).filter(i => masteryLevel(+i) >= MAST_MAX).length, rg: 1 },
+  nightfall_op: { id: 'nightfall_op', type: 'op', name: 'Nightfall Recon', ci: 4, col: '#6366f1', ac: '#312e81', hm: '#1e1b4b', vz: '#a5b4fc', pk: '#171338', desc: 'Void-black recon rig issued to ascended operatives.', tagCol: '#818cf8', how: 'Reach ascension tier 3 in any sector', tier: 'LEGENDARY', rf: () => Math.max(0, ...Object.values((typeof SV !== 'undefined' && SV && SV.asc) || {}), 0), rg: 3 },
+  trench_op: { id: 'trench_op', type: 'op', name: 'Trench Regular', ci: 0, col: '#78716c', ac: '#44403c', hm: '#292524', vz: '#fcd34d', pk: '#1c1917', desc: 'Weathered line-infantry greatcoat, mud to the knees.', tagCol: '#a8a29e', how: 'Complete 3 runs', tier: 'COMMON', rk: 'runs', rg: 3 }
 };
 
 const EVENTS = {

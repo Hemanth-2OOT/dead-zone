@@ -2,7 +2,7 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
-> **Status:** Updated for **v2.4.0**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **and the new depth/retention layer (Section 6)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected.
+> **Status:** Updated for **v2.4.1**. Rules 4 and 6, the weapon matrix, the wave-modifier roster, the Career Rank Milestone track, the Skill/Stat reference, **the new depth/retention layer (Section 6)** and **the v2.4.1 weapon-feel/rule-fidelity pass (Section 7)** reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected. The numeric DPS/TTK derivation lives in `GUN_LOGIC.md`.
 
 ---
 
@@ -284,3 +284,49 @@ v2.4.0 adds presentation depth and the long-tail retention layer. Each system ha
 
 ### 6.7 Mandatory Test Coverage (v2.4.0)
 The `_deep.html` bundle harness must report `DEEP PASS` with zero failures, including: boon stacks capped, modifier stacking caps, mastery XP attribution, achievement claim idempotency, ascension cap, reroll cost scaling, the rotating deal, and **wave-clear award idempotency** (an `update()` storm over an emptied horde must not inflate cash or stack flawless streaks).
+
+---
+
+## 7. v2.4.1 — Weapon Feel, Rule Fidelity & Skins
+
+This pass did **not** re-tune the damage curve: measured sustained DPS across the 22 weapons stays in the
+52–200 band and the Minigun remains mid-table (101.8) — see `GUN_LOGIC.md` §2 for the full table. What it
+fixes is that several *declared* mechanics were never actually running, and that damage produced no feedback.
+
+7.1 **Chain Lightning is real.** `WEAP[].cl` (Tesla `3`, Arc Shotgun `1`) and the ✦ Chain Lightning perk
+(`S.cl`) previously fed `b.cl`, a field with no reader. A bullet that hits now jumps to at most
+`min(4, b.cl)` enemies within a **190 px** hop, each taking **45 %** of the bullet's damage, and never
+re-visits an enemy it has already hit. Caps: hard limit of 4 jumps, one chain per bullet (`b.arced`),
+arc FX buffer capped at 40, and `b.cl = (S.cl || 0) + (w.cl || 0)` so the perk stacks with the weapon.
+
+7.2 **Hit-stop is armed.** `HIT_STOP_TIMER` was declared and honoured by `update()` but never set. It is now
+raised by exactly two events: a tier-3 impact (**≥ 150 damage** — Sniper, Rocket, Railgun) for 0.04 s, and a
+**critical** tier-2 impact (**≥ 55 damage** — Revolver, Shotgun, GL-40, Crossbow) for 0.032 s. Light,
+high-rate weapons never trigger it, so the Minigun and SMG cannot cause cumulative stutter. Screen-shake
+punch scales on the same tiers (`min(11, 3 + tier * 2.5)`).
+
+7.3 **Starter Pistol `d: 20 → 24`.** Sustained DPS 51.9 → 62.3, wave-20 walker TTK 1.60 s → 1.28 s. It is
+still the weakest weapon in the game (SMG 69.5), so the early-power curve is unchanged in shape — the
+opening three waves simply stop dragging.
+
+7.4 **Presentation never mutates gameplay.** All of `engine_feel.js` (tracer width, archetype shrouds,
+impact sparks, muzzle smoke, skill VFX, dash afterimages, thrown grenades) is visual only and touches no
+damage, cooldown or reward value. Grenades keep their exact payload (`110 * S.dm`, radius 110) — only the
+delivery changes from instant to a 0.34 s arc, with the instant `boom()` retained as the fallback.
+
+7.5 **Milestone skins unlock by rule, not by hand.** A `SKINS` entry carrying `rk` (lifetime stat key) +
+`rg` (goal), or a custom `rf()` counter + `rg`, is granted automatically by `checkSkinUnlocks()` on every
+lobby refresh, is idempotent (existing `SV.skins[k]` short-circuits), and announces itself once via a
+toast. Reward-gated event/login skins are unaffected. Ten such rules ship in v2.4.1 (kills 500, highestWave
+25, bosses 5, elites 50, waves 300, runs 10, bestCombo 50, any maxed mastery, ascension tier 3, runs 3).
+
+7.6 **Build-time guard.** All modules share a single script scope, so a duplicate top-level `function`/`class`
+name silently overrides by load order (this actually happened: `impactFX` in `engine_fx.js` was shadowing
+the new impact pass). `build.js` now **fails the build** on any duplicate top-level declaration.
+
+7.7 **Mandatory coverage (v2.4.1).** The `_deep.html` harness must report `DEEP PASS` with zero failures,
+including: the chain jump count and its 190 px range gate, 45 % chain damage, hit-stop arming for tier-3 and
+tier-2-crit impacts and *not* for light hits, the desaturated blood palette, all four lobby reward tabs
+toggling with a non-collapsing service record, skin rule progress/unlock idempotency, grenade flight timing,
+and a live in-run probe proving chain arcs appear from real bullet hits and that a Pistol shot deals damage.
+

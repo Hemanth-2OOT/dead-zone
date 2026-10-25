@@ -333,14 +333,18 @@ function toggleSkin(weapIdx) {
   lobby();
 }
 
+const LOBBY_REWARD_TABS = ['m', 'l', 'c', 's'];
 function switchLobbyRewards(t){
-  const isM = (t === 'm');
-  const btnM = $('rtab-m'), btnL = $('rtab-l');
-  const viewM = $('rview-m'), viewL = $('rview-l');
-  if (btnM) btnM.classList.toggle('on', isM);
-  if (btnL) btnL.classList.toggle('on', !isM);
-  if (viewM) viewM.style.display = isM ? 'block' : 'none';
-  if (viewL) viewL.style.display = isM ? 'none' : 'block';
+  if (LOBBY_REWARD_TABS.indexOf(t) < 0) t = 'm';
+  for (const k of LOBBY_REWARD_TABS) {
+    const btn = $('rtab-' + k), view = $('rview-' + k);
+    if (btn) btn.classList.toggle('on', k === t);
+    if (view) view.classList.toggle('on', k === t);
+  }
+  if (t === 'c' && typeof renderRankRewards === 'function') renderRankRewards();
+  if (t === 's' && typeof renderAchievements === 'function') renderAchievements();
+  if (t === 'l' && typeof renderLoginTrackUI === 'function') renderLoginTrackUI();
+  if (typeof snd === 'function') snd(520, 0.05, 'square', 0.03);
 }
 
 let activeSkinFilter = 'all';
@@ -601,6 +605,19 @@ function renderSkinsUI(){
       <div style="background:rgba(0,0,0,.35);padding:6px 8px;border-radius:6px;font-size:10px">
         <span style="opacity:.65">UNLOCK: </span>
         <span style="color:${isOwned?'#8fae4a':'#e0b83a'};font-weight:700">${sk.how || 'Special Event'}</span>
+        ${(() => {
+          if (isOwned) return '';
+          const st = (typeof skinRuleState === 'function') ? skinRuleState(k) : null;
+          if (!st) return '';
+          return `<div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;letter-spacing:.4px;opacity:.8">
+              <span style="color:${sk.col}">PROGRESS</span><span>${st.cur.toLocaleString()} / ${st.goal.toLocaleString()}</span>
+            </div>
+            <div style="height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:3px;overflow:hidden">
+              <div style="width:${st.pct}%;height:100%;background:${sk.col}"></div>
+            </div>
+          </div>`;
+        })()}
       </div>
       <div style="margin-top:auto;display:flex;gap:6px">
         ${isOwned ? `

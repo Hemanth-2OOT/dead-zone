@@ -30,7 +30,7 @@
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.4.0</div>
+                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.4.1</div>
         </div>
 
         <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -45,30 +45,18 @@
 
         <div id="next-goal" class="next-goal"></div>
 
-        <div class="rewards-box">
-          <div style="display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
-            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')" style="flex:1;padding:4px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">DAILY MISSIONS</button>
-            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')" style="flex:1;padding:4px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">10-DAY REWARDS</button>
+        <div class="rewards-box" id="lobby-panel">
+          <div class="rtabs">
+            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
+            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
+            <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
+            <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
           </div>
-          <div id="rview-m">
-            <div id="daily-list"></div>
-          </div>
-          <div id="rview-l" style="display:none">
-            <div id="login-track"></div>
-          </div>
-          <div class="rewards-box" style="margin-top:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
-              <span style="font-size:10px;font-weight:900;letter-spacing:.8px;color:#e0b83a">CAREER REWARDS</span>
-              <span id="rank-claim-count" style="font-size:9.5px;font-weight:800;color:#8fae4a"></span>
-            </div>
-            <div id="rank-list"></div>
-            <div class="rewards-box" style="margin-top:6px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
-                <span style="font-size:10px;font-weight:900;letter-spacing:.8px;color:#8fae4a">SERVICE RECORD</span>
-                <span id="ach-count" style="font-size:9.5px;font-weight:800;color:#a8a29e"></span>
-              </div>
-              <div id="ach-list" style="max-height:196px;overflow-y:auto"></div>
-            </div>
+          <div class="rviews">
+            <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
+            <div id="rview-l" class="rview"><div id="login-track"></div></div>
+            <div id="rview-c" class="rview"><div id="rank-list"></div></div>
+            <div id="rview-s" class="rview"><div id="ach-list"></div></div>
           </div>
         </div>
       </div>

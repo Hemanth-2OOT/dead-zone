@@ -27,6 +27,7 @@ const jsModules = [
   'engine_render_zombies.js',
   'engine_render_turret.js',
   'engine_depth.js',
+  'engine_feel.js',
   'engine_world.js',
   'engine_director.js',
   'engine_meta.js',
@@ -36,12 +37,32 @@ const jsModules = [
 ];
 
 let bundledJs = '';
+const topLevelDecls = new Map();
+const collisions = [];
 jsModules.forEach(modName => {
   const modPath = path.join(baseDir, modName);
   console.log(`Loading module: ${modName}...`);
   const content = fs.readFileSync(modPath, 'utf8');
+
+  // All modules are concatenated into ONE script scope, so a duplicate
+  // top-level function/class name silently wins by load order instead of
+  // erroring. Catch that at build time.
+  const re = /^(?:function|class)\s+([A-Za-z_$][\w$]*)/gm;
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    const name = m[1];
+    if (topLevelDecls.has(name)) collisions.push(`${name} (${topLevelDecls.get(name)} -> ${modName})`);
+    else topLevelDecls.set(name, modName);
+  }
+
   bundledJs += `\n/* === MODULE: ${modName} === */\n` + content + '\n';
 });
+
+if (collisions.length) {
+  console.error('✕ Duplicate top-level declarations (later module silently overrides earlier):');
+  collisions.forEach(c => console.error('  - ' + c));
+  process.exit(1);
+}
 
 // 4. Test Syntax with Node VM
 console.log('Auditing bundled JavaScript with Node.js V8 engine...');

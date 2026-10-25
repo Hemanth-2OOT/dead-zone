@@ -475,10 +475,30 @@ function gun(i, rc) {
       X.fillStyle = '#fef08a'; X.fillRect(4, 9, 12, 7);
       X.strokeStyle = '#d97706'; X.lineWidth = 1.5; X.strokeRect(12, -8, 35, 16);
     } else {
-      X.strokeStyle = skDef.col; X.lineWidth = 1.6;
-      X.strokeRect(2, -4, 22, 8);
-      X.fillStyle = skDef.col; X.globalAlpha = ga * (0.65 + Math.sin(((typeof S !== 'undefined' && S) ? S.t : 0) * 10) * 0.25);
-      X.fillRect(4, -2, 18, 4);
+      // Data-driven finish: any skin carrying col/ac plates the receiver and
+      // barrel along the real weapon length (ML) instead of a fixed 22px box,
+      // so long guns no longer only get a tiny patch near the grip.
+      const L = (typeof ML !== 'undefined' && ML[i]) ? ML[i] : 34;
+      const core = skDef.col || '#94a3b8';
+      const dark = skDef.ac || '#1c1917';
+      const pulse = 0.7 + Math.sin(((typeof S !== 'undefined' && S) ? (S.t || 0) : 0) * 8) * 0.3;
+      X.globalAlpha = ga * 0.5;
+      X.fillStyle = core;
+      X.fillRect(2, -4.5, L * 0.56, 9);
+      X.fillRect(L * 0.53, -2.2, L * 0.42, 4.4);
+      X.globalAlpha = ga * 0.55;
+      X.fillStyle = dark;
+      X.fillRect(2, 2.6, L * 0.56, 2.2);
+      X.globalAlpha = ga * 0.8 * pulse;
+      X.fillStyle = '#ffffff';
+      X.fillRect(6, -1.3, Math.max(8, L * 0.4), 1.6);
+      X.globalAlpha = ga * 0.75;
+      X.fillStyle = core;
+      for (let px = 7; px < L * 0.62; px += 9) X.fillRect(px, 4.1, 3, 1.7);
+      X.globalAlpha = ga * 0.7;
+      X.strokeStyle = core;
+      X.lineWidth = 1.4;
+      X.strokeRect(1.5, -5.2, Math.min(L * 0.58, 30), 10.4);
     }
     X.restore();
   }

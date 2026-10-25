@@ -182,7 +182,9 @@ button.eq {
   align-items: center;
 }
 #lvn {
-  background: var(--acc);
+  background: radial-gradient(circle at 32% 26%, #ffb08a, var(--acc) 62%, #8e3116);
+  color: #100d08;
+  border: 1.5px solid rgba(255, 190, 150, 0.5);
   border-radius: 50%;
   width: 32px;
   height: 32px;
@@ -190,7 +192,8 @@ button.eq {
   place-items: center;
   font-size: 15px;
   font-weight: 900;
-  box-shadow: 0 2px 8px rgba(200, 80, 45, 0.4);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(200, 80, 45, 0.4), inset 0 -3px 6px rgba(0, 0, 0, 0.35);
 }
 .bar {
   width: clamp(90px, 24vw, 140px);
@@ -296,6 +299,60 @@ button.eq {
   overflow: hidden;
   margin-top: 2px;
 }
+
+/* Lobby reward panel: always exactly ONE scrollable view so nested
+   boxes can never collapse to zero height and clip the content. */
+.rtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 4px;
+  flex: 0 0 auto;
+}
+.rtabs .ev-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 4px;
+  min-height: 30px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rtabs .ev-tab span { margin-left: 4px; font-size: 8.5px; opacity: 0.75; font-weight: 800; }
+.rviews { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rview { display: none; }
+.rview.on {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+}
+.rview-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(14, 18, 12, 0.97);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 0 4px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #e0b83a;
+}
+.rview-hd .rhs { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; color: #8fae4a; opacity: 0.9; }
 #rview-m {
   flex: 1;
   min-height: 0;
@@ -315,6 +372,7 @@ button.eq {
   touch-action: pan-x;
   padding: 6px 4px 10px 4px;
 }
+#rview-c, #rview-s { padding-right: 4px; }
 #login-track {
   display: flex;
   gap: 8px;
@@ -509,6 +567,37 @@ button.eq {
 /* ===================================================================
    v2.4 MOBILE-FIRST LOBBY, MOTION & TOUCH POLISH
    =================================================================== */
+/* Milestone skin unlock toast */
+#skin-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+  width: min(360px, 88vw);
+}
+.skin-toast {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(20, 26, 16, 0.97), rgba(10, 13, 8, 0.97));
+  border: 1.5px solid rgba(143, 174, 74, 0.5);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+  animation: skinToastIn 0.34s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.skin-toast .st-k { font-size: 8.5px; font-weight: 900; letter-spacing: 1.6px; color: #8fae4a; }
+.skin-toast .st-n { font-size: 15px; font-weight: 900; letter-spacing: 0.6px; color: #ffd36b; margin: 1px 0; }
+.skin-toast .st-d { font-size: 9px; letter-spacing: 0.6px; opacity: 0.75; }
+@keyframes skinToastIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:active:not(:disabled) { transform: scale(0.96); }
 
@@ -540,7 +629,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 /* Next goal strip (goal-gradient hook) */
 .next-goal { width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 10px; padding: 7px 10px; flex-shrink: 0; }
 .ng-row { display: flex; align-items: baseline; gap: 8px; font-size: 11px; letter-spacing: 0.6px; }
-.ng-lbl { font-size: 8.5px; font-weight: 900; opacity: 0.6; }
+.ng-lbl { font-size: 9.5px; font-weight: 900; opacity: 0.72; letter-spacing: 0.8px; }
 .ng-val { margin-left: auto; font-size: 10px; opacity: 0.85; font-weight: 700; }
 .ng-bar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); margin-top: 5px; overflow: hidden; }
 .ng-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -678,7 +767,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.4.0</div>
+                      <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.4.1</div>
         </div>
 
         <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -693,30 +782,18 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
         <div id="next-goal" class="next-goal"></div>
 
-        <div class="rewards-box">
-          <div style="display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
-            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')" style="flex:1;padding:4px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">DAILY MISSIONS</button>
-            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')" style="flex:1;padding:4px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">10-DAY REWARDS</button>
+        <div class="rewards-box" id="lobby-panel">
+          <div class="rtabs">
+            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
+            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
+            <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
+            <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
           </div>
-          <div id="rview-m">
-            <div id="daily-list"></div>
-          </div>
-          <div id="rview-l" style="display:none">
-            <div id="login-track"></div>
-          </div>
-          <div class="rewards-box" style="margin-top:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
-              <span style="font-size:10px;font-weight:900;letter-spacing:.8px;color:#e0b83a">CAREER REWARDS</span>
-              <span id="rank-claim-count" style="font-size:9.5px;font-weight:800;color:#8fae4a"></span>
-            </div>
-            <div id="rank-list"></div>
-            <div class="rewards-box" style="margin-top:6px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
-                <span style="font-size:10px;font-weight:900;letter-spacing:.8px;color:#8fae4a">SERVICE RECORD</span>
-                <span id="ach-count" style="font-size:9.5px;font-weight:800;color:#a8a29e"></span>
-              </div>
-              <div id="ach-list" style="max-height:196px;overflow-y:auto"></div>
-            </div>
+          <div class="rviews">
+            <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
+            <div id="rview-l" class="rview"><div id="login-track"></div></div>
+            <div id="rview-c" class="rview"><div id="rank-list"></div></div>
+            <div id="rview-s" class="rview"><div id="ach-list"></div></div>
           </div>
         </div>
       </div>
@@ -1241,7 +1318,7 @@ function burst(x, y, c, n, sz, spd, fr) {
 /* === DATA: WEAPONS, CLASSES, SKILLS, RELICS, PERKS, SKINS & EVENTS === */
 
 const WEAP = [
-  { n: 'Pistol', d: 20, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON' },
+  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON' },
   { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON' },
   { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON' },
   { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE' },
@@ -1422,7 +1499,20 @@ const SKINS = {
   hazmat_scout: { id: 'hazmat_scout', type: 'op', name: 'Biohazard Scout', ci: 2, col: '#84cc16', ac: '#4d7c0f', hm: '#365314', vz: '#a3e635', pk: '#1a2e05', desc: 'Chemical containment suit with toxin filter respirator.', tagCol: '#84cc16', how: 'Survive Wave 15 in Toxic Swamp', tier: 'RARE' },
   arctic_commando: { id: 'arctic_commando', type: 'op', name: 'Arctic Frost', ci: 1, col: '#38bdf8', ac: '#0369a1', hm: '#0c4a6e', vz: '#7dd3fc', pk: '#082f49', desc: 'Sub-zero insulated tactical armor with frost-resistant optics.', tagCol: '#38bdf8', how: 'Survive Wave 15 in Frozen Peak', tier: 'RARE' },
   desert_infantry: { id: 'desert_infantry', type: 'op', name: 'Desert Vanguard', ci: 0, col: '#eab308', ac: '#a16207', hm: '#713f12', vz: '#fde047', pk: '#422006', desc: 'Dune-camo heavy field uniform with sandstorm goggles.', tagCol: '#eab308', how: 'Survive Wave 15 in Dust Bowl', tier: 'COMMON' },
-  blood_hunter: { id: 'blood_hunter', type: 'op', name: 'Crimson Hunter', ci: 0, col: '#ef4444', ac: '#991b1b', hm: '#450a0a', vz: '#f87171', pk: '#2d0606', desc: 'Ceremonial crimson battle armor worn by veteran zombie slayers.', tagCol: '#ef4444', how: 'Survive 50 Total Cumulative Waves', tier: 'EPIC' }
+  blood_hunter: { id: 'blood_hunter', type: 'op', name: 'Crimson Hunter', ci: 0, col: '#ef4444', ac: '#991b1b', hm: '#450a0a', vz: '#f87171', pk: '#2d0606', desc: 'Ceremonial crimson battle armor worn by veteran zombie slayers.', tagCol: '#ef4444', how: 'Survive 50 Total Cumulative Waves', tier: 'EPIC' },
+
+  // Milestone skins - unlocked automatically by the rule engine in
+  // engine_meta.js (rk = lifetime stat key, rg = goal, rf = custom counter).
+  wasteland_rifle: { id: 'wasteland_rifle', type: 'weap', name: 'Wasteland Rust', wi: 3, wName: 'Rifle', col: '#b45309', ac: '#78350f', desc: 'Oxidised scrap plating with a scavenged iron sight.', tagCol: '#d97706', how: 'Eliminate 500 infected (lifetime)', tier: 'RARE', rk: 'kills', rg: 500 },
+  frostbite_cryo: { id: 'frostbite_cryo', type: 'weap', name: 'Frostbite Core', wi: 13, wName: 'Cryo Blaster', col: '#7dd3fc', ac: '#0369a1', desc: 'Sub-zero coolant loop that frosts the barrel between bursts.', tagCol: '#38bdf8', how: 'Reach wave 25 in a single run', tier: 'EPIC', rk: 'highestWave', rg: 25 },
+  golden_revolver: { id: 'golden_revolver', type: 'weap', name: 'Marshal Gold', wi: 5, wName: 'Revolver', col: '#fbbf24', ac: '#92400e', desc: 'Hand-tooled gilded cylinder reserved for titan hunters.', tagCol: '#e0b83a', how: 'Eliminate 5 bosses (lifetime)', tier: 'LEGENDARY', rk: 'bosses', rg: 5 },
+  storm_tesla: { id: 'storm_tesla', type: 'weap', name: 'Storm Coil', wi: 11, wName: 'Tesla', col: '#60a5fa', ac: '#1d4ed8', desc: 'Supercharged coil array with a crawling blue arc discharge.', tagCol: '#00e5ff', how: 'Eliminate 50 elites (lifetime)', tier: 'RARE', rk: 'elites', rg: 50 },
+  plague_rocket: { id: 'plague_rocket', type: 'weap', name: 'Plague Lance', wi: 9, wName: 'Rocket', col: '#65a30d', ac: '#3f6212', desc: 'Bio-warhead launcher leaking a sickly green exhaust plume.', tagCol: '#84cc16', how: 'Clear 300 waves in total', tier: 'EPIC', rk: 'waves', rg: 300 },
+  sanguine_siphon: { id: 'sanguine_siphon', type: 'weap', name: 'Sanguine Draw', wi: 19, wName: 'Siphon SMG', col: '#9f1239', ac: '#4c0519', desc: 'Dark maroon frame that pulses red on every siphon tick.', tagCol: '#be123c', how: 'Complete 10 runs', tier: 'RARE', rk: 'runs', rg: 10 },
+  swarm_hornet: { id: 'swarm_hornet', type: 'weap', name: 'Swarm Regent', wi: 21, wName: 'Hornet', col: '#ca8a04', ac: '#713f12', desc: 'Hive-forged carapace shell with a bone-white impact core.', tagCol: '#facc15', how: 'Reach a 50 kill combo', tier: 'EPIC', rk: 'bestCombo', rg: 50 },
+  apex_glacier: { id: 'apex_glacier', type: 'weap', name: 'Apex Glacier', wi: 20, wName: 'Glacier Breaker', col: '#a5f3fc', ac: '#0e7490', desc: 'Max-mastery ice relic: the barrel never stops steaming.', tagCol: '#22d3ee', how: 'Max out mastery on any weapon', tier: 'LEGENDARY', rf: () => Object.keys((typeof SV !== 'undefined' && SV && SV.mast) || {}).filter(i => masteryLevel(+i) >= MAST_MAX).length, rg: 1 },
+  nightfall_op: { id: 'nightfall_op', type: 'op', name: 'Nightfall Recon', ci: 4, col: '#6366f1', ac: '#312e81', hm: '#1e1b4b', vz: '#a5b4fc', pk: '#171338', desc: 'Void-black recon rig issued to ascended operatives.', tagCol: '#818cf8', how: 'Reach ascension tier 3 in any sector', tier: 'LEGENDARY', rf: () => Math.max(0, ...Object.values((typeof SV !== 'undefined' && SV && SV.asc) || {}), 0), rg: 3 },
+  trench_op: { id: 'trench_op', type: 'op', name: 'Trench Regular', ci: 0, col: '#78716c', ac: '#44403c', hm: '#292524', vz: '#fcd34d', pk: '#1c1917', desc: 'Weathered line-infantry greatcoat, mud to the knees.', tagCol: '#a8a29e', how: 'Complete 3 runs', tier: 'COMMON', rk: 'runs', rg: 3 }
 };
 
 const EVENTS = {
@@ -2770,14 +2860,18 @@ function toggleSkin(weapIdx) {
   lobby();
 }
 
+const LOBBY_REWARD_TABS = ['m', 'l', 'c', 's'];
 function switchLobbyRewards(t){
-  const isM = (t === 'm');
-  const btnM = $('rtab-m'), btnL = $('rtab-l');
-  const viewM = $('rview-m'), viewL = $('rview-l');
-  if (btnM) btnM.classList.toggle('on', isM);
-  if (btnL) btnL.classList.toggle('on', !isM);
-  if (viewM) viewM.style.display = isM ? 'block' : 'none';
-  if (viewL) viewL.style.display = isM ? 'none' : 'block';
+  if (LOBBY_REWARD_TABS.indexOf(t) < 0) t = 'm';
+  for (const k of LOBBY_REWARD_TABS) {
+    const btn = $('rtab-' + k), view = $('rview-' + k);
+    if (btn) btn.classList.toggle('on', k === t);
+    if (view) view.classList.toggle('on', k === t);
+  }
+  if (t === 'c' && typeof renderRankRewards === 'function') renderRankRewards();
+  if (t === 's' && typeof renderAchievements === 'function') renderAchievements();
+  if (t === 'l' && typeof renderLoginTrackUI === 'function') renderLoginTrackUI();
+  if (typeof snd === 'function') snd(520, 0.05, 'square', 0.03);
 }
 
 let activeSkinFilter = 'all';
@@ -3038,6 +3132,19 @@ function renderSkinsUI(){
       <div style="background:rgba(0,0,0,.35);padding:6px 8px;border-radius:6px;font-size:10px">
         <span style="opacity:.65">UNLOCK: </span>
         <span style="color:${isOwned?'#8fae4a':'#e0b83a'};font-weight:700">${sk.how || 'Special Event'}</span>
+        ${(() => {
+          if (isOwned) return '';
+          const st = (typeof skinRuleState === 'function') ? skinRuleState(k) : null;
+          if (!st) return '';
+          return `<div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;letter-spacing:.4px;opacity:.8">
+              <span style="color:${sk.col}">PROGRESS</span><span>${st.cur.toLocaleString()} / ${st.goal.toLocaleString()}</span>
+            </div>
+            <div style="height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:3px;overflow:hidden">
+              <div style="width:${st.pct}%;height:100%;background:${sk.col}"></div>
+            </div>
+          </div>`;
+        })()}
       </div>
       <div style="margin-top:auto;display:flex;gap:6px">
         ${isOwned ? `
@@ -3129,49 +3236,67 @@ function clearGoreDecals() {
   initDecalBakingCanvas();
 }
 
-// Surface-aware blood color palettes based on active map
+// Surface-aware blood colour palettes based on active map.
+// Deliberately desaturated, oxidised and slightly brown so sprays read as dark
+// congealed fluid against the muted ground rather than bright cherry red.
 function getBloodColors(curM) {
   if (curM === 3 || curM === 6) {
-    // Toxic Swamp & Bio-Dome: Caustic dark green/black bile
+    // Toxic Swamp & Bio-Dome: caustic dark green/black bile
     return {
-      core: '#14532d',
-      rim: '#22c55e',
-      pool: '#0f3d20',
-      mist: 'rgba(34,197,94,0.35)',
-      gib: '#166534',
+      core: '#12351f',
+      rim: '#3f7a4c',
+      pool: '#0c2818',
+      mist: 'rgba(63,122,76,0.28)',
+      gib: '#1b4526',
       type: 'toxic'
     };
   } else if (curM === 2) {
-    // Frozen Peak: Frozen crimson ice crystals
+    // Frozen Peak: frozen, washed-out rust crystals
     return {
-      core: '#881337',
-      rim: '#fb7185',
-      pool: '#700d2b',
-      mist: 'rgba(251,113,133,0.3)',
-      gib: '#9f1239',
+      core: '#5e2430',
+      rim: '#a86a72',
+      pool: '#4a1c26',
+      mist: 'rgba(168,106,114,0.26)',
+      gib: '#6d2a34',
       type: 'crystal'
     };
   } else if (curM === 4) {
-    // Ashlands: Scorched dark charred stains
+    // Ashlands: scorched charred stains
     return {
-      core: '#1c1917',
-      rim: '#7f1d1d',
-      pool: '#171210',
-      mist: 'rgba(127,29,29,0.35)',
-      gib: '#450a0a',
+      core: '#1a1614',
+      rim: '#4e2a26',
+      pool: '#151110',
+      mist: 'rgba(78,42,38,0.3)',
+      gib: '#2e1512',
       type: 'charred'
     };
   } else {
-    // Standard: Downtown & Dust Bowl deep arterial crimson
+    // Standard: Downtown & Dust Bowl, oxidised maroon
     return {
-      core: '#7f1d1d',
-      rim: '#dc2626',
-      pool: '#581111',
-      mist: 'rgba(220,38,38,0.35)',
-      gib: '#991b1b',
+      core: '#4a1c1c',
+      rim: '#78352f',
+      pool: '#361312',
+      mist: 'rgba(120,53,47,0.3)',
+      gib: '#57211c',
       type: 'blood'
     };
   }
+}
+
+// Pixel-art quantisation grid. Every gore primitive snaps to this lattice and
+// is drawn as hard-edged blocks instead of smooth arcs, so blood matches the
+// chunky sprite work rather than looking like an airbrushed overlay.
+const GORE_PX = 3;
+function pxSnap(v) { return Math.round(v / GORE_PX) * GORE_PX; }
+function goreBlock(x, y, col, a) {
+  X.globalAlpha = a;
+  X.fillStyle = col;
+  X.fillRect(pxSnap(x) - GORE_PX * 0.5, pxSnap(y) - GORE_PX * 0.5, GORE_PX, GORE_PX);
+}
+// Deterministic 2D hash so a splatter keeps its pixel pattern between frames.
+function pxHash(x, y) {
+  const n = Math.sin(pxSnap(x) * 12.9898 + pxSnap(y) * 78.233) * 43758.5453;
+  return n - Math.floor(n);
 }
 
 // Spawns hit blood burst with droplets, streaks, and mist
@@ -3427,17 +3552,19 @@ function renderGoreGroundPass(cx, cy, W, H) {
     const alpha = Math.max(0, Math.min(0.85, timeLeft / 3.0));
     if (alpha <= 0.005) continue;
     X.save();
-    X.globalAlpha = alpha;
-    // Outer thin rim
-    X.fillStyle = p.rimCol || '#dc2626';
-    X.beginPath();
-    X.arc(p.x, p.y, p.r, 0, 6.28);
-    X.fill();
-    // Inner thick drying core
-    X.fillStyle = dryPct > 0.5 ? '#110a0a' : (p.col || '#581111');
-    X.beginPath();
-    X.arc(p.x, p.y, p.r * 0.75, 0, 6.28);
-    X.fill();
+    // Stepped pixel disc instead of a smooth circle: walk the bounding box on
+    // the 3px lattice and only paint cells inside the radius, with a jittered
+    // rim so the pool edge is ragged rather than geometric.
+    const pr = p.r;
+    const core = dryPct > 0.5 ? '#171010' : (p.col || '#361312');
+    for (let gy = -pr; gy <= pr; gy += GORE_PX) {
+      for (let gx = -pr; gx <= pr; gx += GORE_PX) {
+        const d = Math.hypot(gx, gy);
+        if (d > pr) continue;
+        const inner = d <= pr * 0.72 && pxHash(p.x + gx, p.y + gy) > 0.12;
+        goreBlock(p.x + gx, p.y + gy, inner ? core : (p.rimCol || '#78352f'), alpha * (inner ? 1 : 0.85));
+      }
+    }
     X.restore();
   }
 
@@ -3451,23 +3578,20 @@ function renderGoreGroundPass(cx, cy, W, H) {
     X.translate(d.x, d.y);
     X.rotate(d.ang || 0);
 
-    if (d.type === 'crystal') {
-      // Frozen crystalline blood facets
-      X.fillStyle = d.rimCol;
-      X.beginPath();
-      X.moveTo(-d.r, 0); X.lineTo(0, -d.r * 0.6); X.lineTo(d.r * 1.3, 0); X.lineTo(0, d.r * 0.6);
-      X.closePath(); X.fill();
-    } else {
-      // Outer lighter rim
-      X.fillStyle = d.rimCol;
-      X.beginPath();
-      X.ellipse(0, 0, d.r * (d.stretch || 1.1), d.r * 0.85, 0, 0, 6.28);
-      X.fill();
-      // Inner darker core
-      X.fillStyle = d.col;
-      X.beginPath();
-      X.ellipse(0, 0, d.r * 0.65 * (d.stretch || 1.1), d.r * 0.55, 0, 0, 6.28);
-      X.fill();
+    // Blocky splatter: lattice cells inside a stretched disc, with a ragged
+    // edge and a darker core, so every landing reads as chunky pixel spray.
+    const sx = d.r * (d.stretch || 1.1), sy = d.r * 0.85;
+    for (let gy = -sy; gy <= sy; gy += GORE_PX) {
+      for (let gx = -sx; gx <= sx; gx += GORE_PX) {
+        const nrm = Math.hypot(gx / sx, gy / sy);
+        if (nrm > 1) continue;
+        const edge = nrm > 0.66;
+        if (edge && pxHash(d.x + gx, d.y + gy) < 0.28) continue;
+        X.globalAlpha = alpha * (edge ? 0.75 : 1);
+        X.fillStyle = (edge || d.type === 'crystal') ? d.rimCol : d.col;
+        // Local space: the context is already translated to (d.x, d.y).
+        X.fillRect(pxSnap(gx) - GORE_PX * 0.5, pxSnap(gy) - GORE_PX * 0.5, GORE_PX, GORE_PX);
+      }
     }
     X.restore();
   }
@@ -3495,13 +3619,14 @@ function renderGoreGroundPass(cx, cy, W, H) {
     // Shadow
     X.fillStyle = '#00000055';
     X.beginPath(); X.ellipse(2, 3, g.r, g.r * 0.6, 0, 0, 6.28); X.fill();
-    // Meat chunk
+    // Meat chunk: hard pixel block with a stepped highlight, no soft corners.
+    const gw = Math.max(GORE_PX, pxSnap(g.r * 2)), gh = Math.max(GORE_PX, pxSnap(g.r * 1.4));
     X.fillStyle = g.col;
-    X.beginPath();
-    X.roundRect(-g.r, -g.r * 0.7, g.r * 2, g.r * 1.4, 2);
-    X.fill();
-    X.fillStyle = '#f87171';
-    X.fillRect(-g.r * 0.4, -g.r * 0.3, g.r * 0.8, g.r * 0.6);
+    X.fillRect(-gw * 0.5, -gh * 0.5, gw, gh);
+    X.fillStyle = 'rgba(0,0,0,0.35)';
+    X.fillRect(-gw * 0.5, gh * 0.5 - GORE_PX, gw, GORE_PX);
+    X.fillStyle = 'rgba(214,180,150,0.35)';
+    X.fillRect(-gw * 0.15, -gh * 0.25, Math.max(GORE_PX, pxSnap(gw * 0.3)), GORE_PX);
     X.restore();
   }
 }
@@ -3534,14 +3659,20 @@ function renderGoreAirPass(cx, cy, W, H) {
     X.restore();
   }
 
-  // 3. Droplets in flight
+  // 3. Droplets in flight: square pixel chunks, not round blobs.
+  X.save();
   for (const b of BLD) {
     if (b.x < cx - 20 || b.x > cx + W + 20 || b.y < cy - 20 || b.y > cy + H + 20) continue;
-    X.fillStyle = b.col;
-    X.beginPath();
-    X.arc(b.x, b.y, b.r, 0, 6.28);
-    X.fill();
+    X.globalAlpha = Math.max(0.25, Math.min(1, b.l / b.maxL));
+    const sz = Math.max(GORE_PX, pxSnap(b.r * 1.6));
+    X.fillStyle = b.rimCol || b.col;
+    X.fillRect(pxSnap(b.x) - sz * 0.5, pxSnap(b.y) - sz * 0.5, sz, sz);
+    if (sz > GORE_PX) {
+      X.fillStyle = b.col;
+      X.fillRect(pxSnap(b.x) - sz * 0.5 + 1, pxSnap(b.y) - sz * 0.5 + 1, sz - 2, sz - 2);
+    }
   }
+  X.restore();
 }
 
 
@@ -4298,10 +4429,30 @@ function gun(i, rc) {
       X.fillStyle = '#fef08a'; X.fillRect(4, 9, 12, 7);
       X.strokeStyle = '#d97706'; X.lineWidth = 1.5; X.strokeRect(12, -8, 35, 16);
     } else {
-      X.strokeStyle = skDef.col; X.lineWidth = 1.6;
-      X.strokeRect(2, -4, 22, 8);
-      X.fillStyle = skDef.col; X.globalAlpha = ga * (0.65 + Math.sin(((typeof S !== 'undefined' && S) ? S.t : 0) * 10) * 0.25);
-      X.fillRect(4, -2, 18, 4);
+      // Data-driven finish: any skin carrying col/ac plates the receiver and
+      // barrel along the real weapon length (ML) instead of a fixed 22px box,
+      // so long guns no longer only get a tiny patch near the grip.
+      const L = (typeof ML !== 'undefined' && ML[i]) ? ML[i] : 34;
+      const core = skDef.col || '#94a3b8';
+      const dark = skDef.ac || '#1c1917';
+      const pulse = 0.7 + Math.sin(((typeof S !== 'undefined' && S) ? (S.t || 0) : 0) * 8) * 0.3;
+      X.globalAlpha = ga * 0.5;
+      X.fillStyle = core;
+      X.fillRect(2, -4.5, L * 0.56, 9);
+      X.fillRect(L * 0.53, -2.2, L * 0.42, 4.4);
+      X.globalAlpha = ga * 0.55;
+      X.fillStyle = dark;
+      X.fillRect(2, 2.6, L * 0.56, 2.2);
+      X.globalAlpha = ga * 0.8 * pulse;
+      X.fillStyle = '#ffffff';
+      X.fillRect(6, -1.3, Math.max(8, L * 0.4), 1.6);
+      X.globalAlpha = ga * 0.75;
+      X.fillStyle = core;
+      for (let px = 7; px < L * 0.62; px += 9) X.fillRect(px, 4.1, 3, 1.7);
+      X.globalAlpha = ga * 0.7;
+      X.strokeStyle = core;
+      X.lineWidth = 1.4;
+      X.strokeRect(1.5, -5.2, Math.min(L * 0.58, 30), 10.4);
     }
     X.restore();
   }
@@ -4725,7 +4876,7 @@ function drawZombie(z) {
     for (let k = -3; k <= 1; k++) X.fillRect(k * r * 0.2 - 2, -2, 3, 4);
 
     if (isDamaged && !fc) {
-      X.fillStyle = '#b91c1c';
+      X.fillStyle = '#6b2a24';
       X.fillRect(-r * 0.3, -r * 0.3, 5, 3);
       X.fillRect(-r * 0.1, r * 0.2, 6, 3);
     }
@@ -4779,7 +4930,7 @@ function drawZombie(z) {
 
     // Exploder under 50% HP damaged state: ruptured burning fissures
     if (isDamaged && !fc) {
-      X.strokeStyle = '#ef4444';
+      X.strokeStyle = '#e2603c';
       X.lineWidth = 2.2;
       X.beginPath();
       X.moveTo(-r * 0.3, -r * 0.2); X.lineTo(r * 0.1, 0); X.lineTo(-r * 0.1, r * 0.3);
@@ -4821,7 +4972,7 @@ function drawZombie(z) {
     X.fillRect(r * 0.85, r * 0.55, 4, 3);
 
     // Deep battle scars
-    X.strokeStyle = isDamaged ? '#b91c1c' : '#221a14';
+    X.strokeStyle = isDamaged ? '#6b2a24' : '#221a14';
     X.lineWidth = 2.4;
     X.beginPath();
     X.moveTo(-r * 0.3, -r * 0.4); X.lineTo(r * 0.2, -r * 0.1);
@@ -4912,7 +5063,7 @@ function drawZombie(z) {
 
     // Under 50% HP damaged state: cracked armor horn
     if (isDamaged && !fc) {
-      X.strokeStyle = '#b91c1c';
+      X.strokeStyle = '#6b2a24';
       X.lineWidth = 2.4;
       X.beginPath();
       X.moveTo(r * 0.4, -r * 0.3); X.lineTo(r * 0.8, -r * 0.1);
@@ -5039,7 +5190,7 @@ function drawZombie(z) {
 
     // Boss under 50% HP damaged state: raging glowing fractures & sparked exhaust
     if (isDamaged && !fc) {
-      X.strokeStyle = '#f87171';
+      X.strokeStyle = '#ff8a5c';
       X.lineWidth = 3.0;
       X.beginPath();
       X.arc(0, 0, r * 0.75, -1.2, 1.2);
@@ -5969,6 +6120,609 @@ function renderLightingPass(cx, cy, W, H) {
 }
 
 
+/* === MODULE: engine_feel.js === */
+// DEAD ZONE v2.4 - WEAPON FEEL, IMPACT & SKILL VFX
+// Everything in this file is presentation. It never mutates damage, cooldowns or
+// reward values: it only makes what already happened legible to the player.
+
+/* ------------------------------------------------------------------ */
+/* BULLET ARCHETYPES                                                   */
+/* ------------------------------------------------------------------ */
+// Derived from WEAP so a new gun automatically inherits a sensible look.
+function bulletArchetype(wi) {
+  const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : (typeof WEAP !== 'undefined' ? WEAP[0] : null);
+  if (!w) return 'tracer';
+  if (w.flm) return 'flame';
+  if (w.ex) return 'rocket';
+  if (w.n === 'Railgun') return 'rail';
+  if (w.n === 'Sniper' || w.n === 'Crossbow') return 'heavy';
+  if (w.cl) return 'arc';
+  if (w.fz) return 'cryo';
+  if ((w.pr || 0) >= 2) return 'energy';
+  if (w.p > 1) return 'pellet';
+  if (w.d >= 60) return 'heavy';
+  return 'tracer';
+}
+
+// Damage tier drives every feedback dial: 3 = "artillery", 1 = "peashooter".
+function damageTier(dmg) {
+  const d = Math.abs(Number(dmg) || 0);
+  if (d >= 150) return 3;
+  if (d >= 55) return 2;
+  return 1;
+}
+
+function hexToRgbTriplet(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '255,220,140';
+  const n = parseInt(m[1], 16);
+  return ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255);
+}
+
+function bulletColourFor(wi, isCrit) {
+  const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : null;
+  const skin = (typeof SV !== 'undefined' && SV && SV.eqSkin && typeof SKINS !== 'undefined' && SKINS[SV.eqSkin[wi]]) ? SKINS[SV.eqSkin[wi]] : null;
+  if (isCrit) return '#fff3c4';
+  if (skin && skin.col) return skin.col;
+  if (typeof WC !== 'undefined' && WC[wi]) return WC[wi];
+  return w ? '#ffd86b' : '#ffd86b';
+}
+
+/* ------------------------------------------------------------------ */
+/* IMPACT FEEDBACK                                                     */
+/* ------------------------------------------------------------------ */
+// Called from the damage pipeline for every landed hit. Scaled by both the
+// damage dealt and the weapon archetype so a railgun slug reads differently
+// from an SMG tick even though both spawn one "hit".
+function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
+  const tier = damageTier(dmg);
+  const arch = bulletArchetype(wi);
+  const col = bulletColourFor(wi, isCrit);
+  const a = (typeof ang === 'number' && isFinite(ang)) ? ang : Math.random() * 6.28;
+
+  // 1. Directional spark spray, opposite the travel vector.
+  const sparks = isCrit ? 7 + tier * 3 : 3 + tier * 3;
+  for (let i = 0; i < sparks; i++) {
+    const sa = a + Math.PI + (Math.random() - 0.5) * (1.0 + tier * 0.25);
+    const spd = 90 + Math.random() * (120 + tier * 130);
+    F.push({
+      x, y,
+      vx: Math.cos(sa) * spd, vy: Math.sin(sa) * spd,
+      l: 0.16 + Math.random() * 0.22,
+      c: isCrit ? '#ffffff' : col,
+      s: 1.6 + tier * 0.9,
+      fr: 1
+    });
+  }
+
+  // 2. Powder/dirt puff at the impact point (non-additive, reads as dust).
+  if (tier >= 1) {
+    const puffs = 2 + tier;
+    for (let i = 0; i < puffs; i++) {
+      const pa = a + Math.PI + (Math.random() - 0.5) * 1.6;
+      F.push({
+        x: x + (Math.random() - 0.5) * 5, y: y + (Math.random() - 0.5) * 5,
+        vx: Math.cos(pa) * (30 + Math.random() * 55), vy: Math.sin(pa) * (30 + Math.random() * 55),
+        l: 0.22 + Math.random() * 0.3,
+        c: isCrit ? '#e8dcc0' : '#8d8574',
+        s: 2.4 + tier * 1.3 + Math.random() * 1.6
+      });
+    }
+  }
+
+  // 3. Shockwave ring for heavy and critical impacts.
+  if (typeof RG !== 'undefined' && (tier >= 2 || isCrit)) {
+    const rgb = isCrit ? '255,240,200' : hexToRgbTriplet(col);
+    RG.push({ x, y, r: 4 + tier * 2, l: 0.2 + tier * 0.06, v: 420 + tier * 220, c: rgb });
+  }
+  if (typeof RG !== 'undefined' && (tier >= 3 || (isCrit && tier >= 2))) {
+    RG.push({ x, y, r: 2, l: 0.34, v: 260, c: '255,255,255' });
+  }
+
+  // 4. Archetype flavour on impact.
+  if (arch === 'arc' || arch === 'energy') {
+    for (let i = 0; i < 3; i++) {
+      const na = Math.random() * 6.28;
+      F.push({
+        x, y,
+        vx: Math.cos(na) * 160, vy: Math.sin(na) * 160,
+        l: 0.12, c: '#bff4ff', s: 1.4, fr: 1
+      });
+    }
+  } else if (arch === 'cryo') {
+    for (let i = 0; i < 3; i++) {
+      const na = Math.random() * 6.28;
+      F.push({
+        x, y, vx: Math.cos(na) * 70, vy: Math.sin(na) * 70,
+        l: 0.3, c: '#d8f6ff', s: 2.2
+      });
+    }
+  } else if (arch === 'rocket' && tier >= 3) {
+    if (typeof RG !== 'undefined') RG.push({ x, y, r: 6, l: 0.4, v: 520, c: '255,170,60' });
+  }
+
+  // 5. Hit-stop + screen punch, sized to the hit. HIT_STOP_TIMER was declared
+  //    and honoured by update() but nothing ever set it, so heavy shots had no
+  //    weight at all.
+  const heavy = tier === 3 || (tier === 2 && isCrit);
+  const stop = tier === 3 ? (isCrit ? 0.055 : 0.04) : (isCrit ? 0.032 : 0.018);
+  if (heavy && typeof HIT_STOP_TIMER !== 'undefined') {
+    HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, stop);
+  }
+  if (typeof QUALITY_SETTINGS !== 'undefined' && QUALITY_SETTINGS.screenShake) {
+    const punch = tier === 3 ? (isCrit ? 9 : 6.5) : tier === 2 ? (isCrit ? 5 : 3.4) : (isCrit ? 2.6 : 1.2);
+    SH = Math.max(SH, punch);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* DEFAULT BULLET RENDERING (used by the shared projectile loop)       */
+/* ------------------------------------------------------------------ */
+// Replaces the old fixed 3px trail that every non-bespoke weapon shared, so a
+// 20 damage pistol round and a 340 damage railgun slug no longer look alike.
+function drawBulletDefault(b) {
+  const wi = (b.wi == null) ? 0 : b.wi;
+  const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : null;
+  const arch = bulletArchetype(wi);
+  const tier = damageTier(w ? w.d : (b.d || 10));
+  const col = b.c || '#ffd86b';
+  const heavy = arch === 'heavy' || arch === 'rail' || tier >= 2;
+
+  // Trail length scales with speed AND weight: slow fat rounds get a short
+  // smear, fast light rounds get a long thin one.
+  const spd = Math.hypot(b.vx, b.vy) || 700;
+  const base = heavy ? 0.075 : (b.isCrit ? 0.05 : 0.036);
+  const tlen = Math.min(0.11, base * (1 + tier * 0.12));
+  const tx = b.x - b.vx * tlen, ty = b.y - b.vy * tlen;
+
+  X.save();
+  X.lineCap = 'round';
+
+  if (heavy) {
+    // Outer bloom halo, then the coloured body, then a hot white core.
+    X.globalCompositeOperation = 'lighter';
+    X.globalAlpha = 0.32;
+    X.strokeStyle = col;
+    X.lineWidth = 14 + tier * 4;
+    X.beginPath(); X.moveTo(tx, ty); X.lineTo(b.x, b.y); X.stroke();
+    X.globalCompositeOperation = 'source-over';
+  }
+
+  X.globalAlpha = heavy ? 0.85 : 0.5;
+  X.strokeStyle = col;
+  X.lineWidth = heavy ? 6.5 + tier * 1.6 : (b.isCrit ? 5 : 3);
+  X.beginPath(); X.moveTo(tx, ty); X.lineTo(b.x, b.y); X.stroke();
+
+  X.globalAlpha = 1;
+  X.strokeStyle = '#ffffff';
+  X.lineWidth = heavy ? 3.4 : (b.isCrit ? 2.6 : 1.7);
+  X.beginPath();
+  X.moveTo(b.x - b.vx * tlen * 0.42, b.y - b.vy * tlen * 0.42);
+  X.lineTo(b.x, b.y);
+  X.stroke();
+
+  // Muzzle-to-impact energy sheath for the energy archetypes.
+  if (arch === 'energy' || arch === 'cryo') {
+    X.globalAlpha = 0.5;
+    X.strokeStyle = arch === 'cryo' ? '#d8f6ff' : '#bff4ff';
+    X.lineWidth = heavy ? 2 : 1.4;
+    X.beginPath();
+    X.moveTo(b.x - b.vx * tlen * 1.5, b.y - b.vy * tlen * 1.5);
+    X.lineTo(b.x, b.y);
+    X.stroke();
+    X.globalAlpha = 1;
+  }
+  X.restore();
+
+  // Rounded head: heavy rounds are visibly fat, light rounds are a dot.
+  X.fillStyle = '#ffffff';
+  X.beginPath();
+  X.arc(b.x, b.y, heavy ? 3.4 + tier * 0.6 : (b.isCrit ? 2.5 : 1.8), 0, 6.28);
+  X.fill();
+
+  if (heavy) {
+    X.globalCompositeOperation = 'lighter';
+    X.globalAlpha = 0.55;
+    const r = 5 + tier * 2.4;
+    X.drawImage(getLightSprite(col, true), b.x - r, b.y - r, r * 2, r * 2);
+    X.globalCompositeOperation = 'source-over';
+    X.globalAlpha = 1;
+  }
+}
+
+// Heavy rounds shed a visible smoke ribbon and a faint light, so a slow
+// high-damage shot leaves a track behind it instead of a 1px line.
+function bulletTrailFX(b, dt) {
+  const wi = (b.wi == null) ? 0 : b.wi;
+  const arch = bulletArchetype(wi);
+  const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : null;
+  const tier = damageTier(w ? w.d : (b.d || 10));
+  const heavy = arch === 'heavy' || arch === 'rail' || tier >= 2;
+
+  if (heavy) {
+    b.sm = (b.sm || 0) + dt;
+    if (b.sm > 0.02 && F.length < 250) {
+      b.sm = 0;
+      F.push({
+        x: b.x + (Math.random() - 0.5) * 4, y: b.y + (Math.random() - 0.5) * 4,
+        vx: (Math.random() - 0.5) * 18, vy: (Math.random() - 0.5) * 18 - 8,
+        l: 0.3 + Math.random() * 0.3,
+        c: arch === 'cryo' ? '#cfe9f5' : arch === 'energy' ? '#9fe6ff' : '#6f6a5f',
+        s: 1.8 + tier * 1.1
+      });
+    }
+  }
+  if (arch === 'flame' && F.length < 250) {
+    b.sm = (b.sm || 0) + dt;
+    if (b.sm > 0.035) {
+      b.sm = 0;
+      F.push({
+        x: b.x, y: b.y, vx: b.vx * 0.12, vy: b.vy * 0.12 - 26,
+        l: 0.32, c: 'rgba(90,90,90,0.55)', s: 3.4 + Math.random() * 2
+      });
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* MUZZLE SMOKE & HEAT                                                 */
+/* ------------------------------------------------------------------ */
+function muzzleSmokeFX(wi, ang, x, y) {
+  const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : null;
+  if (!w || typeof F === 'undefined' || F.length > 250) return;
+  const tier = damageTier(w.d);
+  const n = w.flm ? 1 : (tier >= 3 ? 3 : tier === 2 ? 2 : 1);
+  for (let i = 0; i < n; i++) {
+    const sa = ang + (Math.random() - 0.5) * 0.5;
+    F.push({
+      x: x + Math.cos(sa) * 4, y: y + Math.sin(sa) * 4,
+      vx: Math.cos(sa) * (34 + Math.random() * 44), vy: Math.sin(sa) * (34 + Math.random() * 44) - 12,
+      l: 0.26 + Math.random() * 0.3,
+      c: w.flm ? 'rgba(70,70,70,0.5)' : 'rgba(150,148,142,0.42)',
+      s: 2 + tier * 1.2 + Math.random()
+    });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* SKILL VFX                                                           */
+/* ------------------------------------------------------------------ */
+let SKILL_FX = [];
+let GREN = [];
+let ARCS = [];
+
+/* ------------------------------------------------------------------ */
+/* CHAIN LIGHTNING                                                     */
+/* ------------------------------------------------------------------ */
+// WEAP rows for the Tesla (cl:3) and Arc Shotgun (cl:1) declared a chain
+// count that nothing ever read, and the bullet carried `cl` into a field with
+// no consumer. The perk "Chain Lightning" was therefore inert too. This
+// implements it: each jump re-searches from the enemy just hit and deals 45%
+// of the bullet's damage, so chaining rewards firing into a packed wave.
+function chainLightning(src, b) {
+  if (typeof Z === 'undefined' || !b) return 0;
+  const maxJumps = Math.min(4, Math.floor(b.cl || 0));
+  if (maxJumps <= 0) return 0;
+  const hit = new Set(b.h || []);
+  hit.add(src);
+  let from = src, jumps = 0;
+  for (let j = 0; j < maxJumps; j++) {
+    let best = null, bestD = 190 * 190;
+    for (const z of Z) {
+      if (!z || z.dead || hit.has(z)) continue;
+      const dx = z.x - from.x, dy = z.y - from.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD) { bestD = d2; best = z; }
+    }
+    if (!best) break;
+    hit.add(best);
+    const ang = Math.atan2(best.y - from.y, best.x - from.x);
+    ARCS.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, l: 0.16, maxL: 0.16, seed: Math.random() * 999 });
+    if (typeof damageZ === 'function') damageZ(best, Math.max(1, b.d * 0.45), 'chain', false, ang, b.wi);
+    if (typeof burst === 'function') burst(best.x, best.y, '#9be7ff', 5, 2.2, 90, 1);
+    from = best;
+    jumps++;
+  }
+  return jumps;
+}
+
+// Jagged polyline through a seeded midpoint jitter: cheap, deterministic
+// between frames of the same arc and unmistakably "electric".
+function renderArcs() {
+  if (!ARCS.length) return;
+  X.save();
+  X.globalCompositeOperation = 'lighter';
+  X.lineCap = 'round';
+  for (const a of ARCS) {
+    const alpha = Math.max(0, a.l / a.maxL);
+    const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const segs = 5;
+    X.globalAlpha = alpha * 0.85;
+    X.strokeStyle = '#9be7ff';
+    X.lineWidth = 2.6;
+    X.beginPath();
+    X.moveTo(a.x1, a.y1);
+    for (let i = 1; i < segs; i++) {
+      const t = i / segs;
+      const jitter = (Math.sin(a.seed + i * 12.9898) * 43758.5453 % 1) * 14;
+      X.lineTo(a.x1 + dx * t + nx * jitter, a.y1 + dy * t + ny * jitter);
+    }
+    X.lineTo(a.x2, a.y2);
+    X.stroke();
+    X.globalAlpha = alpha * 0.55;
+    X.strokeStyle = '#ffffff';
+    X.lineWidth = 1.1;
+    X.stroke();
+    X.globalAlpha = alpha * 0.5;
+    const r = 7;
+    X.drawImage(getLightSprite('#9be7ff', true), a.x2 - r, a.y2 - r, r * 2, r * 2);
+  }
+  X.restore();
+}
+
+function updateFeelFX(dt) {
+  // Dash afterimages (GH was pushed every dash frame but never aged or drawn).
+  if (typeof GH !== 'undefined' && GH.length) {
+    for (const g of GH) g.l -= dt;
+    GH = GH.filter(g => g.l > 0);
+  }
+  for (const e of SKILL_FX) e.l -= dt;
+  SKILL_FX = SKILL_FX.filter(e => e.l > 0);
+  for (const a of ARCS) a.l -= dt;
+  ARCS = ARCS.filter(a => a.l > 0);
+  if (ARCS.length > 40) ARCS.splice(0, ARCS.length - 40);
+
+  // Grenade flight: visual + delayed detonation.
+  for (let i = GREN.length - 1; i >= 0; i--) {
+    const g = GREN[i];
+    g.t += dt;
+    const k = Math.min(1, g.t / g.dur);
+    g.x = g.sx + (g.tx - g.sx) * k;
+    g.y = g.sy + (g.ty - g.sy) * k;
+    g.h = Math.sin(k * Math.PI) * 46;
+    if (k >= 1) {
+      GREN.splice(i, 1);
+      if (typeof boom === 'function') boom({ x: g.tx, y: g.ty, ex: 110, d: g.dmg });
+    }
+  }
+
+  if (typeof B !== 'undefined') for (const b of B) bulletTrailFX(b, dt);
+}
+
+function clearFeelFX() {
+  SKILL_FX = [];
+  GREN = [];
+  ARCS = [];
+}
+
+// Called the instant a skill fires, before its gameplay effect lands.
+function skillCastFX(k, x, y, ang) {
+  const a = (typeof ang === 'number' && isFinite(ang)) ? ang : 0;
+  if (k === 'dash') {
+    SKILL_FX.push({ k: 'dash', x, y, l: 0.3, dur: 0.3, a });
+    for (let i = 0; i < 10; i++) {
+      const sa = a + Math.PI + (Math.random() - 0.5) * 1.5;
+      F.push({
+        x, y, vx: Math.cos(sa) * (70 + Math.random() * 90), vy: Math.sin(sa) * (70 + Math.random() * 90),
+        l: 0.24 + Math.random() * 0.2, c: '#cfe08a', s: 2.4 + Math.random() * 1.6
+      });
+    }
+    if (typeof RG !== 'undefined') RG.push({ x, y, r: 6, l: 0.22, v: 340, c: '160,200,110' });
+  } else if (k === 'nova') {
+    SKILL_FX.push({ k: 'nova', x, y, l: 0.62, dur: 0.62 });
+    for (let i = 0; i < 4; i++) {
+      if (typeof RG !== 'undefined') RG.push({ x, y, r: 8 + i * 6, l: 0.5 + i * 0.06, v: 640 - i * 70, c: i % 2 ? '255,210,140' : '255,110,54' });
+    }
+    for (let i = 0; i < 26; i++) {
+      const sa = Math.random() * 6.28, spd = 200 + Math.random() * 420;
+      F.push({
+        x: x + Math.cos(sa) * 10, y: y + Math.sin(sa) * 10,
+        vx: Math.cos(sa) * spd, vy: Math.sin(sa) * spd,
+        l: 0.3 + Math.random() * 0.3, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a3a', s: 2.6 + Math.random() * 2, fr: 1
+      });
+    }
+  } else if (k === 'rage') {
+    SKILL_FX.push({ k: 'rage', x, y, l: 0.5, dur: 0.5 });
+  } else if (k === 'gren') {
+    SKILL_FX.push({ k: 'grenThrow', x, y, l: 0.2, dur: 0.2, a });
+  } else if (k === 'turret') {
+    SKILL_FX.push({ k: 'turret', x, y, l: 0.5, dur: 0.5 });
+    if (typeof RG !== 'undefined') RG.push({ x, y, r: 8, l: 0.36, v: 260, c: '255,206,120' });
+  } else if (k === 'bolt' || k === 'meteor' || k === 'frost' || k === 'heal' || k === 'cloak' || k === 'shield') {
+    SKILL_FX.push({ k: k, x, y, l: 0.45, dur: 0.45 });
+    if (typeof RG !== 'undefined') {
+      const col = k === 'frost' ? '150,220,255' : k === 'heal' ? '140,230,150' : k === 'cloak' ? '160,170,200' : '140,200,255';
+      RG.push({ x, y, r: 8, l: 0.4, v: 380, c: col });
+    }
+  }
+}
+
+// SK.rage.on drives the on/off of the aura; kept out of the update loop.
+function renderSkillFX(cx, cy, W, H) {
+  if (typeof P === 'undefined' || !P) return;
+
+  // 1. Dash speed lines + afterimages from the GH position history.
+  if (typeof GH !== 'undefined' && GH.length) {
+    X.save();
+    for (const g of GH) {
+      const k = Math.max(0, Math.min(1, g.l / 0.25));
+      X.globalAlpha = k * 0.4;
+      X.fillStyle = P.cloak > 0 ? '#8fd8ff' : '#dfe7c2';
+      X.beginPath();
+      X.ellipse(g.x, g.y - 6, 9 * k + 3, 13 * k + 4, 0, 0, 6.28);
+      X.fill();
+    }
+    X.restore();
+  }
+
+  // 2. Active cast effects.
+  for (const e of SKILL_FX) {
+    const k = 1 - Math.max(0, Math.min(1, e.l / e.dur));
+    if (e.k === 'turret') {
+      // Unfolding deployment ring + descending bracket.
+      X.save();
+      X.globalAlpha = 1 - k;
+      X.strokeStyle = '#ffd36b';
+      X.lineWidth = 2.4;
+      X.beginPath(); X.arc(e.x, e.y, 14 + k * 26, 0, 6.28); X.stroke();
+      X.globalAlpha = (1 - k) * 0.8;
+      X.strokeStyle = '#8fae4a';
+      X.setLineDash([5, 5]);
+      X.beginPath(); X.arc(e.x, e.y, 22 + k * 18, 0, 6.28); X.stroke();
+      X.setLineDash([]);
+      X.restore();
+    } else if (e.k === 'grenThrow') {
+      X.save();
+      X.globalAlpha = 1 - k;
+      X.strokeStyle = 'rgba(255,211,107,0.6)';
+      X.lineWidth = 1.6;
+      X.setLineDash([4, 5]);
+      X.beginPath();
+      X.moveTo(e.x, e.y);
+      X.lineTo(e.x + Math.cos(e.a) * 120, e.y + Math.sin(e.a) * 120);
+      X.stroke();
+      X.setLineDash([]);
+      X.restore();
+    } else if (e.k === 'nova') {
+      // Ground scorch fade-out beneath the rings.
+      X.save();
+      X.globalAlpha = (1 - k) * 0.4;
+      const gr = X.createRadialGradient(e.x, e.y, 6, e.x, e.y, 170 * k + 30);
+      gr.addColorStop(0, 'rgba(255,180,90,0.55)');
+      gr.addColorStop(0.6, 'rgba(190,70,30,0.25)');
+      gr.addColorStop(1, 'rgba(120,40,20,0)');
+      X.fillStyle = gr;
+      X.beginPath(); X.arc(e.x, e.y, 170 * k + 30, 0, 6.28); X.fill();
+      X.restore();
+    }
+  }
+
+  // 3. Grenades in flight (arcing).
+  for (const g of GREN) {
+    X.save();
+    X.fillStyle = 'rgba(0,0,0,0.35)';
+    X.beginPath(); X.ellipse(g.x, g.y + 2, 5, 3, 0, 0, 6.28); X.fill();
+    X.fillStyle = '#4d5545';
+    X.beginPath(); X.arc(g.x, g.y - g.h, 5, 0, 6.28); X.fill();
+    X.strokeStyle = '#2b3026';
+    X.lineWidth = 1.4;
+    X.stroke();
+    X.fillStyle = Math.sin(g.t * 30) > 0 ? '#ff5a3a' : '#5a2018';
+    X.fillRect(g.x - 2, g.y - g.h - 6, 4, 3);
+    X.restore();
+  }
+
+  // 4. Rage aura while the buff is live.
+  const rage = (typeof SK !== 'undefined' && SK && SK.rage) ? SK.rage.on : 0;
+  if (rage > 0 && P.hp > 0) {
+    const pulse = 0.6 + Math.sin((S.t || 0) * 9) * 0.4;
+    X.save();
+    X.globalCompositeOperation = 'lighter';
+    X.globalAlpha = 0.22 + pulse * 0.16;
+    const r = 30 + pulse * 7;
+    const rg = X.createRadialGradient(P.x, P.y, 4, P.x, P.y, r);
+    rg.addColorStop(0, 'rgba(255,140,60,0.55)');
+    rg.addColorStop(1, 'rgba(255,60,20,0)');
+    X.fillStyle = rg;
+    X.beginPath(); X.arc(P.x, P.y, r, 0, 6.28); X.fill();
+    X.globalCompositeOperation = 'source-over';
+    X.globalAlpha = 0.5 + pulse * 0.3;
+    X.strokeStyle = '#ff9a3a';
+    X.lineWidth = 2;
+    X.beginPath(); X.arc(P.x, P.y, 20 + pulse * 5, 0, 6.28); X.stroke();
+    X.restore();
+    if (Math.random() < 0.35 && F.length < 240) {
+      F.push({
+        x: P.x + (Math.random() - 0.5) * 24, y: P.y + (Math.random() - 0.5) * 20,
+        vx: (Math.random() - 0.5) * 20, vy: -34 - Math.random() * 30,
+        l: 0.4 + Math.random() * 0.3, c: '#ffb347', s: 1.8 + Math.random(), fr: 1
+      });
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* EXTRA PLAYER RIG DETAIL                                             */
+/* ------------------------------------------------------------------ */
+// Drawn inside the player's local (rotated) frame, between the body and the gun.
+function drawPlayerGear() {
+  if (typeof P === 'undefined' || !P) return;
+  const st = P.st || 0;
+  const moving = Math.hypot(P.vx || 0, P.vy || 0) > 10;
+  const sw = moving ? Math.sin(st) * 0.9 : 0;
+  const cls = (typeof CL !== 'undefined' && CL[SV && SV.cls != null ? SV.cls : 0]) ? CL[SV && SV.cls != null ? SV.cls : 0] : null;
+  const acc = (cls && cls.ac) || '#556644';
+
+  X.save();
+
+  // Thigh pads + knee joints so the legs read as legs, not floating boots.
+  const legY = [9, -9];
+  for (let i = 0; i < 2; i++) {
+    const d = i ? 1 : -1;
+    const off = (i ? -sw : sw) * 4;
+    X.fillStyle = '#1b2016';
+    X.beginPath();
+    X.roundRect(-11 + off, legY[i] + d * 1.5 - 3.5, 12, 7, 3);
+    X.fill();
+    X.fillStyle = acc;
+    X.globalAlpha = 0.55;
+    X.fillRect(-9 + off, legY[i] + d * 1.5 - 2, 8, 2);
+    X.globalAlpha = 1;
+    X.fillStyle = '#2a3122';
+    X.beginPath();
+    X.arc(-2 + off, legY[i] + d * 1.5, 2.2, 0, 6.28);
+    X.fill();
+  }
+
+  // Belt with magazine pouches and a hip holster.
+  X.fillStyle = '#20261a';
+  X.beginPath(); X.roundRect(-6, -12, 5, 24, 2); X.fill();
+  X.fillStyle = '#39412c';
+  X.fillRect(-5.5, -9, 4, 3.4);
+  X.fillRect(-5.5, -3, 4, 3.4);
+  X.fillRect(-5.5, 3, 4, 3.4);
+  X.fillStyle = '#171b12';
+  X.beginPath(); X.roundRect(-4.5, 8.5, 6, 8, 2); X.fill();
+
+  // Combat knife strapped across the shoulder rig.
+  X.save();
+  X.translate(-2, -13);
+  X.rotate(-0.35);
+  X.fillStyle = '#101308';
+  X.fillRect(-1, -7, 3, 5);
+  X.fillStyle = '#b9c2cc';
+  X.beginPath();
+  X.moveTo(0.5, -2); X.lineTo(2.5, -2); X.lineTo(1.5, 6); X.closePath();
+  X.fill();
+  X.restore();
+
+  // Helmet headlamp cone: only bright while the run is live, so the lobby
+  // preview does not glow for no reason.
+  if (typeof run !== 'undefined' && run && S && S.nukeFlash >= 0) {
+    const lamp = 0.1 + 0.05 * Math.sin((S.t || 0) * 6);
+    X.globalCompositeOperation = 'lighter';
+    X.globalAlpha = lamp;
+    const lg = X.createLinearGradient(10, 0, 150, 0);
+    lg.addColorStop(0, 'rgba(255,246,214,0.55)');
+    lg.addColorStop(1, 'rgba(255,246,214,0)');
+    X.fillStyle = lg;
+    X.beginPath();
+    X.moveTo(9, -1.5);
+    X.lineTo(150, -34);
+    X.lineTo(150, 34);
+    X.lineTo(9, 1.5);
+    X.closePath();
+    X.fill();
+    X.globalCompositeOperation = 'source-over';
+    X.globalAlpha = 1;
+  }
+
+  X.restore();
+}
+
+
 /* === MODULE: engine_world.js === */
 // DEAD ZONE v2.4 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
@@ -6126,6 +6880,8 @@ function init() {
   if (typeof CHARGER_TRAILS !== 'undefined') CHARGER_TRAILS = [];
   if (typeof TURRET_DEBRIS !== 'undefined') TURRET_DEBRIS = [];
   if (typeof clearGoreDecals === 'function') clearGoreDecals();
+  if (typeof clearFeelFX === 'function') clearFeelFX();
+  if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = 0;
 
   SK = {
     dash: { cd: 0, max: 3 },
@@ -6297,6 +7053,10 @@ function fire() {
   P.fl = 0.07;
   sfx(P.cur);
 
+  // Damage-scaled muzzle smoke so a railgun blast smokes hard and an SMG tick
+  // barely puffs. Purely cosmetic.
+  if (typeof muzzleSmokeFX === 'function') muzzleSmokeFX(P.cur, P.a, P.x + Math.cos(P.a) * (((typeof ML !== 'undefined' && ML[P.cur]) || 45) * 0.87), P.y + Math.sin(P.a) * (((typeof ML !== 'undefined' && ML[P.cur]) || 45) * 0.87));
+
   // Muzzle smoke
   F.push({
     x: P.x, y: P.y,
@@ -6362,7 +7122,7 @@ function fire() {
       c: bulletCol,
       pr: (w.pr || 0) + (S.pc || 0),
       ex: w.ex || (S.eb ? 1 : 0),
-      cl: S.cl || 0,
+      cl: (S.cl || 0) + (w.cl || 0),
       fz: w.fz || 0,
       flm: w.flm || 0,
       ls: w.ls || 0,
@@ -6412,6 +7172,11 @@ function damageZ(z, rawDmg, src, isCrit, hitAngle, wi) {
   if (typeof spawnBloodHit === 'function') {
     spawnBloodHit(z.x, z.y, bloodAngle, finalD, !!isCrit, (typeof getCurMap === 'function' ? getCurMap() : 0));
   }
+
+  // Impact feedback: sparks, dust, shockwave, hit-stop and screen punch all
+  // scale with the damage actually dealt, so heavy single shots finally feel
+  // heavier than an SMG tick.
+  if (typeof combatImpactFX === "function") combatImpactFX(z.x, z.y, bloodAngle, finalD, !!isCrit, wi);
 
   if (!isFinite(z.hp) || z.hp <= 0) {
     z.hp = 0;
@@ -6638,7 +7403,11 @@ function skill(k) {
   if (!P || P.hp <= 0) return;
   const s = SK[k];
   if (!s || s.cd > 0) return;
+  if (k === 'gren' && S.gr <= 0) return;
   s.cd = s.max;
+
+  // Cast VFX fire before the gameplay effect so the animation leads the hit.
+  if (typeof skillCastFX === 'function') skillCastFX(k, P.x, P.y, P.a);
 
   if (k === 'dash') {
     P.dash = 0.22;
@@ -6660,10 +7429,16 @@ function skill(k) {
     burst(P.x, P.y, '#ffb347', 16);
     if (typeof snd === 'function') snd(350, 0.3, 'sawtooth', 0.08, 1.8);
   } else if (k === 'gren') {
-    if (S.gr <= 0) return;
     S.gr--;
+    // Thrown, arcing grenade (same payload, 0.34s later) so the skill has a
+    // visible flight instead of an instant off-screen detonation.
     const gx = P.x + Math.cos(P.a) * 120, gy = P.y + Math.sin(P.a) * 120;
-    boom({ x: gx, y: gy, ex: 110, d: 110 * S.dm });
+    if (typeof GREN !== 'undefined') {
+      GREN.push({ sx: P.x + Math.cos(P.a) * 12, sy: P.y + Math.sin(P.a) * 12, x: P.x, y: P.y, tx: gx, ty: gy, t: 0, dur: 0.34, h: 0, dmg: 110 * S.dm });
+    } else {
+      boom({ x: gx, y: gy, ex: 110, d: 110 * S.dm });
+    }
+    if (typeof snd === 'function') snd(180, 0.16, 'triangle', 0.05, 1.4);
   } else if (k === 'turret') {
     TR.push({ x: P.x + Math.cos(P.a) * 28, y: P.y + Math.sin(P.a) * 28, l: 18, cd: 0, a: P.a });
     burst(P.x, P.y, '#ffd36b', 14);
@@ -6845,9 +7620,10 @@ function update(dt) {
     S.hpChip = Math.max(P.hp, S.hpChip + (P.hp - S.hpChip) * Math.min(1, dt * 2.2));
   }
 
-  // Hit-stop micro-pause (35ms)
+  // Hit-stop micro-pause, now actually triggered by heavy/critical impacts.
   if (HIT_STOP_TIMER > 0) {
     HIT_STOP_TIMER -= dt;
+    if (typeof updateFeelFX === 'function') updateFeelFX(dt);
     return;
   }
 
@@ -7070,6 +7846,7 @@ function update(dt) {
         if (b.ls && P.hp < P.mx && (S.lsTok = (S.lsTok == null ? 4 : S.lsTok)) > 0) { const hv = Math.min(1.1, b.d * 0.12); healP(hv); S.lsTok -= hv; if (Math.random() < 0.25) F.push({ x: z.x, y: z.y, vx: (P.x - z.x) * 2, vy: (P.y - z.y) * 2, l: 0.35, c: '#ff4d6d', s: 2.4 }); }
         if (b.ex) boom(b);
         (b.h = b.h || []).push(z);
+        if (b.cl && !b.arced) { b.arced = 1; if (typeof chainLightning === 'function') chainLightning(z, b); }
         if (b.pr > 0) b.pr--; else b.l = 0;
         if (b.fz) z.fz = 2.5;
 
@@ -7158,6 +7935,9 @@ function update(dt) {
   // Shockwave rings decay
   for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }
   RG = RG.filter(r => r.l > 0);
+
+  // Skill VFX lifetimes, dash afterimages, grenade flight and bullet smoke.
+  if (typeof updateFeelFX === 'function') updateFeelFX(dt);
 
   // Player death check
   if (P.hp <= 0 && S.ph > 0) {
@@ -7625,8 +8405,9 @@ function draw() {
       continue;
     }
 
-    // Two-pass trail instead of a per-bullet linear gradient allocation:
-    // a translucent coloured tail with a bright white core on the last third.
+    // Weight-scaled tracer: heavy rounds get a bloomed halo, a fat body and a
+    // smoke ribbon; light rounds stay a thin two-pass streak.
+    if (typeof drawBulletDefault === 'function') { drawBulletDefault(b); continue; }
     const trailLen = b.isCrit ? 0.05 : 0.035;
     const tx = b.x - b.vx * trailLen, ty = b.y - b.vy * trailLen;
     X.save();
@@ -7656,6 +8437,10 @@ function draw() {
     renderGoreAirPass(cx, cy, W, H);
   }
 
+  // 13b. Skill VFX are ground-anchored (dash trails, nova scorch, grenade
+  //      arcs, rage aura) so they sit beneath entities and above the decals.
+  if (typeof renderSkillFX === 'function') renderSkillFX(cx, cy, W, H);
+
   // 14. Telegraphed attacks are ground markers, drawn beneath every entity
   for (const z of Z) { if (typeof drawTelegraph === "function") drawTelegraph(z); }
 
@@ -7666,6 +8451,9 @@ function draw() {
   // 14c. Particle pass - impact sparks, blood, muzzle smoke and debris. F was
   //      simulated every frame in update() but never actually rendered.
   if (typeof renderParticles === 'function') renderParticles(cx, cy, W, H);
+
+  // 14d. Electric arcs (chain lightning) ride on top of the entity band.
+  if (typeof renderArcs === 'function') renderArcs();
 
   // 16. Floating texts
   if (typeof renderFloatingTextsPass === 'function') {
@@ -8373,6 +9161,9 @@ function drawPlayerEntity() {
   // Layer 1-3 Player body
   if (typeof bodyBack === 'function') bodyBack();
 
+  // Extra rig detail: legs, belt pouches, holster, shoulder knife, headlamp
+  if (typeof drawPlayerGear === 'function') drawPlayerGear();
+
   // Weapon with recoil kickback
   X.save();
   if (P.recoil > 0) X.translate(-P.recoil, 0);
@@ -9036,6 +9827,59 @@ function achReady() {
     const s = achState(a.id);
     return s.cur >= s.goal && !(SV.ach && SV.ach[a.id]);
   }).length;
+}
+
+/* ================================================================== */
+/* SKIN UNLOCK RULES                                                   */
+/* ================================================================== */
+// Skins carrying rk/rg (lifetime stat + goal) or rf (custom counter) unlock
+// themselves the moment their condition is met, evaluated on every lobby
+// refresh. Reward-gated event/login skins are untouched by this system.
+function skinRuleState(k) {
+  const s = (typeof SKINS !== 'undefined') ? SKINS[k] : null;
+  if (!s || (!s.rk && !s.rf)) return null;
+  let cur = 0;
+  try {
+    const lt = (SV && SV.lt) || {};
+    cur = s.rf ? (s.rf() || 0) : (lt[s.rk] || 0);
+  } catch (e) { cur = 0; }
+  const goal = s.rg || 1;
+  return { cur: Math.min(cur, goal), goal, pct: Math.max(0, Math.min(100, Math.round(100 * cur / goal))) };
+}
+
+function checkSkinUnlocks() {
+  if (typeof SV === 'undefined' || typeof SKINS === 'undefined') return 0;
+  SV.skins = SV.skins || {};
+  const unlocked = [];
+  for (const k in SKINS) {
+    if (SV.skins[k]) continue;
+    const st = skinRuleState(k);
+    if (!st || st.cur < st.goal) continue;
+    SV.skins[k] = 1;
+    unlocked.push(SKINS[k]);
+  }
+  if (!unlocked.length) return 0;
+  if (typeof sv === 'function') sv();
+  if (typeof snd === 'function') snd(880, 0.28, 'triangle', 0.06, 1.5);
+  lobbySkinToast(unlocked);
+  return unlocked.length;
+}
+
+function lobbySkinToast(list) {
+  if (typeof document === 'undefined') return;
+  let host = document.getElementById('skin-toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'skin-toast-host';
+    document.body.appendChild(host);
+  }
+  host.innerHTML = list.map((s, i) => `<div class="skin-toast" style="animation-delay:${i * 120}ms;border-left:5px solid ${s.col || '#ffd36b'}">
+      <div class="st-k">SKIN UNLOCKED</div>
+      <div class="st-n">${s.name}</div>
+      <div class="st-d">${s.type === 'op' ? 'OPERATIVE CAMO' : 'WEAPON FINISH'} &bull; EQUIP IN SKINS TAB</div>
+    </div>`).join('');
+  clearTimeout(host._t);
+  host._t = setTimeout(() => { host.innerHTML = ''; }, 5200);
 }
 
 function renderAchievements() {
@@ -9869,6 +10713,7 @@ function lobby() {
   renderLoginTrackUI();
   if (typeof renderRankRewards === 'function') renderRankRewards();
   if (typeof renderAchievements === 'function') renderAchievements();
+  if (typeof checkSkinUnlocks === 'function') checkSkinUnlocks();
 
   renderGunsUI();
 }
