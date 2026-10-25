@@ -30,15 +30,20 @@ const TIER_COLORS = {
 };
 
 const ZT = {
-  walk: { hp: 25, spd: 78, r: 12, cash: 4, col: '#4a5736' },
-  run: { hp: 16, spd: 145, r: 10, cash: 5, col: '#8a2820' },
-  exp: { hp: 35, spd: 88, r: 13, cash: 7, col: '#ff6a2a' },
-  stalker: { hp: 45, spd: 110, r: 11, cash: 10, col: '#7a3fa8' },
-  charger: { hp: 90, spd: 175, r: 15, cash: 12, col: '#a84a2a' },
-  spit: { hp: 38, spd: 70, r: 11, cash: 8, col: '#3a7a40' },
-  tank: { hp: 260, spd: 48, r: 21, cash: 22, col: '#2a3322' },
-  boss: { hp: 1200, spd: 46, r: 28, cash: 150, col: '#8b0000' }
+  walk: { hp: 32, s: 55, spd: 55, r: 13, col: '#6f8f4a', dm: 8, dmg: 8, cash: 10, kb: 1.0 },
+  run: { hp: 18, s: 115, spd: 115, r: 11, col: '#a8a04a', dm: 6, dmg: 6, cash: 14, kb: 1.1 },
+  tank: { hp: 190, s: 38, spd: 38, r: 22, col: '#7a4a4a', dm: 18, dmg: 18, cash: 55, kb: 0.25 },
+  exp: { hp: 24, s: 90, spd: 90, r: 12, col: '#d0702a', dm: 0, dmg: 0, cash: 22, kb: 1.0 },
+  spit: { hp: 40, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
+  stalker: { hp: 42, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
+  charger: { hp: 115, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
+  boss: { hp: 1150, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 }
 };
+ZT.walker = ZT.walk;
+ZT.runner = ZT.run;
+ZT.brute = ZT.tank;
+ZT.exploder = ZT.exp;
+ZT.spitter = ZT.spit;
 
 const ML = [36, 46, 60, 64, 60, 39, 62, 84, 56, 78, 60, 70, 54, 62, 86, 40, 66, 58];
 const GL = {

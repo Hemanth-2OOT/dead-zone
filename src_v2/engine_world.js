@@ -244,17 +244,29 @@ function startWave() {
 }
 
 function spawn(t) {
-  const an = Math.random() * 6.28;
-  const dd = 420 + Math.random() * 200;
-  const x = Math.max(10, Math.min(WS - 10, P.x + Math.cos(an) * dd));
-  const y = Math.max(10, Math.min(WS - 10, P.y + Math.sin(an) * dd));
+  const curM = getCurMap();
+  const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[curM]) ? MAP_DATA[curM] : (MP[curM] || MP[0]);
   const T = ZT[t] || ZT.walk;
+
+  // Safe spawn location outside obstacles and within WS
+  let x = P.x, y = P.y;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const an = Math.random() * 6.28;
+    const dd = 420 + Math.random() * 220;
+    const testX = Math.max(T.r + 30, Math.min(WS - T.r - 30, P.x + Math.cos(an) * dd));
+    const testY = Math.max(T.r + 30, Math.min(WS - T.r - 30, P.y + Math.sin(an) * dd));
+    const inWall = O.some(o => testX > o.x - T.r - 4 && testX < o.x + o.w + T.r + 4 && testY > o.y - T.r - 4 && testY < o.y + o.h + T.r + 4);
+    if (!inWall || attempt === 11) {
+      x = testX;
+      y = testY;
+      break;
+    }
+  }
 
   let waveHpScale = 1 + S.wave * 0.055;
   if (S.wave > 15) waveHpScale += Math.pow(S.wave - 15, 1.25) * 0.07;
   if (S.wave > 25) waveHpScale += Math.pow(S.wave - 25, 1.4) * 0.12;
 
-  const curM = getCurMap();
   const zh = (MP[curM] && MP[curM].zh) ? MP[curM].zh : 1;
   const sc = waveHpScale * zh * (S.zc || 1);
 
@@ -902,6 +914,9 @@ function update(dt) {
     if (z.flinch > 0) z.flinch = Math.max(0, z.flinch - dt);
 
     const T = ZT[z.t] || ZT.walk;
+    const speed = T.s || T.spd || 55;
+    const zRadius = T.r || 13;
+    const damage = T.dm != null ? T.dm : (T.dmg != null ? T.dmg : 8);
     const a = Math.atan2(P.y - z.y, P.x - z.x);
     if (z.fz > 0) z.fz -= dt;
     const sl = (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - 0.12 * (S.tw || 0)) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
@@ -910,24 +925,24 @@ function update(dt) {
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
     if (Math.hypot(z.kx, z.ky) < 4 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
 
-    z.x += Math.cos(a) * T.s * dt * sl + z.kx * dt;
-    z.y += Math.sin(a) * T.s * dt * sl + z.ky * dt;
+    z.x += Math.cos(a) * speed * dt * sl + z.kx * dt;
+    z.y += Math.sin(a) * speed * dt * sl + z.ky * dt;
     if (!isFinite(z.x) || !isFinite(z.y)) { z.dead = 1; continue; }
 
-    z.ph = (z.ph || 0) + dt * T.s / 8;
+    z.ph = (z.ph || 0) + dt * speed / 8;
     z.age = (z.age || 0) + dt;
-    push(z, T.r);
+    push(z, zRadius);
 
     // Boundary constraints
-    z.x = Math.max(T.r + 8, Math.min(WS - T.r - 8, z.x));
-    z.y = Math.max(T.r + 8, Math.min(WS - T.r - 8, z.y));
+    z.x = Math.max(zRadius + 8, Math.min(WS - zRadius - 8, z.x));
+    z.y = Math.max(zRadius + 8, Math.min(WS - zRadius - 8, z.y));
 
     // Zombie melee attack
     const dd = Math.hypot(P.x - z.x, P.y - z.y);
-    if (dd < T.r + 12 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
+    if (dd < zRadius + 12 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
       if (hasLOS(z.x, z.y, P.x, P.y)) {
         z.cd = 0.8;
-        hurtP(T.dm, z.x, z.y);
+        hurtP(damage, z.x, z.y);
       }
     }
 

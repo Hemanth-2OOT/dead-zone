@@ -1117,15 +1117,20 @@ const TIER_COLORS = {
 };
 
 const ZT = {
-  walk: { hp: 25, spd: 78, r: 12, cash: 4, col: '#4a5736' },
-  run: { hp: 16, spd: 145, r: 10, cash: 5, col: '#8a2820' },
-  exp: { hp: 35, spd: 88, r: 13, cash: 7, col: '#ff6a2a' },
-  stalker: { hp: 45, spd: 110, r: 11, cash: 10, col: '#7a3fa8' },
-  charger: { hp: 90, spd: 175, r: 15, cash: 12, col: '#a84a2a' },
-  spit: { hp: 38, spd: 70, r: 11, cash: 8, col: '#3a7a40' },
-  tank: { hp: 260, spd: 48, r: 21, cash: 22, col: '#2a3322' },
-  boss: { hp: 1200, spd: 46, r: 28, cash: 150, col: '#8b0000' }
+  walk: { hp: 32, s: 55, spd: 55, r: 13, col: '#6f8f4a', dm: 8, dmg: 8, cash: 10, kb: 1.0 },
+  run: { hp: 18, s: 115, spd: 115, r: 11, col: '#a8a04a', dm: 6, dmg: 6, cash: 14, kb: 1.1 },
+  tank: { hp: 190, s: 38, spd: 38, r: 22, col: '#7a4a4a', dm: 18, dmg: 18, cash: 55, kb: 0.25 },
+  exp: { hp: 24, s: 90, spd: 90, r: 12, col: '#d0702a', dm: 0, dmg: 0, cash: 22, kb: 1.0 },
+  spit: { hp: 40, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
+  stalker: { hp: 42, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
+  charger: { hp: 115, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
+  boss: { hp: 1150, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 }
 };
+ZT.walker = ZT.walk;
+ZT.runner = ZT.run;
+ZT.brute = ZT.tank;
+ZT.exploder = ZT.exp;
+ZT.spitter = ZT.spit;
 
 const ML = [36, 46, 60, 64, 60, 39, 62, 84, 56, 78, 60, 70, 54, 62, 86, 40, 66, 58];
 const GL = {
@@ -3997,7 +4002,7 @@ function drawTelegraph(z) {
   const dToP = Math.hypot(P.x - z.x, P.y - z.y);
 
   // 1. Melee attack windup telegraph for Walkers & Runners when closing in
-  if ((z.t === 'walk' || z.t === 'run' || z.t === 'brute') && dToP < 55) {
+  if ((z.t === 'walk' || z.t === 'walker' || z.t === 'run' || z.t === 'runner' || z.t === 'brute' || z.t === 'tank') && dToP < 55) {
     const pulse = 0.5 + Math.sin((S.t || 0) * 16) * 0.5;
     X.save();
     X.translate(z.x, z.y);
@@ -4006,13 +4011,13 @@ function drawTelegraph(z) {
     X.fillStyle = 'rgba(255, 40, 20, ' + (0.15 + pulse * 0.2) + ')';
     X.beginPath();
     X.moveTo(0, 0);
-    X.arc(0, 0, (z.t === 'brute' ? 52 : 36), -0.7, 0.7);
+    X.arc(0, 0, ((z.t === 'brute' || z.t === 'tank') ? 52 : 36), -0.7, 0.7);
     X.closePath();
     X.fill();
     X.strokeStyle = 'rgba(255, 60, 30, ' + (0.4 + pulse * 0.5) + ')';
     X.lineWidth = 2;
     X.beginPath();
-    X.arc(0, 0, (z.t === 'brute' ? 52 : 36), -0.7, 0.7);
+    X.arc(0, 0, ((z.t === 'brute' || z.t === 'tank') ? 52 : 36), -0.7, 0.7);
     X.stroke();
     // Eye gleam spark during windup
     X.fillStyle = '#ffffff';
@@ -4214,7 +4219,7 @@ function drawZombie(z) {
   const fc = isHit ? '#ffffff' : null;
 
   // ARCHETYPE 1: WALKER (Shambling Rotten Corpse)
-  if (z.t === 'walk') {
+  if (z.t === 'walk' || z.t === 'walker') {
     const bodyCol = fc || (z.el ? '#8a7830' : '#4a5736');
     const clothCol = fc || '#242b1d';
 
@@ -4278,7 +4283,7 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 2: RUNNER (Feral Fast Hunter)
-  else if (z.t === 'run') {
+  else if (z.t === 'run' || z.t === 'runner') {
     const bodyCol = fc || (z.el ? '#c4a63a' : '#8c8038');
     const spineCol = fc || '#4a421c';
     const clawSw = Math.sin(z.ph * 2.2);
@@ -4331,7 +4336,7 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 3: EXPLODER (Volatile Bloater)
-  else if (z.t === 'exp') {
+  else if (z.t === 'exp' || z.t === 'exploder') {
     const pulse = 1 + Math.sin((S.t || 0) * 8 + (z.ph || 0)) * 0.14;
     const bodyCol = fc || (z.el ? '#e08a28' : '#b85c1c');
 
@@ -4380,7 +4385,7 @@ function drawZombie(z) {
     }
   }
   // ARCHETYPE 4: BRUTE (Armored Heavy Behemoth)
-  else if (z.t === 'brute') {
+  else if (z.t === 'brute' || z.t === 'tank') {
     const skinCol = fc || (z.el ? '#8a6230' : '#4a3f36');
     const armorCol = fc || '#24201c';
 
@@ -4429,7 +4434,7 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 5: SPITTER (Acidic Range Attacker)
-  else if (z.t === 'spit') {
+  else if (z.t === 'spit' || z.t === 'spitter') {
     const skinCol = fc || (z.el ? '#3a7a40' : '#265430');
     const sacPulse = 1 + Math.sin((S.t || 0) * 6) * 0.15;
 
@@ -5386,17 +5391,29 @@ function startWave() {
 }
 
 function spawn(t) {
-  const an = Math.random() * 6.28;
-  const dd = 420 + Math.random() * 200;
-  const x = Math.max(10, Math.min(WS - 10, P.x + Math.cos(an) * dd));
-  const y = Math.max(10, Math.min(WS - 10, P.y + Math.sin(an) * dd));
+  const curM = getCurMap();
+  const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[curM]) ? MAP_DATA[curM] : (MP[curM] || MP[0]);
   const T = ZT[t] || ZT.walk;
+
+  // Safe spawn location outside obstacles and within WS
+  let x = P.x, y = P.y;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const an = Math.random() * 6.28;
+    const dd = 420 + Math.random() * 220;
+    const testX = Math.max(T.r + 30, Math.min(WS - T.r - 30, P.x + Math.cos(an) * dd));
+    const testY = Math.max(T.r + 30, Math.min(WS - T.r - 30, P.y + Math.sin(an) * dd));
+    const inWall = O.some(o => testX > o.x - T.r - 4 && testX < o.x + o.w + T.r + 4 && testY > o.y - T.r - 4 && testY < o.y + o.h + T.r + 4);
+    if (!inWall || attempt === 11) {
+      x = testX;
+      y = testY;
+      break;
+    }
+  }
 
   let waveHpScale = 1 + S.wave * 0.055;
   if (S.wave > 15) waveHpScale += Math.pow(S.wave - 15, 1.25) * 0.07;
   if (S.wave > 25) waveHpScale += Math.pow(S.wave - 25, 1.4) * 0.12;
 
-  const curM = getCurMap();
   const zh = (MP[curM] && MP[curM].zh) ? MP[curM].zh : 1;
   const sc = waveHpScale * zh * (S.zc || 1);
 
@@ -6044,6 +6061,9 @@ function update(dt) {
     if (z.flinch > 0) z.flinch = Math.max(0, z.flinch - dt);
 
     const T = ZT[z.t] || ZT.walk;
+    const speed = T.s || T.spd || 55;
+    const zRadius = T.r || 13;
+    const damage = T.dm != null ? T.dm : (T.dmg != null ? T.dmg : 8);
     const a = Math.atan2(P.y - z.y, P.x - z.x);
     if (z.fz > 0) z.fz -= dt;
     const sl = (z.hit > 0 ? 0.3 : 1) * (P.cloak > 0 ? 0.25 : 1) * (S.fz > 0 ? 0.1 : 1) * (z.fz > 0 ? 0.45 : 1) * (1 - 0.12 * (S.tw || 0)) * (S.ev ? 1.3 : 1) * (z.ch > 0 ? 3.2 : 1);
@@ -6052,24 +6072,24 @@ function update(dt) {
     z.kx = (z.kx || 0) * decay; z.ky = (z.ky || 0) * decay;
     if (Math.hypot(z.kx, z.ky) < 4 || !isFinite(z.kx) || !isFinite(z.ky)) { z.kx = 0; z.ky = 0; }
 
-    z.x += Math.cos(a) * T.s * dt * sl + z.kx * dt;
-    z.y += Math.sin(a) * T.s * dt * sl + z.ky * dt;
+    z.x += Math.cos(a) * speed * dt * sl + z.kx * dt;
+    z.y += Math.sin(a) * speed * dt * sl + z.ky * dt;
     if (!isFinite(z.x) || !isFinite(z.y)) { z.dead = 1; continue; }
 
-    z.ph = (z.ph || 0) + dt * T.s / 8;
+    z.ph = (z.ph || 0) + dt * speed / 8;
     z.age = (z.age || 0) + dt;
-    push(z, T.r);
+    push(z, zRadius);
 
     // Boundary constraints
-    z.x = Math.max(T.r + 8, Math.min(WS - T.r - 8, z.x));
-    z.y = Math.max(T.r + 8, Math.min(WS - T.r - 8, z.y));
+    z.x = Math.max(zRadius + 8, Math.min(WS - zRadius - 8, z.x));
+    z.y = Math.max(zRadius + 8, Math.min(WS - zRadius - 8, z.y));
 
     // Zombie melee attack
     const dd = Math.hypot(P.x - z.x, P.y - z.y);
-    if (dd < T.r + 12 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
+    if (dd < zRadius + 12 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
       if (hasLOS(z.x, z.y, P.x, P.y)) {
         z.cd = 0.8;
-        hurtP(T.dm, z.x, z.y);
+        hurtP(damage, z.x, z.y);
       }
     }
 

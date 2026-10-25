@@ -7,7 +7,7 @@ function drawTelegraph(z) {
   const dToP = Math.hypot(P.x - z.x, P.y - z.y);
 
   // 1. Melee attack windup telegraph for Walkers & Runners when closing in
-  if ((z.t === 'walk' || z.t === 'run' || z.t === 'brute') && dToP < 55) {
+  if ((z.t === 'walk' || z.t === 'walker' || z.t === 'run' || z.t === 'runner' || z.t === 'brute' || z.t === 'tank') && dToP < 55) {
     const pulse = 0.5 + Math.sin((S.t || 0) * 16) * 0.5;
     X.save();
     X.translate(z.x, z.y);
@@ -16,13 +16,13 @@ function drawTelegraph(z) {
     X.fillStyle = 'rgba(255, 40, 20, ' + (0.15 + pulse * 0.2) + ')';
     X.beginPath();
     X.moveTo(0, 0);
-    X.arc(0, 0, (z.t === 'brute' ? 52 : 36), -0.7, 0.7);
+    X.arc(0, 0, ((z.t === 'brute' || z.t === 'tank') ? 52 : 36), -0.7, 0.7);
     X.closePath();
     X.fill();
     X.strokeStyle = 'rgba(255, 60, 30, ' + (0.4 + pulse * 0.5) + ')';
     X.lineWidth = 2;
     X.beginPath();
-    X.arc(0, 0, (z.t === 'brute' ? 52 : 36), -0.7, 0.7);
+    X.arc(0, 0, ((z.t === 'brute' || z.t === 'tank') ? 52 : 36), -0.7, 0.7);
     X.stroke();
     // Eye gleam spark during windup
     X.fillStyle = '#ffffff';
@@ -224,7 +224,7 @@ function drawZombie(z) {
   const fc = isHit ? '#ffffff' : null;
 
   // ARCHETYPE 1: WALKER (Shambling Rotten Corpse)
-  if (z.t === 'walk') {
+  if (z.t === 'walk' || z.t === 'walker') {
     const bodyCol = fc || (z.el ? '#8a7830' : '#4a5736');
     const clothCol = fc || '#242b1d';
 
@@ -288,7 +288,7 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 2: RUNNER (Feral Fast Hunter)
-  else if (z.t === 'run') {
+  else if (z.t === 'run' || z.t === 'runner') {
     const bodyCol = fc || (z.el ? '#c4a63a' : '#8c8038');
     const spineCol = fc || '#4a421c';
     const clawSw = Math.sin(z.ph * 2.2);
@@ -341,7 +341,7 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 3: EXPLODER (Volatile Bloater)
-  else if (z.t === 'exp') {
+  else if (z.t === 'exp' || z.t === 'exploder') {
     const pulse = 1 + Math.sin((S.t || 0) * 8 + (z.ph || 0)) * 0.14;
     const bodyCol = fc || (z.el ? '#e08a28' : '#b85c1c');
 
@@ -390,7 +390,7 @@ function drawZombie(z) {
     }
   }
   // ARCHETYPE 4: BRUTE (Armored Heavy Behemoth)
-  else if (z.t === 'brute') {
+  else if (z.t === 'brute' || z.t === 'tank') {
     const skinCol = fc || (z.el ? '#8a6230' : '#4a3f36');
     const armorCol = fc || '#24201c';
 
@@ -439,7 +439,7 @@ function drawZombie(z) {
     X.fill();
   }
   // ARCHETYPE 5: SPITTER (Acidic Range Attacker)
-  else if (z.t === 'spit') {
+  else if (z.t === 'spit' || z.t === 'spitter') {
     const skinCol = fc || (z.el ? '#3a7a40' : '#265430');
     const sacPulse = 1 + Math.sin((S.t || 0) * 6) * 0.15;
 
