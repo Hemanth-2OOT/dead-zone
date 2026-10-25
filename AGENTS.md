@@ -189,3 +189,18 @@ and not an extra block in `engine_world.js`).
   244 behavioural deep assertions are the real gate.
 * `python3 -m http.server 8131 --directory www` is the port that is actually free in this workspace;
   the 8124 in the build section above is stale.
+
+## v2.9.0 notes (shipped)
+* Boon draft runs at wave clear and is shown *before* the between-wave heal. The clear heal is
+  banked in `S.waveHeal` and applied at the top of `startWave()`, so `COMBAT STIMM` is offered when
+  the player is actually hurt instead of being filtered as a wasted pick.
+* Enemy slow is additive per stack and now capped at -70% (`1 - Math.min(0.7, 0.12 * S.tw)`).
+  Without the cap, 8 slow stacks (4 boons + Time Warp x3 + Chrono Shard) reached -96% and froze the
+  swarm. Keep any new slow source inside that cap.
+* `S.bl2` (Bloodlust fire-rate window) now decays; it used to latch on for the whole run after the
+  first kill.
+* Draft totals in `boonTotal()` must show *effective* values: damage uses `effDmPreview()` to mirror
+  the soft cap in `fire()` (`raw > 3 -> 3 + sqrt(raw-3) * 0.8`) and crit uses `critChancePreview()`
+  so class + skill crit is included. Showing raw `S.dm` overstated late-run damage.
+* Latent dead reads remain in `fire()` for `S.fo`/`S.stl` and in the speed/fire-rate math for
+  `S.hd`/`S.cst`/`S.lu` (never written anywhere). Harmless today; wire them or drop them.
