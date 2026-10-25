@@ -1,4 +1,4 @@
-// DEAD ZONE v2.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -91,7 +91,7 @@ function healP(amt) {
 
 function hurtP(dmg, srcX, srcY) {
   if (!P || P.hp <= 0 || P.dash > 0 || (S && S.sh2 > 0)) return;
-  const armor = (S && S.ar != null) ? S.ar : 1;
+  const armor = Math.max(0.35, (S && S.ar != null) ? S.ar : 1); // Damage reduction hard-capped at 65%
   const d = Math.max(1, Math.round(dmg * armor));
   P.hp -= d;
   P.hurt = 0.28;
@@ -223,6 +223,7 @@ function startWave() {
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
   if (typeof snd === 'function') snd(200, 0.4, 'sawtooth', 0.08, 0.5);
   S.q = [];
+  S.cash = (S.cash || 0) + (S.sc || 0); // 'Starting Cash' stat upgrade: +$50 per wave
 
   const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
   const n = (6 + S.wave * 4) * densityMult;
@@ -230,12 +231,13 @@ function startWave() {
   for (let i = 0; i < n; i++) {
     let t = 'walk';
     const r = Math.random();
+    // Exclusive buckets, highest priority first, so every archetype is reachable.
     if (S.wave > 1 && r < 0.28) t = 'run';
-    if (S.wave > 2 && r > 0.82) t = 'exp';
+    else if (S.wave > 3 && r > 0.90) t = 'tank';
+    else if (S.wave > 2 && r > 0.82) t = 'exp';
     else if (S.wave > 3 && r > 0.72) t = 'stalker';
     else if (S.wave > 4 && r > 0.62) t = 'charger';
-    else if (S.wave > 4 && r > 0.52 && r < 0.62) t = 'spit';
-    else if (S.wave > 3 && r > 0.9) t = 'tank';
+    else if (S.wave > 4 && r > 0.52) t = 'spit';
     S.q.push(t);
   }
 
@@ -358,7 +360,8 @@ function fire() {
 
   for (let i = 0; i < w.p + (S.xp2 || 0); i++) {
     const a = P.a + (Math.random() - 0.5) * w.sp * 2 + (S.xp2 ? (Math.random() - 0.5) * 0.12 : 0);
-    const isCrit = Math.random() < 0.04 * (SV.crit || 0) + (CL[SV.cls || 0] ? CL[SV.cls || 0].crit : 0) + (S.ct || 0);
+    const critChance = Math.min(0.75, 0.04 * (SV.crit || 0) + (CL[SV.cls || 0] ? CL[SV.cls || 0].crit : 0) + (S.ct || 0));
+    const isCrit = Math.random() < critChance;
     const critMult = isCrit ? 2 : 1;
     const rawDm = S.dm || 1;
     const effDm = rawDm > 3.0 ? (3.0 + Math.sqrt(rawDm - 3.0) * 0.8) : rawDm;
@@ -396,11 +399,11 @@ function fire() {
 }
 
 // CENTRALIZED DAMAGE PIPELINE
-function damageZ(z, rawDmg, src, isCrit) {
+function damageZ(z, rawDmg, src, isCrit, hitAngle) {
   if (!z || z.dead) return false;
   if (!isFinite(z.hp) || z.hp <= 0) {
     z.hp = 0;
-    killZ(z, src || 'invalid_hp');
+    killZ(z, src || 'invalid_hp', hitAngle, isCrit);
     return true;
   }
   const dmg = Number(rawDmg);
@@ -412,21 +415,23 @@ function damageZ(z, rawDmg, src, isCrit) {
   z.hit = 0.08;
   z.flinch = 0.08;
 
-  // Surface-aware & archetype-aware blood splatter physics
+  // Surface-aware & archetype-aware blood splatter physics.
+  // hitAngle = projectile travel direction; getCurMap() selects the sector blood palette.
+  const bloodAngle = (typeof hitAngle === 'number' && isFinite(hitAngle)) ? hitAngle : Math.atan2(z.y - P.y, z.x - P.x);
   if (typeof spawnBloodHit === 'function') {
-    spawnBloodHit(z.x, z.y, finalD, isCrit, z.t);
+    spawnBloodHit(z.x, z.y, bloodAngle, finalD, !!isCrit, (typeof getCurMap === 'function' ? getCurMap() : 0));
   }
 
   if (!isFinite(z.hp) || z.hp <= 0) {
     z.hp = 0;
-    killZ(z, src);
+    killZ(z, src, bloodAngle, isCrit);
     return true;
   }
   return false;
 }
 
 // CENTRALIZED DEATH PIPELINE
-function killZ(z, src) {
+function killZ(z, src, hitAngle, isCrit) {
   if (!z || z.dead) return;
   z.dead = 1;
   z.hp = 0;
@@ -436,8 +441,9 @@ function killZ(z, src) {
   const T = ZT[z.t] || ZT.walk;
 
   // Call high-fidelity kill gore system (gibs, growing pools, ground stains)
+  const bloodAngle = (typeof hitAngle === 'number' && isFinite(hitAngle)) ? hitAngle : (P ? Math.atan2(z.y - P.y, z.x - P.x) : 0);
   if (typeof spawnKillGore === 'function') {
-    spawnKillGore(z.x, z.y, z.t, src);
+    spawnKillGore(z.x, z.y, bloodAngle, z.t, !!isCrit, (typeof getCurMap === 'function' ? getCurMap() : 0));
   }
 
   // Per-type death animations (collapse/fall back/dissolve)
@@ -668,13 +674,25 @@ function skill(k) {
 
 function gainXP(amt) {
   if (!S) return;
-  S.xp = (S.xp || 0) + amt;
-  S.axp = (S.axp || 0) + amt;
-  const needed = (typeof rneed === 'function') ? rneed(S.lv || 1) : 100;
-  if (S.xp >= needed) {
+  const gain = amt * (1 + 0.08 * (typeof SV !== 'undefined' ? (SV.xpb || 0) : 0)); // Tactical Training
+  S.xp = (S.xp || 0) + gain;
+  S.axp = (S.axp || 0) + gain;
+  let needed = (typeof rneed === 'function') ? rneed(S.lv || 1) : 100;
+  let leveled = 0;
+  while (S.xp >= needed && needed > 0) {
     S.xp -= needed;
     S.lv = (S.lv || 1) + 1;
-    S.pend = (S.pend || 0) + 1;
+    S.pend = (S.pend || 0) + 1;  // Perk pick
+    S.up = (S.up || 0) + 1;      // Skill points gained this run (summary)
+    if (typeof SV !== 'undefined') {
+      SV.sp = (SV.sp || 0) + 1;   // +1 skill point per level (lobby skill tree)
+      SV.lvl = (SV.lvl || 1) + 1; // Account rank progression
+      if (typeof sv === 'function') sv();
+    }
+    leveled++;
+    needed = (typeof rneed === 'function') ? rneed(S.lv) : 100;
+  }
+  if (leveled) {
     S.lu = 2.0; // Flash LEVEL UP text
     if (typeof snd === 'function') snd(650, 0.4, 'triangle', 0.08, 2.0);
   }
@@ -840,7 +858,7 @@ function update(dt) {
   sanitizePlayer();
 
   // Skill cooldowns
-  for (const k in SK) if (SK[k] && SK[k].cd > 0) SK[k].cd -= dt * (1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
+  for (const k in SK) if (SK[k] && SK[k].cd > 0) SK[k].cd -= dt * Math.min(1.5, 1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
   if (SK && SK.rage && SK.rage.on > 0) SK.rage.on -= dt;
   P.fl -= dt;
   SH *= 0.88;
@@ -983,6 +1001,17 @@ function update(dt) {
 
     // Zombie melee attack
     const dd = Math.hypot(P.x - z.x, P.y - z.y);
+
+    // Charger lunge cycle: periodic telegraphed burst (consumes z.ch in the speed term)
+    if (z.t === 'charger') {
+      z.cw = (z.cw || 0) - dt;
+      if (z.ch > 0) z.ch -= dt;
+      if (z.ch <= 0 && z.cw <= 0 && dd < 320 && dd > 40 && !(P.dash > 0)) {
+        z.ch = 0.45;
+        z.cw = 2.4;
+      }
+    }
+
     if (dd <= zRadius + 18 && z.cd <= 0 && !(P.dash > 0) && !(P.cloak > 0)) {
       if (dd < 30 || hasLOS(z.x, z.y, P.x, P.y)) {
         z.cd = 0.8;
@@ -1009,7 +1038,7 @@ function update(dt) {
     for (const b of B) {
       if (z.dead) break;
       if (b.l > 0 && !(b.h && b.h.includes(z)) && Math.hypot(b.x - z.x, b.y - z.y) < T.r + 4) {
-        damageZ(z, b.d, 'bullet', b.isCrit);
+        damageZ(z, b.d, 'bullet', b.isCrit, Math.atan2(b.vy, b.vx));
         if (b.ls && P.hp < P.mx && (S.lsTok = (S.lsTok == null ? 4 : S.lsTok)) > 0) { const hv = Math.min(1.1, b.d * 0.12); healP(hv); S.lsTok -= hv; if (Math.random() < 0.25) F.push({ x: z.x, y: z.y, vx: (P.x - z.x) * 2, vy: (P.y - z.y) * 2, l: 0.35, c: '#ff4d6d', s: 2.4 }); }
         if (b.ex) boom(b);
         (b.h = b.h || []).push(z);

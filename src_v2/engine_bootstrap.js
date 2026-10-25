@@ -1,4 +1,4 @@
-// DEAD ZONE v2.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.2 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.0 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.2 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -134,7 +134,7 @@ function applySV() {
     SK.dash.max = SV.cls === 2 ? 2 : 3;
   }
   if (typeof P !== 'undefined') {
-    P.mx = cl.hp + 4 * (SV.lvl - 1) + (SV.hu || 0) * 10 + 6 * (SV.vit || 0);
+    P.mx = cl.hp + 4 * (SV.lvl - 1) + (SV.hu || 0) * 10 + (SV.mx || 0) * 10; // 'Max Health' stat + 'Vitality' skill
     P.hp = P.mx;
     WEAP.forEach((w, i) => { if (SV.own && SV.own[i]) P.w[i] = 1; });
     P.cur = (SV.own && SV.own[SV.start]) ? SV.start : 0;
@@ -144,10 +144,11 @@ function applySV() {
     P.recoil = 0;
   }
   if (typeof S !== 'undefined' && S) {
-    S.dm = (1 + 0.02 * (SV.lvl - 1) + (SV.du || 0) * 0.05) * cl.dm * (1 + 0.03 * (SV.brut || 0));
-    S.gr = 5 + (SV.gu || 0) * 2 + (SV.grx || 0);
-    S.mg = 1 + 0.1 * (SV.scav || 0);
-    S.pend = Math.ceil((SV.boon || 0) / 2);
+    S.dm = (1 + 0.02 * (SV.lvl - 1) + (SV.du || 0) * 0.05 + (SV.dm || 0) * 0.05) * cl.dm; // 'Damage Output' stat + 'Firepower' skill
+    S.gr = 5 + (SV.gu || 0) * 2;
+    S.cm = 1 + 0.10 * (SV.cb || 0);              // Scavenger: +10% credits per rank
+    S.sc = (SV.sc || 0) * 50;                    // Starting Cash stat: +$50 per wave
+    S.ls = (S.ls || 0) + 0.5 * (SV.vamp || 0);   // Life Leech: +0.5 HP per kill per rank
   }
   if (Array.isArray(SV.eq)) {
     SV.eq.forEach(i => { if (AR[i] && AR[i][3]) AR[i][3](); });

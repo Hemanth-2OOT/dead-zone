@@ -2,6 +2,8 @@
 
 This document establishes the mandatory balance, scaling, and architectural standards for **Dead Zone**. All future weapons, enemies, upgrades, and system modifications must comply with the rules outlined below.
 
+> **Status:** Updated for **v2.2.0**. Rules 4 and 6, the weapon matrix, and the new Skill/Stat reference reflect the *shipped* implementation. Where this document and the code disagree, the code in `src_v2/` is authoritative and this document must be corrected.
+
 ---
 
 ## 1. Core Balance Philosophy
@@ -13,10 +15,10 @@ Dead Zone is a tactical top-down action-survival roguelite. Progression must fee
 
 ---
 
-## 2. The 15 Mandatory Balance Rules
+## 2. The 14 Mandatory Balance Rules
 
 ### Rule 1 — Data-Driven Centralized Balance
-All weapon stats, enemy stats, perk values, upgrade prices, spawn rates, and difficulty modifiers must reside in centralized data structures (`WEAP`, `ZT`, `PKS`, `U`, `AR`, `MP`). Avoid magic numbers scattered throughout the game loop.
+All weapon stats, enemy stats, perk values, upgrade prices, spawn rates, and difficulty modifiers must reside in centralized data structures (`WEAP`, `ZT`, `PKS`, `AR`, `SKL`, `MP`, `MAP_DATA`, `PU_DEFS`, `EVENTS`). Avoid magic numbers scattered throughout the game loop.
 
 ### Rule 2 — Every Change Needs a Documented Reason
 Never tweak values blindly. Every adjustment must document:
@@ -34,11 +36,14 @@ Every weapon must have an identifiable strength, an intended engagement envelope
 
 ### Rule 4 — Controlled Power Scaling (Additive Over Multiplicative)
 Stat bonuses must scale with controlled returns:
-- Stacking percentage modifiers (e.g. damage, fire rate) must calculate from base values additively (`1 + sum(bonuses)`) rather than compounding multiplicatively (`base * (1+a) * (1+b) * (1+c)`).
-- Critical chance is hard-capped at **75%**.
-- Movement speed bonuses have diminishing returns beyond `+60%`.
-- Damage reduction (armor) is hard-capped at **65%** to prevent complete invulnerability.
-- Cooldown reduction is hard-capped at **50%** to prevent infinite skill spamming.
+- **Meta progression** bonuses (skill ranks, stat-upgrade levels, account rank) stack **additively** from base values (`base × (1 + Σ bonuses)`), never compounding multiplicatively. Only explicitly multiplicative combat perks may compound.
+- **Damage soft cap**: the effective damage multiplier above `3.0×` yields diminishing returns — `effDm = 3.0 + √(dm − 3.0) × 0.8` (applied in `fire()`).
+- **Critical chance is hard-capped at 75%** (enforced in `fire()`).
+- **Damage reduction (armor) is hard-capped at 65%** — the incoming-damage multiplier never drops below `0.35` (enforced in `hurtP()`).
+- **Cooldown reduction is hard-capped at 50%** — the skill-cooldown decay multiplier never exceeds `1.5×` (enforced in the `SK` cooldown tick).
+- Movement-speed bonuses are additive per rank; persistent stacking belongs to the perk layer, not the meta layer.
+
+*(Caps verified in code as of v2.2.0.)*
 
 ### Rule 5 — Difficulty Must Be Earned, Not Inflated
 Wave difficulty escalates through **tactical composition** rather than infinite HP pools:
@@ -48,7 +53,7 @@ Wave difficulty escalates through **tactical composition** rather than infinite 
 
 ### Rule 6 — Reward Rarity & Economy Integrity
 The game features two strictly separated currencies:
-1. **Run Cash (`S.cash`)**: Temporary currency earned during deployment, spent at between-wave supply caches on temporary weapon acquisitions, repairs, and combat consumables. At the end of a run, unspent cash converts into permanent credits at a fixed, transparent settlement rate (50%).
+1. **Run Cash (`S.cash`)**: Temporary currency earned during deployment (kill drops and chests), spent at between-wave supply caches on temporary weapon acquisitions, repairs, and combat consumables. At the end of a run, unspent cash converts into permanent credits at a fixed, transparent settlement rate of **1:1 (100%)**, exactly as printed on the run-summary panel. The **Scavenger** skill applies a persistent `+10%` credit bonus per rank (`S.cm`) to in-run cash drops.
 2. **Permanent Credits (`SV.cr`)**: Meta-currency displayed in the lobby, used exclusively for persistent base upgrades, weapon armory unlocks, and operative licenses.
 - No purchase may ever double-charge or accidentally spend meta-credits during an in-run supply phase.
 - All purchases must route through centralized transaction guards with affordability verification.
@@ -92,26 +97,66 @@ When an overpowered combination is detected, identify the exact multiplicative s
 Every firearm in Dead Zone must satisfy its designated role:
 - **Pistol (0 cr)**: Pinpoint precision, moderate fire rate, high mobility, low cost.
 - **SMG (300 cr)**: Close-to-mid spray, high mobility, wider spread cone.
-- **Dual Pistols (350 cr)**: High mobility run-and-gun skirmisher, alternating dual fire.
+- **Dual Pistols (350 cr)**: High-mobility run-and-gun skirmisher, alternating dual fire.
 - **Revolver (400 cr)**: Heavy kinetic stopping power, high single-target stagger, deliberate cadence.
 - **Shotgun (500 cr)**: Devastating point-blank burst (8 pellets), rapid falloff beyond mid-range.
+- **Crossbow (650 cr)**: Silent precision bolts, pierces 2 targets, tight spread, slow cadence.
 - **Rifle (700 cr)**: Disciplined mid-to-long range battle rifle with moderate recoil.
 - **Burst Rifle (850 cr)**: Precision 3-round burst, lethal at mid-to-long range.
 - **Assault (900 cr)**: Versatile full-auto combat weapon with predictable recoil.
 - **Sniper (1200 cr)**: High-caliber precision rifle, pierces 3 targets, severe hipfire penalty while sprinting.
-- **Minigun (1500 cr)**: Heavy rotary cannon, immense sustained suppression, -22% movement speed while firing.
-- **Flamer (1800 cr)**: Dedicated short-range conical stream, intense point-blank billow, burn damage-over-time.
-- **Plasma (2500 cr)**: High-energy piercing spheres with ionized splash radius.
-- **GL-40 (2800 cr)**: Bouncing 40mm explosive canisters, high tactical crowd clearance.
+- **Minigun (1500 cr)**: Heavy rotary cannon, immense sustained suppression, wide spread cone, low per-shot knockback.
+- **Flamer (1800 cr)**: Dedicated short-range conical stream (2 pellets), intense point-blank billow.
+- **Siphon SMG (1900 cr)**: Sustained-fire SMG that heals the operator on hit (lifesteal).
+- **Plasma (2500 cr)**: High-energy piercing spheres (2 pierce) with ionized splash.
+- **Glacier Breaker (2600 cr)**: 6-pellet cryogenic punt-gun, crowd-freezing utility over raw DPS.
+- **Hornet (2600 cr)**: Compact explosive carbine, splash damage for clustered hordes.
+- **GL-40 (2800 cr)**: 40mm explosive canisters, high tactical crowd clearance.
 - **Rocket Launcher (3000 cr)**: Massive explosive warhead, 175 direct damage + 115 splash radius.
-- **Cryo Blaster (3400 cr)**: Cryogenic shards slowing enemies by 55%, defensive utility over raw DPS.
+- **Cryo Blaster (3400 cr)**: Cryogenic shards slowing enemies, defensive utility over raw DPS.
 - **Tesla (3500 cr)**: High-voltage arc generator chaining through up to 4 targets with falloff.
 - **Arc Shotgun (3800 cr)**: Electrified heavy buckshot chaining miniature lightning arcs to adjacent targets.
 - **Heavy Railgun (4200 cr)**: Pure electromagnetic kinetic beam piercing up to 10 targets, high commitment.
 
 ---
 
-## 3. Mandatory Operational & Live-Service Rules
+## 3. Progression Reference (Skills, Stats & Rank)
+
+Every meta upgrade must map a single save key (`SV.<key>`) to exactly one runtime effect. Keys must never collide between the skill tree and the stat-upgrade panel.
+
+### 3.1 Skill Tree (`SKL`, max 5 ranks each, 1 skill point per level)
+
+| Skill | Save key | Effect per rank | Applied in |
+|---|---|---|---|
+| Vitality | `mx` | `+10` max HP | `applySV` (`P.mx`) |
+| Agility | `spd` | `+4%` move speed | player movement |
+| Firepower | `dm` | `+5%` base damage | `applySV` (`S.dm`) |
+| Trigger Work | `rof` | `+6%` fire rate | `fire()` cooldown |
+| Deadly Aim | `crit` | `+4%` crit chance (hard-capped 75%) | `fire()` |
+| Life Leech | `vamp` | `+0.5` HP per kill | `applySV` (`S.ls`) |
+| Cellular Repair | `regen` | `+0.4` HP/sec | player update loop |
+| Scavenger | `cb` | `+10%` credit gain | `applySV` (`S.cm`) |
+| Tactical Training | `xpb` | `+8%` XP gain | `gainXP()` |
+
+### 3.2 Stat-Upgrade Panel (`lobby2` statsList)
+
+| Upgrade | Save key | Effect per level | Cost |
+|---|---|---|---|
+| Max Health | `hu` | `+10` HP | 150 (×1.4/level) |
+| Damage Output | `du` | `+5%` base damage | 200 (×1.4/level) |
+| Grenade Reserve | `gu` | `+2` grenades at wave start | 180 (×1.4/level) |
+| Starting Cash | `sc` | `+$50` starting cash per wave | 120 (×1.4/level) |
+
+### 3.3 Account Rank & Skill Points
+- **Account Rank** (`SV.lvl`) increases by **1 per in-run level-up** and scales max HP (`+4/rank`) and base damage (`+2%/rank`).
+- **Skill Points** (`SV.sp`) are granted at **+1 per in-run level-up** and are spent in the lobby skill tree. Login-reward entries may also define an `sp` amount.
+- The **run-over summary** reports skill points earned this run as `S.up`.
+
+> These mappings are enforced as of v2.2.0. The `sc` (Starting Cash) key was renamed from `cb` to resolve a collision with the Scavenger skill.
+
+---
+
+## 4. Mandatory Operational & Live-Service Rules
 
 ### Mandatory Rule 1 — Validated Enemy Death Pipeline
 All enemy damage must pass through a validated, centralized damage/death pipeline (`damageZ`). Damage must check for finite numbers, clamp corrupted health, apply legitimate armor/resistance, and trigger the death lifecycle (`killZ`) exactly once. Dead enemies must immediately cease attacks and collision.
@@ -157,12 +202,16 @@ Weapon rarity tiers (Common, Uncommon, Rare, Epic, Legendary, Event-Exclusive) c
 
 ---
 
-## 4. Pre-Update Verification Checklist
+## 5. Pre-Update Verification Checklist
 
 Before any update is committed or deployed, verify:
 - [ ] Automated syntax and simulation tests pass with exit code 0.
 - [ ] Centralized damage/death pipeline prevents immortal enemies with NaN health.
-- [ ] Flamer reach is restricted to a short-range cone stream (~140px max) with visible muzzle flare.
+- [ ] Combat caps hold: crit ≤ 75%, damage reduction ≤ 65%, cooldown reduction ≤ 50%, damage soft cap intact.
+- [ ] Skill-tree and stat-upgrade save keys are unique and each maps to a live runtime effect (no inert upgrades).
+- [ ] Gore call sites pass the full argument contract (`hitAngle`, `dmg`/`zType`, `isCrit`, sector `curM`).
+- [ ] Every spawn bucket in `startWave` is reachable (no archetype starved by an unreachable `else if`).
+- [ ] Flamer reach is restricted to a short-range cone stream with visible muzzle flare.
 - [ ] No firearm bullets visually morph into rockets or other projectile types.
 - [ ] Events mode is strictly isolated to the Events lobby tab and never bleeds into normal runs.
 - [ ] Event rewards and daily missions cannot be claimed twice.

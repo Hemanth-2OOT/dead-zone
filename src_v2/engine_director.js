@@ -1,4 +1,4 @@
-// DEAD ZONE v2.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.2 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */

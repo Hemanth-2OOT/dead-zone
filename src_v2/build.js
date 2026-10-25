@@ -1,4 +1,4 @@
-// DEAD ZONE v2.0 - BUNDLER & SYNTAX AUDITOR
+// DEAD ZONE v2.2 - BUNDLER & SYNTAX AUDITOR
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -6,7 +6,7 @@ const vm = require('vm');
 const baseDir = __dirname;
 const rootDir = path.resolve(baseDir, '..');
 
-console.log('--- DEAD ZONE v2.0 BUILD PIPELINE ---');
+console.log('--- DEAD ZONE v2.2 BUILD PIPELINE ---');
 
 // 1. Read Stylesheet
 const css = fs.readFileSync(path.join(baseDir, 'style.css'), 'utf8');

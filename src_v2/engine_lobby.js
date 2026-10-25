@@ -1,4 +1,4 @@
-// DEAD ZONE v2.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -817,7 +817,7 @@ function lobby2() {
       ['hu', 'Max Health', '+10 HP per level', 150, 'hp', '#ff5a3a'],
       ['du', 'Damage Output', '+5% base damage', 200, 'dmg', '#ffd36b'],
       ['gu', 'Grenade Reserve', '+2 grenades at wave start', 180, 'ammo', '#ff9a3a'],
-      ['cb', 'Starting Cash', '+$50 starting cash per wave', 120, 'spd', '#5ac8e8']
+              ['sc', 'Starting Cash', '+$50 starting cash per wave', 120, 'spd', '#5ac8e8']
     ];
     sttCont.innerHTML = statsList.map(st => {
       const curLvl = SV[st[0]] || 0;
