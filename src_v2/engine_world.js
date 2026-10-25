@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.8.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -1078,6 +1078,16 @@ function openChest(c) {
   S.pend = (S.pend || 0) + 1; // Free power selection
 }
 
+// One draft screen at a time. A wave clear can queue both a boon draft and a
+// perk draft; raising them together is what read as power-ups "coming multiple".
+// Boon first, then perks, then release the run.
+function openNextDraft() {
+  if (!S || !P || P.hp <= 0) return;
+  if (typeof openBoonDraft === 'function' && openBoonDraft()) { run = 0; return; }
+  if (S.pend > 0 && !S.po) { openPerk(); return; }
+  run = pendingNextWave ? 0 : 1;
+}
+
 function openPerk() {
   if (!S || S.po || S.pend <= 0) return;
   S.po = 1;
@@ -1109,8 +1119,7 @@ function openPerk() {
       S.pend--;
       S.po = 0;
       modal.classList.remove('on');
-      if (S.pend > 0) openPerk();
-      else run = pendingNextWave ? 0 : 1;
+      openNextDraft();
     };
     cards.appendChild(card);
   });
@@ -1123,8 +1132,7 @@ function openPerk() {
         S.pend--;
         S.po = 0;
         modal.classList.remove('on');
-        if (S.pend > 0) openPerk();
-        else run = pendingNextWave ? 0 : 1;
+        openNextDraft();
       }
     };
   }
@@ -1707,10 +1715,11 @@ function update(dt) {
 
   if (P.hp <= 0 && !S.lsUsed && typeof triggerLastStand === 'function') triggerLastStand();
 
-  if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
+  if (S.pend > 0 && !S.po && !S.bd && P.hp > 0) openPerk();
 
   if (P.hp <= 0) {
     run = 0;
+    if (typeof closeBoonDraft === 'function') closeBoonDraft();
     const prevBest = SV.best || 0;
     saveBest();
     if (S.isEvent && S.evDef) {
@@ -1738,29 +1747,35 @@ function update(dt) {
 }
 
 // Weapon strip. Shared by the HUD renderer and the touch handler so a tap
-// always lands on the chip it looks like it should. Owned guns plus the single
-// next unlock, so the strip stays short early and grows with the account.
+// always lands on the chip it looks like it should. Shows a sliding window of
+// owned guns, pinned top-centre (clear of both thumb zones).
 function weaponBarLayout() {
   const chips = [];
-  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) chips.push({ i, on: true });
-  let nextLocked = -1, bestR = Infinity;
-  for (let i = 0; i < WEAP.length; i++) {
-    if (P.w && P.w[i]) continue;
-    const r = WEAP_RANK[i] || 0;
-    if (r < bestR) { bestR = r; nextLocked = i; }
-  }
-  if (nextLocked >= 0) chips.push({ i: nextLocked, on: false });
-  if (!chips.length) return chips;
+  const owned = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
+  if (!owned.length) return chips;
 
-  const n = chips.length, gap = 4;
-  const maxW = Math.min(W - 28, 560);
-  const cw = Math.max(26, Math.min(72, Math.floor((maxW - gap * (n - 1)) / n)));
+  // Sliding window around the equipped gun. Long-serving accounts own 20+ guns,
+  // and one 22-chip row of 20px cells was unreadable and (positioned at the
+  // bottom centre) sat under the thumbs, so drags kept swapping weapons. A short
+  // row pinned to the top of the screen fixes both.
+  const MAXV = Math.min(7, owned.length);
+  let cur = owned.indexOf(P.cur);
+  if (cur < 0) cur = 0;
+  const lo = Math.max(0, Math.min(cur - Math.floor(MAXV / 2), owned.length - MAXV));
+  const visible = owned.slice(lo, lo + MAXV);
+
+  const n = visible.length, gap = 4;
+  const leftBound = 76, rightBound = Math.max(leftBound + 120, W - 196);
+  const avail = rightBound - leftBound;
+  const cw = Math.max(30, Math.min(58, Math.floor((avail - gap * (n - 1)) / n)));
   const totalW = cw * n + gap * (n - 1);
-  const x0 = Math.round((W - totalW) / 2), y = H - 76;
+  const x0 = Math.round(leftBound + Math.max(0, (avail - totalW) / 2));
+  const y = 8, h = 20;
   for (let k = 0; k < n; k++) {
-    chips[k].x = x0 + k * (cw + gap);
-    chips[k].y = y; chips[k].w = cw; chips[k].h = 16;
+    chips.push({ i: visible[k], on: true, x: x0 + k * (cw + gap), y, w: cw, h });
   }
+  chips.scrollHint = { lo, more: owned.length > MAXV, up: lo > 0, down: lo + MAXV < owned.length };
   return chips;
 }
 
@@ -1773,20 +1788,25 @@ function drawWeaponBar() {
     const w = WEAP[c.i] || WEAP[0];
     const cur = P.cur === c.i;
     const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
-    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 3);
-    if (c.on) {
-      X.fillStyle = cur ? tcol : 'rgba(18,24,16,0.85)';
-      X.fill();
-      X.strokeStyle = cur ? '#ffffff' : tcol + '99';
-      X.lineWidth = cur ? 1.6 : 1;
-      X.stroke();
-    } else {
-      X.fillStyle = 'rgba(12,14,10,0.55)'; X.fill();
-      X.strokeStyle = 'rgba(120,130,110,0.3)'; X.lineWidth = 1; X.stroke();
-    }
-    X.fillStyle = c.on ? (cur ? '#0b0f08' : '#e8e4cf') : 'rgba(200,205,190,0.5)';
-    X.font = '900 ' + (c.w >= 34 ? 9.5 : 8) + 'px Arial';
-    X.fillText(c.on ? (c.w >= 34 ? w.n.slice(0, 3).toUpperCase() : String(c.i + 1)) : 'R' + (WEAP_RANK[c.i] || 0), c.x + c.w / 2, c.y + c.h / 2 + 0.5);
+    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 4);
+    X.fillStyle = cur ? tcol : 'rgba(14,18,12,0.82)';
+    X.fill();
+    X.strokeStyle = cur ? '#ffffff' : tcol + '88';
+    X.lineWidth = cur ? 1.6 : 1;
+    X.stroke();
+    X.fillStyle = cur ? '#0b0f08' : '#e8e4cf';
+    const label = (w.n || 'GUN').replace(/[^A-Za-z0-9]/g, '').slice(0, c.w >= 44 ? 3 : 2).toUpperCase();
+    X.font = '900 ' + (c.w >= 44 ? 10 : 9) + 'px Arial';
+    X.fillText(label || '?', c.x + c.w / 2, c.y + c.h / 2 + 0.5);
+  }
+  const hint = chips.scrollHint;
+  if (hint && hint.more) {
+    const first = chips[0], last = chips[chips.length - 1];
+    X.font = '900 11px Arial';
+    X.fillStyle = hint.up ? '#ffd36b' : 'rgba(255,255,255,0.18)';
+    X.fillText('\u2039', first.x - 9, first.y + first.h / 2);
+    X.fillStyle = hint.down ? '#ffd36b' : 'rgba(255,255,255,0.18)';
+    X.fillText('\u203a', last.x + last.w + 9, last.y + last.h / 2);
   }
   X.textBaseline = 'alphabetic';
 }
@@ -2775,7 +2795,7 @@ function loop(t) {
 
   // Between-wave beat. update() does not run while run is 0, so the countdown
   // has to live here; the perk draft holds it off until the player has chosen.
-  if (!run && pendingNextWave && S && !S.po && P && P.hp > 0) {
+  if (!run && pendingNextWave && S && !S.po && !S.bd && P && P.hp > 0) {
     WAVE_CLEAR_T -= dt;
     if (WAVE_CLEAR_T <= 0) startWave();
   }
@@ -2823,10 +2843,9 @@ function endWave() {
   run = 0;
   if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
   if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound');
-  // The perk draft is the ONLY screen that can take over here now. The old shop
-  // overlay sat on top of this same draft, which is what produced the double
-  // popup at wave end.
-  if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
+  // One draft at a time: the boon draft first, then the perk draft. Chained so
+  // a wave clear never shows two power-up screens together.
+  openNextDraft();
 }
 
 function rebuild() {
@@ -2846,7 +2865,7 @@ function rebuild() {
 
 
 function begin() {
-  ['start', 'over', 'pause', 'perk'].forEach(i => {
+  ['start', 'over', 'pause', 'perk', 'boondraft'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });

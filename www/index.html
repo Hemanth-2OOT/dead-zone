@@ -829,6 +829,94 @@ button:active:not(:disabled) { transform: scale(0.96); }
 #map-modal #maps button .m-title { font-size: 13px; }
 #map-modal-preview { transition: opacity .2s ease-out; }
 
+/* ------------------------------------------------------------------ */
+/* LOBBY POLISH                                                        */
+/* ------------------------------------------------------------------ */
+.l-left, .l-right { animation: lobbyIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.l-right { animation-delay: 0.06s; }
+@keyframes lobbyIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#crd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, rgba(224, 184, 58, 0.16), rgba(224, 184, 58, 0.05));
+  border: 1px solid rgba(224, 184, 58, 0.45);
+  color: #ffd36b;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+}
+
+#best-badge { transition: border-color 0.15s, background 0.15s, transform 0.12s; }
+#best-badge:hover { border-color: rgba(224, 184, 58, 0.7); background: rgba(224, 184, 58, 0.12); }
+#best-badge:active { transform: scale(0.97); }
+
+/* Primary call to action: a slow throb plus a one-shot sheen so the eye lands
+   on DEPLOY first, without turning the whole hub into a light show. */
+#play {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 rgba(143, 174, 74, 0);
+  animation: deployThrob 3.4s ease-in-out infinite;
+}
+#play::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-18deg);
+  animation: deploySheen 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes deployThrob {
+  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
+  50% { box-shadow: 0 0 16px rgba(143, 174, 74, 0.35); }
+}
+@keyframes deploySheen {
+  0%, 62%, 100% { left: -60%; }
+  80% { left: 130%; }
+}
+
+.hub-btn { transition: background 0.15s, border-color 0.15s, transform 0.12s, box-shadow 0.15s; }
+.hub-btn:hover { box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.06); }
+.hub-btn:active { transform: scale(0.97); }
+
+/* Sector card: a coloured spine on the left, so the hub reads as
+   "current sector" at a glance instead of another grey box. */
+#hub-sector {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+#hub-sector::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #8fae4a, #ffd36b);
+}
+#hub-sector:hover { border-color: rgba(143, 174, 74, 0.45); }
+#zone-threat-badge { animation: threatPulse 2.6s ease-in-out infinite; }
+@keyframes threatPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
+  50% { box-shadow: 0 0 8px rgba(143, 174, 74, 0.5); }
+}
+
+#nav button { color: #b9b4a4; }
+#nav button:active { background: rgba(255, 255, 255, 0.05); }
+
+#map-modal #maps button:hover, #missions-modal .ev-tab:hover { border-color: #8fae4a; }
+
+
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
@@ -847,12 +935,20 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 <canvas id="c"></canvas>
 
-<!-- Run HUD meta. #cash and #boonbar used to live inside the between-wave
-     shop overlay. The overlay is gone, so the boon draft now floats above the
-     play field and can be tapped at any point during the following wave. -->
-<div id="run-hud-meta" style="position:fixed;left:0;right:0;bottom:62px;z-index:60;display:flex;flex-direction:column;align-items:center;pointer-events:none">
-  <p id="cash" style="display:none"></p>
-  <div id="boonbar" style="display:none;pointer-events:auto;width:min(560px,94vw);margin:0;padding:8px 10px;background:rgba(20,24,18,.94);border:1.5px solid rgba(143,174,74,.45);border-radius:8px;text-align:left"></div>
+<!-- BOON DRAFT OVERLAY. It used to be a floating panel that stayed up while the
+     perk draft modal was open too, so wave-clear showed two power-up screens
+     at once. It is now a normal blocking overlay and the run opens one draft
+     at a time (see openNextDraft in engine_world.js). -->
+<div class="ov" id="boondraft">
+  <div class="modal-sheet" style="max-width:560px;width:100%">
+    <div class="modal-head">
+      <h2 style="color:#8fae4a;margin:0">TACTICAL BOON DRAFT</h2>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11.5px;opacity:.8;margin:0 0 4px 0;letter-spacing:.6px">CHOOSE ONE FIELD MODIFICATION FOR THIS RUN</p>
+      <div id="boonbar"></div>
+    </div>
+  </div>
 </div>
 
 <div class="ov on" id="start">
@@ -876,7 +972,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.8.0</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.8.1</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -2277,7 +2373,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v2.8 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.8.1 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -2305,6 +2401,11 @@ let SV = {
   ap: 0,
   skins: { default: 1 },
   eqSkin: {},
+  eqOpSkin: null,
+  col: null,
+  dmDate: '',
+  lastLogin: '',
+  rankClaimed: {},
   evDone: {},
   dailyMissions: {},
   loginDays: 1,
@@ -2331,13 +2432,15 @@ function transactMetaCredits(cost, desc) {
 function sanitizeSV(s) {
   if (!s || typeof s !== 'object') return null;
   const out = Object.assign({}, SV);
-  // Copy only keys the save schema actually defines, and never through the
-  // prototype. `Object.assign({}, SV, s)` would honour a `__proto__` key from a
-  // hand-edited save and rewrite the object's prototype; it also let arbitrary
-  // junk keys ride along into storage.
+  // Copy every own key except the three that can rewrite the prototype chain.
+  // An earlier whitelist-only version silently dropped legitimate fields that
+  // are not in the SV template above (equipped operative skin, suit tint, the
+  // daily/login date stamps, claimed-rank map), so equipping a skin was wiped
+  // on the very next lobby() pass. Unknown junk keys are harmless; poisoned
+  // ones are not.
   for (const k of Object.keys(s)) {
     if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
-    if (Object.prototype.hasOwnProperty.call(out, k)) out[k] = s[k];
+    out[k] = s[k];
   }
   out.lvl = Math.max(1, Math.floor(Number(out.lvl) || 1));
   out.xp = Math.max(0, Math.floor(Number(out.xp) || 0));
@@ -2954,7 +3057,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v2.8 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.8.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -4712,7 +4815,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v2.8 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.8.1 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -5302,7 +5405,7 @@ function clsIcon(ci, wi = 0) {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v2.8 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.8.1 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -6271,7 +6374,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v2.8 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v2.8.1 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -6649,7 +6752,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v2.8 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v2.8.1 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -7201,7 +7304,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v2.8 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v2.8.1 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -8421,7 +8524,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v2.8 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v2.8.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -8807,7 +8910,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v2.8 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.8.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -9887,6 +9990,16 @@ function openChest(c) {
   S.pend = (S.pend || 0) + 1; // Free power selection
 }
 
+// One draft screen at a time. A wave clear can queue both a boon draft and a
+// perk draft; raising them together is what read as power-ups "coming multiple".
+// Boon first, then perks, then release the run.
+function openNextDraft() {
+  if (!S || !P || P.hp <= 0) return;
+  if (typeof openBoonDraft === 'function' && openBoonDraft()) { run = 0; return; }
+  if (S.pend > 0 && !S.po) { openPerk(); return; }
+  run = pendingNextWave ? 0 : 1;
+}
+
 function openPerk() {
   if (!S || S.po || S.pend <= 0) return;
   S.po = 1;
@@ -9918,8 +10031,7 @@ function openPerk() {
       S.pend--;
       S.po = 0;
       modal.classList.remove('on');
-      if (S.pend > 0) openPerk();
-      else run = pendingNextWave ? 0 : 1;
+      openNextDraft();
     };
     cards.appendChild(card);
   });
@@ -9932,8 +10044,7 @@ function openPerk() {
         S.pend--;
         S.po = 0;
         modal.classList.remove('on');
-        if (S.pend > 0) openPerk();
-        else run = pendingNextWave ? 0 : 1;
+        openNextDraft();
       }
     };
   }
@@ -10516,10 +10627,11 @@ function update(dt) {
 
   if (P.hp <= 0 && !S.lsUsed && typeof triggerLastStand === 'function') triggerLastStand();
 
-  if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
+  if (S.pend > 0 && !S.po && !S.bd && P.hp > 0) openPerk();
 
   if (P.hp <= 0) {
     run = 0;
+    if (typeof closeBoonDraft === 'function') closeBoonDraft();
     const prevBest = SV.best || 0;
     saveBest();
     if (S.isEvent && S.evDef) {
@@ -10547,29 +10659,35 @@ function update(dt) {
 }
 
 // Weapon strip. Shared by the HUD renderer and the touch handler so a tap
-// always lands on the chip it looks like it should. Owned guns plus the single
-// next unlock, so the strip stays short early and grows with the account.
+// always lands on the chip it looks like it should. Shows a sliding window of
+// owned guns, pinned top-centre (clear of both thumb zones).
 function weaponBarLayout() {
   const chips = [];
-  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) chips.push({ i, on: true });
-  let nextLocked = -1, bestR = Infinity;
-  for (let i = 0; i < WEAP.length; i++) {
-    if (P.w && P.w[i]) continue;
-    const r = WEAP_RANK[i] || 0;
-    if (r < bestR) { bestR = r; nextLocked = i; }
-  }
-  if (nextLocked >= 0) chips.push({ i: nextLocked, on: false });
-  if (!chips.length) return chips;
+  const owned = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
+  if (!owned.length) return chips;
 
-  const n = chips.length, gap = 4;
-  const maxW = Math.min(W - 28, 560);
-  const cw = Math.max(26, Math.min(72, Math.floor((maxW - gap * (n - 1)) / n)));
+  // Sliding window around the equipped gun. Long-serving accounts own 20+ guns,
+  // and one 22-chip row of 20px cells was unreadable and (positioned at the
+  // bottom centre) sat under the thumbs, so drags kept swapping weapons. A short
+  // row pinned to the top of the screen fixes both.
+  const MAXV = Math.min(7, owned.length);
+  let cur = owned.indexOf(P.cur);
+  if (cur < 0) cur = 0;
+  const lo = Math.max(0, Math.min(cur - Math.floor(MAXV / 2), owned.length - MAXV));
+  const visible = owned.slice(lo, lo + MAXV);
+
+  const n = visible.length, gap = 4;
+  const leftBound = 76, rightBound = Math.max(leftBound + 120, W - 196);
+  const avail = rightBound - leftBound;
+  const cw = Math.max(30, Math.min(58, Math.floor((avail - gap * (n - 1)) / n)));
   const totalW = cw * n + gap * (n - 1);
-  const x0 = Math.round((W - totalW) / 2), y = H - 76;
+  const x0 = Math.round(leftBound + Math.max(0, (avail - totalW) / 2));
+  const y = 8, h = 20;
   for (let k = 0; k < n; k++) {
-    chips[k].x = x0 + k * (cw + gap);
-    chips[k].y = y; chips[k].w = cw; chips[k].h = 16;
+    chips.push({ i: visible[k], on: true, x: x0 + k * (cw + gap), y, w: cw, h });
   }
+  chips.scrollHint = { lo, more: owned.length > MAXV, up: lo > 0, down: lo + MAXV < owned.length };
   return chips;
 }
 
@@ -10582,20 +10700,25 @@ function drawWeaponBar() {
     const w = WEAP[c.i] || WEAP[0];
     const cur = P.cur === c.i;
     const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
-    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 3);
-    if (c.on) {
-      X.fillStyle = cur ? tcol : 'rgba(18,24,16,0.85)';
-      X.fill();
-      X.strokeStyle = cur ? '#ffffff' : tcol + '99';
-      X.lineWidth = cur ? 1.6 : 1;
-      X.stroke();
-    } else {
-      X.fillStyle = 'rgba(12,14,10,0.55)'; X.fill();
-      X.strokeStyle = 'rgba(120,130,110,0.3)'; X.lineWidth = 1; X.stroke();
-    }
-    X.fillStyle = c.on ? (cur ? '#0b0f08' : '#e8e4cf') : 'rgba(200,205,190,0.5)';
-    X.font = '900 ' + (c.w >= 34 ? 9.5 : 8) + 'px Arial';
-    X.fillText(c.on ? (c.w >= 34 ? w.n.slice(0, 3).toUpperCase() : String(c.i + 1)) : 'R' + (WEAP_RANK[c.i] || 0), c.x + c.w / 2, c.y + c.h / 2 + 0.5);
+    X.beginPath(); X.roundRect(c.x, c.y, c.w, c.h, 4);
+    X.fillStyle = cur ? tcol : 'rgba(14,18,12,0.82)';
+    X.fill();
+    X.strokeStyle = cur ? '#ffffff' : tcol + '88';
+    X.lineWidth = cur ? 1.6 : 1;
+    X.stroke();
+    X.fillStyle = cur ? '#0b0f08' : '#e8e4cf';
+    const label = (w.n || 'GUN').replace(/[^A-Za-z0-9]/g, '').slice(0, c.w >= 44 ? 3 : 2).toUpperCase();
+    X.font = '900 ' + (c.w >= 44 ? 10 : 9) + 'px Arial';
+    X.fillText(label || '?', c.x + c.w / 2, c.y + c.h / 2 + 0.5);
+  }
+  const hint = chips.scrollHint;
+  if (hint && hint.more) {
+    const first = chips[0], last = chips[chips.length - 1];
+    X.font = '900 11px Arial';
+    X.fillStyle = hint.up ? '#ffd36b' : 'rgba(255,255,255,0.18)';
+    X.fillText('\u2039', first.x - 9, first.y + first.h / 2);
+    X.fillStyle = hint.down ? '#ffd36b' : 'rgba(255,255,255,0.18)';
+    X.fillText('\u203a', last.x + last.w + 9, last.y + last.h / 2);
   }
   X.textBaseline = 'alphabetic';
 }
@@ -11584,7 +11707,7 @@ function loop(t) {
 
   // Between-wave beat. update() does not run while run is 0, so the countdown
   // has to live here; the perk draft holds it off until the player has chosen.
-  if (!run && pendingNextWave && S && !S.po && P && P.hp > 0) {
+  if (!run && pendingNextWave && S && !S.po && !S.bd && P && P.hp > 0) {
     WAVE_CLEAR_T -= dt;
     if (WAVE_CLEAR_T <= 0) startWave();
   }
@@ -11632,10 +11755,9 @@ function endWave() {
   run = 0;
   if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
   if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound');
-  // The perk draft is the ONLY screen that can take over here now. The old shop
-  // overlay sat on top of this same draft, which is what produced the double
-  // popup at wave end.
-  if (S.pend > 0 && !S.po && P.hp > 0) openPerk();
+  // One draft at a time: the boon draft first, then the perk draft. Chained so
+  // a wave clear never shows two power-up screens together.
+  openNextDraft();
 }
 
 function rebuild() {
@@ -11655,7 +11777,7 @@ function rebuild() {
 
 
 function begin() {
-  ['start', 'over', 'pause', 'perk'].forEach(i => {
+  ['start', 'over', 'pause', 'perk', 'boondraft'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
@@ -11841,7 +11963,7 @@ function drawPlayerEntity() {
 }
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v2.8 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.8.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -12270,7 +12392,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v2.8 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.8.1 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -12331,18 +12453,35 @@ function takeBoon(id) {
   S.boons[id] = boonOwned(id) + 1;
   try { b.ap(); } catch (e) { console.warn('[DeadZone] boon apply failed', id, e); }
   S.boonOffer = [];
+  closeBoonDraft();
   if (typeof snd === 'function') { snd(620, 0.16, 'triangle', 0.08, 1.5); setTimeout(() => snd(930, 0.18, 'triangle', 0.07, 1.4), 70); }
   if (typeof announce === 'function') announce(b.n, b.col, b.d + '  •  LV ' + S.boons[id]);
   if (typeof rebuild === 'function') rebuild();
+  // Hand the screen over to whatever draft is queued behind this one (usually
+  // the perk draft), or release the run if nothing else is pending.
+  if (typeof openNextDraft === 'function') openNextDraft();
+}
+
+function openBoonDraft() {
+  if (typeof S === 'undefined' || !S || !S.boonOffer || !S.boonOffer.length) return false;
+  renderBoonBar();
+  const ov = document.getElementById('boondraft');
+  if (ov) ov.classList.add('on');
+  S.bd = 1;
+  return true;
+}
+
+function closeBoonDraft() {
+  const ov = document.getElementById('boondraft');
+  if (ov) ov.classList.remove('on');
+  if (typeof S !== 'undefined' && S) S.bd = 0;
 }
 
 function renderBoonBar() {
   const bar = document.getElementById('boonbar');
   if (!bar) return;
-  if (!S || !S.boonOffer || !S.boonOffer.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  bar.style.display = 'block';
-  bar.innerHTML = '<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#8fae4a;margin-bottom:5px">TACTICAL BOON DRAFT &mdash; CHOOSE ONE</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+  if (!S || !S.boonOffer || !S.boonOffer.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap">'
     + S.boonOffer.map(id => {
       const b = BOONS.find(x => x.id === id);
       if (!b) return '';
@@ -12644,7 +12783,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v2.8 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v2.8.1 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 let ANN = [];          // announcer queue (screen-space banners)
 let FX_STEP_T = 0;
@@ -12993,7 +13132,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v2.8 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.8.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -13915,7 +14054,7 @@ function initGameAssets() {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v2.8 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.8.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;

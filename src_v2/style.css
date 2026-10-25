@@ -822,6 +822,94 @@ button:active:not(:disabled) { transform: scale(0.96); }
 #map-modal #maps button .m-title { font-size: 13px; }
 #map-modal-preview { transition: opacity .2s ease-out; }
 
+/* ------------------------------------------------------------------ */
+/* LOBBY POLISH                                                        */
+/* ------------------------------------------------------------------ */
+.l-left, .l-right { animation: lobbyIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.l-right { animation-delay: 0.06s; }
+@keyframes lobbyIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#crd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, rgba(224, 184, 58, 0.16), rgba(224, 184, 58, 0.05));
+  border: 1px solid rgba(224, 184, 58, 0.45);
+  color: #ffd36b;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+}
+
+#best-badge { transition: border-color 0.15s, background 0.15s, transform 0.12s; }
+#best-badge:hover { border-color: rgba(224, 184, 58, 0.7); background: rgba(224, 184, 58, 0.12); }
+#best-badge:active { transform: scale(0.97); }
+
+/* Primary call to action: a slow throb plus a one-shot sheen so the eye lands
+   on DEPLOY first, without turning the whole hub into a light show. */
+#play {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 rgba(143, 174, 74, 0);
+  animation: deployThrob 3.4s ease-in-out infinite;
+}
+#play::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-18deg);
+  animation: deploySheen 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes deployThrob {
+  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
+  50% { box-shadow: 0 0 16px rgba(143, 174, 74, 0.35); }
+}
+@keyframes deploySheen {
+  0%, 62%, 100% { left: -60%; }
+  80% { left: 130%; }
+}
+
+.hub-btn { transition: background 0.15s, border-color 0.15s, transform 0.12s, box-shadow 0.15s; }
+.hub-btn:hover { box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.06); }
+.hub-btn:active { transform: scale(0.97); }
+
+/* Sector card: a coloured spine on the left, so the hub reads as
+   "current sector" at a glance instead of another grey box. */
+#hub-sector {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+#hub-sector::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #8fae4a, #ffd36b);
+}
+#hub-sector:hover { border-color: rgba(143, 174, 74, 0.45); }
+#zone-threat-badge { animation: threatPulse 2.6s ease-in-out infinite; }
+@keyframes threatPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
+  50% { box-shadow: 0 0 8px rgba(143, 174, 74, 0.5); }
+}
+
+#nav button { color: #b9b4a4; }
+#nav button:active { background: rgba(255, 255, 255, 0.05); }
+
+#map-modal #maps button:hover, #missions-modal .ev-tab:hover { border-color: #8fae4a; }
+
+
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.8.1 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -59,18 +59,35 @@ function takeBoon(id) {
   S.boons[id] = boonOwned(id) + 1;
   try { b.ap(); } catch (e) { console.warn('[DeadZone] boon apply failed', id, e); }
   S.boonOffer = [];
+  closeBoonDraft();
   if (typeof snd === 'function') { snd(620, 0.16, 'triangle', 0.08, 1.5); setTimeout(() => snd(930, 0.18, 'triangle', 0.07, 1.4), 70); }
   if (typeof announce === 'function') announce(b.n, b.col, b.d + '  •  LV ' + S.boons[id]);
   if (typeof rebuild === 'function') rebuild();
+  // Hand the screen over to whatever draft is queued behind this one (usually
+  // the perk draft), or release the run if nothing else is pending.
+  if (typeof openNextDraft === 'function') openNextDraft();
+}
+
+function openBoonDraft() {
+  if (typeof S === 'undefined' || !S || !S.boonOffer || !S.boonOffer.length) return false;
+  renderBoonBar();
+  const ov = document.getElementById('boondraft');
+  if (ov) ov.classList.add('on');
+  S.bd = 1;
+  return true;
+}
+
+function closeBoonDraft() {
+  const ov = document.getElementById('boondraft');
+  if (ov) ov.classList.remove('on');
+  if (typeof S !== 'undefined' && S) S.bd = 0;
 }
 
 function renderBoonBar() {
   const bar = document.getElementById('boonbar');
   if (!bar) return;
-  if (!S || !S.boonOffer || !S.boonOffer.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  bar.style.display = 'block';
-  bar.innerHTML = '<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#8fae4a;margin-bottom:5px">TACTICAL BOON DRAFT &mdash; CHOOSE ONE</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+  if (!S || !S.boonOffer || !S.boonOffer.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap">'
     + S.boonOffer.map(id => {
       const b = BOONS.find(x => x.id === id);
       if (!b) return '';

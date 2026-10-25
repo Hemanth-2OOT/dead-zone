@@ -1,4 +1,4 @@
-// DEAD ZONE v2.8 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.8.1 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -26,6 +26,11 @@ let SV = {
   ap: 0,
   skins: { default: 1 },
   eqSkin: {},
+  eqOpSkin: null,
+  col: null,
+  dmDate: '',
+  lastLogin: '',
+  rankClaimed: {},
   evDone: {},
   dailyMissions: {},
   loginDays: 1,
@@ -52,13 +57,15 @@ function transactMetaCredits(cost, desc) {
 function sanitizeSV(s) {
   if (!s || typeof s !== 'object') return null;
   const out = Object.assign({}, SV);
-  // Copy only keys the save schema actually defines, and never through the
-  // prototype. `Object.assign({}, SV, s)` would honour a `__proto__` key from a
-  // hand-edited save and rewrite the object's prototype; it also let arbitrary
-  // junk keys ride along into storage.
+  // Copy every own key except the three that can rewrite the prototype chain.
+  // An earlier whitelist-only version silently dropped legitimate fields that
+  // are not in the SV template above (equipped operative skin, suit tint, the
+  // daily/login date stamps, claimed-rank map), so equipping a skin was wiped
+  // on the very next lobby() pass. Unknown junk keys are harmless; poisoned
+  // ones are not.
   for (const k of Object.keys(s)) {
     if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
-    if (Object.prototype.hasOwnProperty.call(out, k)) out[k] = s[k];
+    out[k] = s[k];
   }
   out.lvl = Math.max(1, Math.floor(Number(out.lvl) || 1));
   out.xp = Math.max(0, Math.floor(Number(out.xp) || 0));
