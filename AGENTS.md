@@ -166,3 +166,26 @@ and not an extra block in `engine_world.js`).
 * Harnesses read their result out of `localStorage` (`V27_LAST`, `DEEP_LAST`, `BUL_LAST`,
   `SHOT_REPORT`) and several **wipe storage on load**, so run them one at a time and read the result
   through a small reader page before loading the next harness.
+
+## v2.8.x notes (updated at v2.8.1)
+
+* One draft screen at a time. `endWave()` calls `openNextDraft()` (engine_world.js), which shows the
+  boon draft first (`#boondraft` overlay + `renderBoonBar`), then the perk draft (`openPerk`), then
+  releases the run. `S.bd` marks the boon draft as open and blocks `openPerk`, the between-wave
+  countdown (`loop()`) and the mid-wave `update()` perk check. Never raise two drafts together.
+* The weapon strip lives at the top of the HUD (`weaponBarLayout()` in engine_world.js pins chips at
+  y=8 between x=76 and W-196, max 7 owned guns, sliding window around `P.cur`). The touch handler in
+  `tch()` hits chips before the reload/swap bands, and chips sit above `H*0.25` so they can never
+  start a move stick. Do not move this row back to the bottom-centre: it sat under the thumbs and
+  drags kept swapping weapons.
+* `sanitizeSV()` must copy every own key of the incoming save (minus `__proto__`/`constructor`/
+  `prototype`). A whitelist keyed off the `SV` template silently drops legitimate fields
+  (`eqOpSkin`, `col`, `dmDate`, `lastLogin`, `rankClaimed`) and wipes equipped skins on the next
+  `lobby()` pass.
+* Known harness drift: `/tmp/mkdeep3.py` still asserts the pre-v2.8.0 skins container (`#skin-list`)
+  and reads `#rview-s`/`#ach-list` while the rewards panel is closed, so it reports 6 stale FAILs
+  ("skin grid renders 24 cards", "SERVICE RECORD ... zero height", etc.). Treat those six as stale
+  selectors, not regressions — verify the skins grid in a browser instead. `/tmp/mksoak.py` and the
+  244 behavioural deep assertions are the real gate.
+* `python3 -m http.server 8131 --directory www` is the port that is actually free in this workspace;
+  the 8124 in the build section above is stale.
