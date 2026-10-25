@@ -1,0 +1,241 @@
+<div id="load-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0d07;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .35s;pointer-events:none">
+  <div style="width:48px;height:48px;border:3px solid rgba(143,174,74,.2);border-top-color:#8fae4a;border-radius:50%;animation:dz-spin 1s linear infinite;margin-bottom:14px"></div>
+  <div style="font-size:20px;font-weight:900;letter-spacing:2px;color:#f0ece1;margin-bottom:4px">DEAD ZONE</div>
+  <div id="load-status" style="font-size:11px;opacity:.75;letter-spacing:1px;color:#8fae4a">INITIALIZING TACTICAL PROTOCOLS...</div>
+  <div style="width:160px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:12px;overflow:hidden">
+    <div id="load-progress" style="width:25%;height:100%;background:#8fae4a;transition:width .2s"></div>
+  </div>
+</div>
+
+<canvas id="c"></canvas>
+
+<div class="ov on" id="start">
+  <div id="top">
+    <div id="lv">
+      <b id="lvn">1</b>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+          <span style="font-size:9.5px;opacity:.75;letter-spacing:.8px;font-weight:800">ACCOUNT RANK</span>
+          <span id="xptxt" style="font-size:9.5px;font-weight:800;color:#8fae4a">0 / 100 XP</span>
+        </div>
+        <div class="bar"><i id="xpf"></i></div>
+      </div>
+    </div>
+    <div id="crd">CREDITS <span id="cr">0</span></div>
+  </div>
+
+  <div id="pn">
+    <!-- TAB 0: LOBBY MAIN -->
+    <div class="pp on" id="p0">
+      <div class="l-left">
+        <div class="logo-wrap">
+          <h1 class="logo">DEAD ZONE</h1>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v1.9.3</div>
+        </div>
+
+        <div id="best-badge" onclick="showRunDetails()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0b83a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+          <span id="best">SURVIVAL RECORD: WAVE 0</span>
+        </div>
+
+        <div class="act-box" style="display:flex;gap:6px;align-items:center;width:100%;margin-top:2px">
+          <button class="go" id="play" style="flex:1;min-height:38px;font-size:15px;padding:6px 14px">DEPLOY</button>
+          <button id="daily" style="min-height:38px;font-size:9.5px;padding:4px 10px;font-weight:800;border-color:#e0b83a;color:#e0b83a;background:rgba(224,184,58,.12);white-space:nowrap">DAILY +200</button>
+        </div>
+
+        <div class="rewards-box">
+          <div style="display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px">
+            <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')" style="flex:1;padding:4px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">DAILY MISSIONS</button>
+            <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')" style="flex:1;padding:4px 6px;min-height:24px;font-size:9.5px;font-weight:800;letter-spacing:.5px">10-DAY REWARDS</button>
+          </div>
+          <div id="rview-m">
+            <div id="daily-list"></div>
+          </div>
+          <div id="rview-l" style="display:none">
+            <div id="login-track"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="l-right">
+        <div class="map-box">
+          <!-- Real map preview canvas -->
+          <canvas id="zone-preview" width="460" height="240"></canvas>
+          
+          <div id="zone-header" style="display:flex;flex-direction:column;gap:3px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 10px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <b id="zone-name" style="font-size:13.5px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
+              <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
+            </div>
+            <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:2px;font-size:9px">
+              <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
+              <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
+              <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
+              <span id="zone-haz-tag" style="font-weight:800;color:#ff5a3a"></span>
+            </div>
+            <div id="zone-enemy-icons" style="display:flex;gap:6px;align-items:center;margin-top:2px;padding-top:2px;border-top:1px solid rgba(255,255,255,.06)"></div>
+          </div>
+
+          <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase;margin-top:2px">DEPLOYMENT SECTOR SELECTION</div>
+          <div id="maps"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 1: SPECIAL EVENTS -->
+    <div class="pp" id="pe">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;width:100%">
+        <div>
+          <b style="font-size:15px;letter-spacing:1px;color:#f0ece1">SPECIAL EVENTS & OPERATIONS</b>
+          <div style="font-size:10.5px;opacity:.7">Dedicated Tactical Modes &bull; Exclusive Cosmetic Weapon Skins</div>
+        </div>
+        <div id="ev-filter" style="display:flex;gap:6px">
+          <button class="ev-tab on" onclick="filterEvents('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+          <button class="ev-tab" onclick="filterEvents('active')" style="padding:4px 8px;min-height:28px;font-size:10px">AVAILABLE</button>
+          <button class="ev-tab" onclick="filterEvents('done')" style="padding:4px 8px;min-height:28px;font-size:10px">COMPLETED</button>
+        </div>
+      </div>
+      <div id="ev-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- TAB 2: GUNS ARMORY -->
+    <div class="pp" id="p1"><div id="arm" class="grid"></div></div>
+
+    <!-- TAB 3: SKINS HUB -->
+    <div class="pp" id="psk">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;width:100%">
+        <div>
+          <b style="font-size:15px;letter-spacing:1px;color:#f0ece1">WEAPON & OPERATIVE SKINS</b>
+          <div style="font-size:10.5px;opacity:.7">Custom Camouflage & Weapon Finishes &bull; 100% Cosmetic Parity</div>
+        </div>
+        <div id="sk-filter" style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="sk-tab on" onclick="filterSkins('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+          <button class="sk-tab" onclick="filterSkins('weap')" style="padding:4px 8px;min-height:28px;font-size:10px">WEAPONS</button>
+          <button class="sk-tab" onclick="filterSkins('op')" style="padding:4px 8px;min-height:28px;font-size:10px">OPERATIVES</button>
+          <button class="sk-tab" onclick="filterSkins('unlocked')" style="padding:4px 8px;min-height:28px;font-size:10px">UNLOCKED</button>
+        </div>
+      </div>
+      <div id="skin-turntable-card" style="margin-bottom:12px;background:radial-gradient(ellipse at center, rgba(30,40,28,.85) 0%, rgba(10,14,10,.98) 100%);border:1.5px solid rgba(143,174,74,.35);border-radius:10px;padding:12px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 18px rgba(0,0,0,.5)">
+        <canvas id="skin-turntable-canvas" width="160" height="110" style="width:160px;height:110px;border-radius:6px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08)"></canvas>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="st-badge" style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;background:#f59e0b;color:#18181b">LEGENDARY</span>
+            <b id="st-title" style="font-size:16px;color:#f0ece1">CYBERPUNK VOLT</b>
+          </div>
+          <div id="st-sub" style="font-size:11px;opacity:.75;color:#00e5ff;font-weight:700;margin:3px 0 6px">HEAVY RAILGUN FINISH &bull; 360&deg; TURNTABLE</div>
+          <div id="st-desc" style="font-size:11.5px;opacity:.85;color:#d0cac0;line-height:1.4">High-voltage overclocked frame with electric yellow discharge.</div>
+        </div>
+      </div>
+      <div id="skin-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- TAB 4: HERO / CLASSES -->
+    <div class="pp" id="pc"><div id="cls" class="grid"></div></div>
+
+    <!-- TAB 5: SKILLS -->
+    <div class="pp" id="ps"><p id="spt" style="font-weight:700;color:#e0b83a"></p><div id="skl" class="grid"></div></div>
+
+    <!-- TAB 6: UPGRADES / STATS -->
+    <div class="pp" id="p2"><div id="upg" class="grid"></div></div>
+
+    <!-- TAB 7: RELICS -->
+    <div class="pp" id="pa"><p id="rcnt" style="font-weight:700;color:#8fae4a"></p><div id="art" class="grid"></div></div>
+
+    <!-- TAB 8: OPTIONS & SETTINGS -->
+    <div class="pp" id="p3">
+      <div class="card" style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:10px;padding:16px">
+        <b style="font-size:15px;letter-spacing:1px;color:#ffd36b">TACTICAL SETTINGS</b>
+        <button id="sndbtn" style="width:100%">SOUND: ON</button>
+        <button id="apbtn" style="width:100%">AUTO-PICK POWERS: OFF</button>
+        <button id="qualbtn" onclick="toggleQuality()" style="width:100%">GRAPHICS QUALITY: HIGH</button>
+        <button id="shakebtn" onclick="toggleShake()" style="width:100%">SCREEN SHAKE: ON</button>
+        <button id="gorebtn" onclick="toggleGore()" style="width:100%">BLOOD & GORE: FULL</button>
+        <div style="background:rgba(0,0,0,.35);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.06)">
+          <span style="font-weight:700;display:block;margin-bottom:6px;font-size:11px">Survivor Suit Tint</span>
+          <div style="display:flex;gap:8px">
+            <button style="flex:1;min-height:30px;font-size:11px" onclick="PC='#d8c9a0';SV.col=PC;sv()">Sand</button>
+            <button style="flex:1;min-height:30px;font-size:11px" onclick="PC='#7fb2d9';SV.col=PC;sv()">Blue</button>
+            <button style="flex:1;min-height:30px;font-size:11px" onclick="PC='#d98f7f';SV.col=PC;sv()">Red</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav id="nav">
+    <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 9h10l2 2h7v3h-3l-1 2h-3v-2H10l-2 5H5l2-5H2V9z"/></svg>GUNS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
+  </nav>
+</div>
+
+<!-- IN-GAME SHOP OVERLAY -->
+<div class="ov" id="shopov">
+  <h2 id="st">WAVE CLEARED</h2>
+  <p id="cash" style="font-size:14px;color:#ffd36b;font-weight:800;margin-bottom:4px"></p>
+  <div id="shop"></div>
+  <button class="go" id="next">NEXT WAVE</button>
+</div>
+
+<!-- EVENT BRIEFING MODAL -->
+<div class="ov" id="ev-modal">
+  <h2 id="ev-title" style="margin-bottom:4px">OPERATION BRIEFING</h2>
+  <div id="ev-meta" style="font-size:11.5px;opacity:.85;margin-bottom:8px"></div>
+  <p id="ev-desc" style="font-size:12px;line-height:1.4;margin-bottom:8px;color:#d8d2c0"></p>
+  <div style="text-align:left;background:rgba(0,0,0,.35);padding:8px 12px;border-radius:6px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:700;color:#ffd36b;margin-bottom:4px">OPERATIONAL DIRECTIVES:</div>
+    <ul id="ev-rules" style="font-size:11px;opacity:.9;padding-left:18px;margin:0"></ul>
+  </div>
+  <div id="ev-rew" style="font-size:12px;background:rgba(224,184,58,.1);border:1px solid rgba(224,184,58,.3);padding:6px;border-radius:6px;margin-bottom:12px"></div>
+  <div class="ov-btns">
+    <button class="go" id="ev-deploy-btn">DEPLOY OPERATION</button>
+    <button onclick="$('ev-modal').classList.remove('on')">RETURN TO LOBBY</button>
+  </div>
+</div>
+
+<!-- RUN OVER / DEATH OVERLAY -->
+<div class="ov" id="over">
+  <h1>YOU DIED</h1>
+  <p id="sum"></p>
+  <div class="ov-btns">
+    <button class="go" id="again">DEPLOY AGAIN</button>
+    <button id="lob">BACK TO LOBBY</button>
+  </div>
+</div>
+
+<!-- LEVEL UP / PERK SELECTION OVERLAY -->
+<div class="ov" id="perk">
+  <h2>TACTICAL UPGRADE</h2>
+  <p>Select a combat modification</p>
+  <div style="display:flex;gap:8px;justify-content:center;margin:3px 0">
+    <button id="quickpick" class="go" style="padding:6px 18px;min-height:36px;font-size:13px;letter-spacing:1px;display:inline-flex;align-items:center;justify-content:center;gap:6px">
+      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>
+      QUICK PICK
+    </button>
+  </div>
+  <div id="pcards" class="grid"></div>
+</div>
+
+<!-- PAUSE OVERLAY -->
+<div class="ov" id="pause">
+  <h2>PAUSED</h2>
+  <p id="pw" style="font-size:13px"></p>
+  <div class="ov-btns">
+    <button class="go" id="resume">RESUME</button>
+    <button id="quit">ABORT RUN</button>
+  </div>
+</div>
+
+<!-- TACTICAL RECORD MODAL -->
+<div class="ov" id="run-details-modal">
+  <h2 style="color:#ffd36b">COMBAT DOSSIER</h2>
+  <div id="run-details-content" style="max-width:400px;width:100%;text-align:left;background:rgba(20,24,18,.96);border:1.5px solid #353b26;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;font-size:12px"></div>
+  <button class="go" onclick="$('run-details-modal').classList.remove('on')" style="min-width:140px;margin-top:4px">CLOSE</button>
+</div>
