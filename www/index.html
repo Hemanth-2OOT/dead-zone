@@ -756,6 +756,35 @@ button.eq {
 /* === MODULE: engine_core.js === */
 /* === CORE ENGINE, CANVAS POLYFILLS & AUDIO ENGINE === */
 
+// On-screen error overlay for Step 0 bug reproduction
+(function() {
+  function showError(msg, file, line, col, err) {
+    console.error('[DeadZone Runtime Error]', msg, file, line, col, err);
+    let box = document.getElementById('debug-err-overlay');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'debug-err-overlay';
+      box.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45vh;overflow-y:auto;background:rgba(200,20,20,0.95);color:#fff;font-family:monospace;font-size:12px;padding:10px;z-index:999999;pointer-events:auto;border-bottom:2px solid #fff;white-space:pre-wrap;';
+      if (document.body) {
+        document.body.appendChild(box);
+      } else {
+        window.addEventListener('DOMContentLoaded', () => document.body && document.body.appendChild(box));
+      }
+    }
+    const stack = (err && err.stack) ? err.stack : `${file}:${line}:${col}`;
+    const p = document.createElement('div');
+    p.style.cssText = 'margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:4px;';
+    p.textContent = `[ERROR] ${msg}\nAt: ${stack}`;
+    box.appendChild(p);
+  }
+  window.onerror = function(msg, file, line, col, err) {
+    showError(msg, file, line, col, err);
+  };
+  window.onunhandledrejection = function(e) {
+    showError(e.reason ? (e.reason.message || e.reason) : 'Unhandled Rejection', '', '', '', e.reason);
+  };
+})();
+
 if (typeof CanvasRenderingContext2D !== 'undefined') {
   if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
@@ -7126,25 +7155,44 @@ function drawZonePreview(mIndex) {
   const cv = document.getElementById('zone-preview');
   if (!cv) return;
   const ctx = cv.getContext('2d');
+  
+  // Dynamic sizing via getBoundingClientRect & devicePixelRatio
+  const rect = cv.getBoundingClientRect();
+  const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1, 2);
+  const targetW = Math.max(200, Math.round((rect.width || 460) * dpr));
+  const targetH = Math.max(100, Math.round((rect.height || 200) * dpr));
+  if (cv.width !== targetW || cv.height !== targetH) {
+    cv.width = targetW;
+    cv.height = targetH;
+  }
   const w = cv.width, h = cv.height;
 
+  // Crossfade transition animation
+  if (curPreviewZone !== mIndex) {
+    cv.style.transition = 'opacity 0.18s ease-out';
+    cv.style.opacity = '0.4';
+    setTimeout(() => { if (cv) cv.style.opacity = '1'; }, 40);
+  }
   curPreviewZone = mIndex;
+
   const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[mIndex]) ? MAP_DATA[mIndex] : (MP[mIndex] || MP[0]);
-  const scale = w / 2000;
+  const worldSize = (typeof WS !== 'undefined') ? WS : 2400;
+  const scale = w / worldSize;
 
   // 1. Sky / atmospheric gradient base
   const bg = ctx.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, mapDef.ground || '#1e241c');
+  bg.addColorStop(0, mapDef.ground || mapDef.t1 || '#1e241c');
   bg.addColorStop(1, '#0c0f0a');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
   // 2. Subtle grid lines
-  ctx.strokeStyle = mapDef.grid || 'rgba(255,255,255,0.05)';
+  ctx.strokeStyle = mapDef.grid || 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x < w; x += 25) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-  for (let y = 0; y < h; y += 25) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+  const gridStep = Math.max(16, Math.round(100 * scale));
+  for (let x = 0; x < w; x += gridStep) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+  for (let y = 0; y < h; y += gridStep) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
   ctx.stroke();
 
   // 3. Scaled Roads & Crosswalks
@@ -7172,49 +7220,84 @@ function drawZonePreview(mIndex) {
     }
   }
 
+  // Crosswalks
+  if (mapDef.crosswalks && mapDef.crosswalks.length) {
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (const cw of mapDef.crosswalks) {
+      ctx.fillRect(cw.x * scale, cw.y * scale, cw.w * scale, cw.h * scale);
+    }
+  }
+
   // 4. Scaled Hazard Zones
   if (mapDef.hazards && mapDef.hazards.length) {
     for (const hz of mapDef.hazards) {
-      ctx.fillStyle = mapDef.hazard || 'rgba(239,68,68,0.4)';
+      ctx.fillStyle = mapDef.hazard || mapDef.hz || 'rgba(239,68,68,0.38)';
       ctx.beginPath();
-      ctx.arc(hz.x * scale, hz.y * scale, hz.r * scale, 0, 6.28);
+      ctx.arc(hz.x * scale, hz.y * scale, Math.max(4, hz.r * scale), 0, 6.28);
       ctx.fill();
     }
   }
 
-  // 5. Scaled 3D Obstacles & Buildings
-  if (mapDef.obstacles && mapDef.obstacles.length) {
-    for (const ob of mapDef.obstacles) {
-      const ox = ob.x * scale, oy = ob.y * scale, ow = ob.w * scale, oh = ob.h * scale;
+  // 5. Scaled 3D Obstacles & Buildings (Supports walls and obstacles)
+  const wallsList = mapDef.walls || mapDef.obstacles || [];
+  if (wallsList.length) {
+    for (const ob of wallsList) {
+      const ox = ob.x * scale, oy = ob.y * scale, ow = Math.max(2, ob.w * scale), oh = Math.max(2, ob.h * scale);
       // Drop shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(ox + 2, oy + 2, ow, oh);
       // Top face
-      ctx.fillStyle = mapDef.wall || '#2d3826';
+      ctx.fillStyle = ob.col || mapDef.wall || mapDef.wl || '#2d3826';
       ctx.fillRect(ox, oy, ow, oh);
-      ctx.strokeStyle = mapDef.accent || '#445738';
+      ctx.strokeStyle = mapDef.accent || mapDef.ws || '#445738';
       ctx.lineWidth = 1;
       ctx.strokeRect(ox, oy, ow, oh);
     }
   }
 
-  // 6. Street Lamps with soft light cones
+  // 6. Map Props (lamps, vehicles, etc.)
   if (mapDef.props && mapDef.props.length) {
     for (const pr of mapDef.props) {
+      const px = pr.x * scale, py = pr.y * scale;
       if (pr.type === 'lamp') {
-        const px = pr.x * scale, py = pr.y * scale;
-        const lg = ctx.createRadialGradient(px, py, 2, px, py, 28);
-        lg.addColorStop(0, 'rgba(255,245,200,0.35)');
+        const lg = ctx.createRadialGradient(px, py, 1, px, py, 20);
+        lg.addColorStop(0, 'rgba(255,245,200,0.4)');
         lg.addColorStop(1, 'rgba(255,245,200,0)');
         ctx.fillStyle = lg;
-        ctx.beginPath(); ctx.arc(px, py, 28, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py, 20, 0, 6.28); ctx.fill();
         ctx.fillStyle = '#fef08a';
         ctx.beginPath(); ctx.arc(px, py, 2, 0, 6.28); ctx.fill();
+      } else if (pr.type === 'car') {
+        ctx.fillStyle = pr.col || '#2563eb';
+        ctx.fillRect(px - 4, py - 2.5, 8, 5);
       }
     }
   }
 
-  // 7. Tactical CRT Scanline Vignette
+  // 7. Player Start Location Marker (Green tactical marker)
+  const startX = (worldSize / 2) * scale, startY = (worldSize / 2) * scale;
+  ctx.save();
+  ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(startX, startY, 6, 0, 6.28); ctx.stroke();
+  ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(startX, startY, 2.5, 0, 6.28); ctx.fill();
+  ctx.restore();
+
+  // 8. Perimeter Spawn Point Indicators (Red tactical radar blips)
+  const spawnPoints = [
+    [0.15 * worldSize, 0.15 * worldSize],
+    [0.85 * worldSize, 0.15 * worldSize],
+    [0.15 * worldSize, 0.85 * worldSize],
+    [0.85 * worldSize, 0.85 * worldSize],
+    [0.5 * worldSize, 0.1 * worldSize],
+    [0.5 * worldSize, 0.9 * worldSize]
+  ];
+  ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+  for (const [sx, sy] of spawnPoints) {
+    const spX = sx * scale, spY = sy * scale;
+    ctx.beginPath(); ctx.arc(spX, spY, 3, 0, 6.28); ctx.fill();
+  }
+
+  // 9. Tactical CRT Scanline Vignette
   ctx.strokeStyle = 'rgba(0,0,0,0.15)';
   ctx.lineWidth = 1;
   for (let y = 1; y < h; y += 3) {
@@ -8059,6 +8142,13 @@ if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App
     if (!state.isActive) { pause(); autoSave(); }
   });
 }
+
+window.addEventListener('resize', () => {
+  if (typeof rs === 'function') rs();
+  if (!run && typeof drawZonePreview === 'function') {
+    drawZonePreview(typeof curPreviewZone !== 'undefined' ? curPreviewZone : 0);
+  }
+});
 
 // Kick off main animation loop
 requestAnimationFrame(loop);

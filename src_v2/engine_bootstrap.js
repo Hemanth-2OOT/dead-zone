@@ -124,5 +124,12 @@ if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App
   });
 }
 
+window.addEventListener('resize', () => {
+  if (typeof rs === 'function') rs();
+  if (!run && typeof drawZonePreview === 'function') {
+    drawZonePreview(typeof curPreviewZone !== 'undefined' ? curPreviewZone : 0);
+  }
+});
+
 // Kick off main animation loop
 requestAnimationFrame(loop);

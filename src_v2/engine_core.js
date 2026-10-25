@@ -1,5 +1,34 @@
 /* === CORE ENGINE, CANVAS POLYFILLS & AUDIO ENGINE === */
 
+// On-screen error overlay for Step 0 bug reproduction
+(function() {
+  function showError(msg, file, line, col, err) {
+    console.error('[DeadZone Runtime Error]', msg, file, line, col, err);
+    let box = document.getElementById('debug-err-overlay');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'debug-err-overlay';
+      box.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45vh;overflow-y:auto;background:rgba(200,20,20,0.95);color:#fff;font-family:monospace;font-size:12px;padding:10px;z-index:999999;pointer-events:auto;border-bottom:2px solid #fff;white-space:pre-wrap;';
+      if (document.body) {
+        document.body.appendChild(box);
+      } else {
+        window.addEventListener('DOMContentLoaded', () => document.body && document.body.appendChild(box));
+      }
+    }
+    const stack = (err && err.stack) ? err.stack : `${file}:${line}:${col}`;
+    const p = document.createElement('div');
+    p.style.cssText = 'margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:4px;';
+    p.textContent = `[ERROR] ${msg}\nAt: ${stack}`;
+    box.appendChild(p);
+  }
+  window.onerror = function(msg, file, line, col, err) {
+    showError(msg, file, line, col, err);
+  };
+  window.onunhandledrejection = function(e) {
+    showError(e.reason ? (e.reason.message || e.reason) : 'Unhandled Rejection', '', '', '', e.reason);
+  };
+})();
+
 if (typeof CanvasRenderingContext2D !== 'undefined') {
   if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
