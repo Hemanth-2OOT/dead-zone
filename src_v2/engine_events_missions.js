@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.0.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -53,7 +53,7 @@ function renderEventsUI() {
       </div>
       <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px">
         <span style="color:#e0b83a;font-size:11px">${diffStars}</span>
-        <button onclick="openEventBriefing('${k}')" style="min-height:34px;padding:0 18px;font-weight:700;border-color:${ev.col}">${isDone?'REPLAY OP':'INSPECT OP'}</button>
+        <button data-act="openEventBriefing" data-arg="${k}" style="min-height:34px;padding:0 18px;font-weight:700;border-color:${ev.col}">${isDone?'REPLAY OP':'INSPECT OP'}</button>
       </div>
     </div>`;
   }).join('');
@@ -81,10 +81,7 @@ function openEventBriefing(k) {
   
   const deployBtn = $('ev-deploy-btn');
   deployBtn.textContent = isDone ? 'REPLAY OPERATION' : 'DEPLOY OPERATION';
-  deployBtn.onclick = () => {
-    $('ev-modal').classList.remove('on');
-    beginEvent(k);
-  };
+  deployBtn.dataset.arg = k;   // the action itself is declared in the markup
   $('ev-modal').classList.add('on');
 }
 
@@ -247,7 +244,7 @@ function renderMissionsUI() {
         </div>
         <div style="font-size:9.5px;opacity:.75">Progress: ${m.cur}/${m.target} &bull; Reward: +${m.reward} CR</div>
       </div>
-      <button onclick="claimMission('${k}')" ${!canClaim?'disabled':''} style="padding:4px 10px;min-height:28px;font-size:10px;font-weight:800;${isDone?'border-color:#8fae4a;color:#8fae4a;background:transparent':''}">${isDone?'CLAIMED':(canClaim?'CLAIM':'IN PROGRESS')}</button>
+      <button data-act="claimMission" data-arg="${k}" ${!canClaim?'disabled':''} style="padding:4px 10px;min-height:28px;font-size:10px;font-weight:800;${isDone?'border-color:#8fae4a;color:#8fae4a;background:transparent':''}">${isDone?'CLAIMED':(canClaim?'CLAIM':'IN PROGRESS')}</button>
     </div>`;
   }).join('');
 }
@@ -276,7 +273,7 @@ function renderLoginTrackUI() {
     return `<div class="login-card" style="flex:0 0 130px;min-width:130px;scroll-snap-align:start;background:${isClaimed?'rgba(143,174,74,.18)':isAvailable?'rgba(224,184,58,.18)':'rgba(255,255,255,.05)'};border:1.5px solid ${isClaimed?'#8fae4a':isAvailable?'#e0b83a':'rgba(255,255,255,.12)'};border-radius:8px;padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box">
       <div style="font-size:10px;font-weight:900;letter-spacing:.5px;color:${isAvailable?'#ffd36b':'#aaa'}">DAY ${r.day}</div>
       <div style="font-size:11px;font-weight:800;margin:4px 0;color:${isClaimed?'#8fae4a':isAvailable?'#f0ece1':'#888'}">${label}</div>
-      <button onclick="claimLoginDay(${r.day})" ${!isAvailable?'disabled':''} style="font-size:9.5px;padding:4px 6px;min-height:26px;width:100%;font-weight:700">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'LOCKED')}</button>
+      <button data-act="claimLoginDay" data-arg="${r.day}" ${!isAvailable?'disabled':''} style="font-size:9.5px;padding:4px 6px;min-height:26px;width:100%;font-weight:700">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'LOCKED')}</button>
     </div>`;
   }).join('');
 }
@@ -317,7 +314,7 @@ function renderRankRewards() {
         <div style="font-size:10.5px;font-weight:800;color:#f0ece1;letter-spacing:.4px">${m.label}</div>
         <div style="font-size:9.5px;color:#ffd36b;font-weight:700">+${m.cr} CR${claimed?' \u2022 CLAIMED':ready?'':` \u2022 ${lvl}/${m.r}`}</div>
       </div>
-      <button onclick="claimRank(${m.r})" ${!ready?'disabled':''} style="font-size:9.5px;padding:4px 8px;min-height:26px;font-weight:800;flex-shrink:0">${claimed?'DONE':ready?'CLAIM':'LOCKED'}</button>
+      <button data-act="claimRank" data-arg="${m.r}" ${!ready?'disabled':''} style="font-size:9.5px;padding:4px 8px;min-height:26px;font-weight:800;flex-shrink:0">${claimed?'DONE':ready?'CLAIM':'LOCKED'}</button>
     </div>`;
   }).join('');
 }
@@ -640,7 +637,7 @@ function renderSkinsUI(){
     }
 
     const flourish = (tier === 'EPIC' || tier === 'LEGENDARY');
-    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${skCol};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${skCol}66">
+    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" data-act="inspectSkin" data-arg="${k}" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${skCol};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${skCol}66">
       ${flourish ? '<div class="sk-pixel"></div><div class="sk-aura"></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
@@ -675,10 +672,10 @@ function renderSkinsUI(){
       </div>
       <div style="margin-top:auto;display:flex;gap:6px">
         ${isOwned ? `
-          <button onclick="event.stopPropagation();equipSkinDirect('${k}')" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
+          <button data-act="equipSkinDirect" data-arg="${k}" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
             ${isEquipped ? 'EQUIPPED' : 'EQUIP SKIN'}
           </button>
-          ${isEquipped ? `<button onclick="event.stopPropagation();${isOp ? "unequipOpSkinDirect()" : "unequipSkinDirect("+wi+")"}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
+          ${isEquipped ? `<button data-act="${isOp ? 'unequipOpSkin' : 'unequipSkin'}" data-arg="${isOp ? '' : wi}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
         ` : `
           <button disabled style="flex:1;min-height:34px;font-size:11px;opacity:.5">LOCKED</button>
         `}

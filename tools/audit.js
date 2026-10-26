@@ -261,6 +261,48 @@ try {
   warn('dead code scan', e.message);
 }
 
+/* ------------------------------------------------------------- ui binding -- */
+section('UI BINDING');
+{
+  const src = fs.readdirSync(path.join(ROOT, 'src_v2')).filter(f => /\.(js|html)$/.test(f) && f !== 'build.js');
+  // Inline event attributes are how a stale tab index and a deleted function both
+  // reached the player: the markup carried JS, nothing checked it, and the only
+  // signal was a tap that did nothing (or threw). Buttons now declare data-act and
+  // one delegated listener in engine_bootstrap.js runs it.
+  const inline = /(?<![\w-])on[a-z]+\s*=\s*["'`]/g;
+  const offenders = [];
+  for (const f of src) {
+    const hits = (read('src_v2/' + f).match(inline) || []).length;
+    if (hits) offenders.push(f + ' (' + hits + ')');
+  }
+  if (offenders.length) fail('no inline event handlers in markup or generated html', offenders.join(', '));
+  else ok('no inline event handlers in markup or generated html', src.length + ' files scanned');
+
+  const boot = read('src_v2/engine_bootstrap.js');
+  const tableStart = boot.indexOf('const UI_ACTIONS = {');
+  const tableEnd = boot.indexOf('\n};', tableStart);
+  const table = (tableStart >= 0 && tableEnd > tableStart) ? boot.slice(tableStart, tableEnd) : '';
+  const defined = new Set((table.match(/(?:^\s{2}|,\s*)([A-Za-z_$][\w$]*)\s*(?=[,:])/gm) || []).map(s => s.trim().replace(/^,\s*/, '')));
+  const used = new Set();
+  for (const f of src) {
+    const body = read('src_v2/' + f);
+    for (const m of body.matchAll(/data-act="([A-Za-z_$][\w$]*)"/g)) used.add(m[1]);
+    for (const m of body.matchAll(/data-act="\$\{[^}]*\?\s*'([\w$]+)'\s*:\s*'([\w$]+)'\}/g)) { used.add(m[1]); used.add(m[2]); }
+  }
+  const unknown = Array.from(used).filter(u => !defined.has(u));
+  if (!table) fail('UI action table found', 'const UI_ACTIONS = { ... } missing from engine_bootstrap.js');
+  else if (unknown.length) fail('every data-act names a real UI action', unknown.join(', '));
+  else ok('every data-act names a real UI action', used.size + ' used, ' + defined.size + ' defined');
+
+  // The engine draws through one mutable global 2D context (`X`). Any code that
+  // points it at a scratch canvas must hand it back, which only withCtx() in
+  // engine_core.js guarantees - a bare `X = cx` that returns early leaves the main
+  // loop drawing into a 200x100 offscreen canvas, silently.
+  const rebinders = src.filter(f => f.endsWith('.js') && f !== 'engine_core.js' && /(?<![\w$.])X\s*=(?!=)/.test(read('src_v2/' + f)));
+  if (rebinders.length) fail('only withCtx() rebinds the canvas context', rebinders.join(', '));
+  else ok('only withCtx() rebinds the canvas context');
+}
+
 /* ----------------------------------------------------------------- report -- */
 console.log('\n' + '='.repeat(64));
 console.log('AUDIT: ' + (fails.length ? fails.length + ' FAILURES' : 'ALL CHECKS PASSED') + ' (' + checks + ' checks, ' + warns.length + ' warnings)');

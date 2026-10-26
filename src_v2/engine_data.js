@@ -680,11 +680,11 @@ function gunIcon(i) {
   if (GI[key]) return GI[key];
   const cv = document.createElement('canvas'); cv.width = 160; cv.height = 48;
   const cx = cv.getContext('2d');
-  const oldX = X; X = cx;
-  X.save(); X.translate(22, 24); X.scale(1.6, 1.6);
-  gun(i, 0);
-  X.restore();
-  X = oldX;
+  withCtx(cx, () => {
+    X.save(); X.translate(22, 24); X.scale(1.6, 1.6);
+    gun(i, 0);
+    X.restore();
+  });
   return GI[key] = cv.toDataURL();
 }
 
@@ -885,28 +885,28 @@ function charSkinIcon(skinKey) {
   const sk = SKINS[skinKey]; if (!sk) return '';
   const cv = document.createElement('canvas'); cv.width = 130; cv.height = 76;
   const cx = cv.getContext('2d');
-  const oldX = X; X = cx;
-  X.save(); X.translate(46, 38); X.scale(1.25, 1.25);
-  const customCls = { pk: sk.pk, ac: sk.ac, hm: sk.hm, vz: sk.vz };
-  // Shadow
-  X.fillStyle = '#00000066'; X.beginPath(); X.ellipse(4, 5, 16, 18, 0, 0, 6.28); X.fill();
-  // Boots
-  X.fillStyle = '#1c1f1a'; X.beginPath(); X.roundRect(-7, -13, 11, 6, 2); X.roundRect(-7, 7, 11, 6, 2); X.fill();
-  // Pack & Torso
-  X.fillStyle = sk.pk; X.beginPath(); X.roundRect(-16, -9, 9, 18, 3); X.fill();
-  X.strokeStyle = '#141812'; X.lineWidth = 1.5; X.stroke();
-  X.fillStyle = '#2d3326'; X.beginPath(); X.ellipse(0, 0, 11, 16, 0, 0, 6.28); X.fill();
-  X.strokeStyle = sk.ac; X.lineWidth = 2.5; X.stroke();
-  // Gun
-  gun(sk.wi || SV.start || 0, 0);
-  // Arms & Helmet
-  X.lineCap = 'round'; X.strokeStyle = sk.ac; X.lineWidth = 6;
-  X.beginPath(); X.moveTo(1, -11); X.lineTo(16, -4); X.moveTo(1, 11); X.lineTo(26, 3); X.stroke();
-  X.fillStyle = sk.hm; X.beginPath(); X.arc(0, 0, 9, 0, 6.28); X.fill();
-  X.strokeStyle = '#181e14'; X.lineWidth = 1.5; X.stroke();
-  X.fillStyle = sk.vz; X.beginPath(); X.roundRect(4, -5.5, 4, 11, 2); X.fill();
-  X.restore();
-  X = oldX;
+  withCtx(cx, () => {
+    X.save(); X.translate(46, 38); X.scale(1.25, 1.25);
+    const customCls = { pk: sk.pk, ac: sk.ac, hm: sk.hm, vz: sk.vz };
+    // Shadow
+    X.fillStyle = '#00000066'; X.beginPath(); X.ellipse(4, 5, 16, 18, 0, 0, 6.28); X.fill();
+    // Boots
+    X.fillStyle = '#1c1f1a'; X.beginPath(); X.roundRect(-7, -13, 11, 6, 2); X.roundRect(-7, 7, 11, 6, 2); X.fill();
+    // Pack & Torso
+    X.fillStyle = sk.pk; X.beginPath(); X.roundRect(-16, -9, 9, 18, 3); X.fill();
+    X.strokeStyle = '#141812'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = '#2d3326'; X.beginPath(); X.ellipse(0, 0, 11, 16, 0, 0, 6.28); X.fill();
+    X.strokeStyle = sk.ac; X.lineWidth = 2.5; X.stroke();
+    // Gun
+    gun(sk.wi || SV.start || 0, 0);
+    // Arms & Helmet
+    X.lineCap = 'round'; X.strokeStyle = sk.ac; X.lineWidth = 6;
+    X.beginPath(); X.moveTo(1, -11); X.lineTo(16, -4); X.moveTo(1, 11); X.lineTo(26, 3); X.stroke();
+    X.fillStyle = sk.hm; X.beginPath(); X.arc(0, 0, 9, 0, 6.28); X.fill();
+    X.strokeStyle = '#181e14'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = sk.vz; X.beginPath(); X.roundRect(4, -5.5, 4, 11, 2); X.fill();
+    X.restore();
+  });
   return cv.toDataURL();
 }
 

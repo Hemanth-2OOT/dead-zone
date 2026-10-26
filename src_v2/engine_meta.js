@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.0.1 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers

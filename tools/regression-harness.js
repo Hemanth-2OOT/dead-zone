@@ -613,6 +613,105 @@
     if (typeof releaseAllInputs === 'function') releaseAllInputs();
     ok(P.ammo < ammoBefore, 'holding the aim stick fires without a FIRE button', ammoBefore + ' -> ' + P.ammo + ' rounds');
 
+    section('UI BINDING');
+
+    // One delegated listener runs every data-act button, so the chrome has to be
+    // exercised by clicking it, not by calling tab(): a stale index, a removed
+    // action or a broken delegation only shows up in the real click path.
+    var pids = ['p0', 'pe', 'psh', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
+    var navBtns = Array.prototype.slice.call(document.querySelectorAll('#nav [data-act="tab"]'));
+    ok(navBtns.length === pids.length, 'the nav has one tab button per panel', navBtns.length + ' buttons / ' + pids.length + ' panels');
+    var navBad = [];
+    for (var ni = 0; ni < navBtns.length; ni++) {
+      navBtns[ni].click();
+      var shown = pids.filter(function (p) { var el = document.getElementById(p); return el && el.classList.contains('on'); });
+      if (shown.length !== 1 || shown[0] !== pids[ni]) navBad.push('nav[' + ni + '] showed ' + (shown.join(',') || 'nothing'));
+      if (!navBtns[ni].classList.contains('on')) navBad.push('nav[' + ni + '] not highlighted');
+    }
+    ok(navBad.length === 0, 'clicking each nav button opens exactly the matching panel', navBad.slice(0, 4).join(' | ') || navBtns.length + ' tabs');
+
+    var inlineEls = document.querySelectorAll('[onclick],[onchange],[oninput],[onsubmit],[onpointerdown]');
+    ok(inlineEls.length === 0, 'the built page carries no inline event attributes', inlineEls.length + ' found');
+
+    var acts = Array.prototype.slice.call(document.querySelectorAll('[data-act]'));
+    var unresolved = acts.filter(function (el) { return typeof UI_ACTIONS[el.dataset.act] !== 'function'; });
+    ok(unresolved.length === 0, 'every data-act element resolves to a handler',
+      unresolved.length + ' unresolved of ' + acts.length + ' elements');
+
+    // A settings toggle, driven through its own button.
+    var sndBtn = document.getElementById('sndbtn');
+    var muteBefore = SV.mute ? 1 : 0;
+    var sndLabel = sndBtn.textContent;
+    sndBtn.click();
+    ok((SV.mute ? 1 : 0) !== muteBefore, 'clicking SOUND toggles the persisted mute flag', muteBefore + ' -> ' + (SV.mute ? 1 : 0));
+    sndBtn.click();
+    ok(sndBtn.textContent === sndLabel, 'clicking it again restores the label', sndBtn.textContent);
+
+    // A modal opened and closed by two different data-act buttons.
+    tab(0);
+    var mapModal = document.getElementById('map-modal');
+    var hubOpen = document.querySelector('[data-act="openMapModal"]');
+    if (hubOpen && mapModal) {
+      hubOpen.click();
+      ok(mapModal.classList.contains('on'), 'the map modal opens through its data-act button');
+      var closer = document.querySelector('#map-modal [data-act="closeMapModal"]');
+      if (closer) closer.click();
+      ok(!mapModal.classList.contains('on'), 'and closes through its own');
+    }
+
+    // A shop tier chip re-renders the list through the same delegated path.
+    tab(2);
+    var chip = document.querySelector('[data-act="filterShop"][data-arg="EPIC"]');
+    if (chip) {
+      chip.click();
+      var epic = Array.prototype.slice.call(document.getElementById('shop-list').children);
+      var epicBad = epic.filter(function (c) { return c.textContent.indexOf('EPIC') < 0; });
+      ok(epic.length > 0 && epicBad.length === 0, 'a tier chip filters the rendered shop list', epic.length + ' EPIC cards, ' + epicBad.length + ' wrong');
+      document.querySelector('[data-act="filterShop"][data-arg="all"]').click();
+    }
+
+    // The daily bonus, claimed through its button, then rolled back.
+    var daily = document.getElementById('daily');
+    if (daily && !daily.disabled) {
+      var cr0 = SV.cr, day0 = SV.day, rev0 = SV.rev;
+      daily.click();
+      ok(SV.cr === cr0 + 200 && SV.day === new Date().toDateString(), 'the daily button claims once', cr0 + ' -> ' + SV.cr);
+      ok(daily.disabled, 'and disables itself');
+      SV.cr = cr0; SV.day = day0; SV.rev = rev0;
+      refreshDailyBtn();
+      lobby();
+    }
+
+    section('CANVAS CONTEXT');
+    // The engine draws through one mutable global context. Every scratch render
+    // (icons, the hero band, the skin turntable) points it at an offscreen canvas,
+    // and must hand it back - otherwise the main loop quietly draws a whole frame
+    // into a 220x128 thumbnail.
+    var mainCx = document.getElementById('c').getContext('2d');
+    var cxBad = [];
+    function scratch(name, fn) {
+      try { fn(); } catch (e) { cxBad.push(name + ' threw: ' + e.message); return; }
+      if (X !== mainCx) cxBad.push(name + ' left X on a scratch canvas');
+    }
+    scratch('drawHeroBand', function () { drawHeroBand(); });
+    scratch('tab(3)', function () { tab(3); });
+    scratch('gunIcon', function () { gunIcon(0); });
+    var opSkin = Object.keys(SKINS).filter(function (k) { return SKINS[k].type === 'op'; })[0];
+    scratch('charSkinIcon', function () { charSkinIcon(opSkin); });
+    scratch('clsIcon', function () { clsIcon(0); });
+    scratch('tab(0)', function () { tab(0); });
+    ok(cxBad.length === 0, 'every scratch render hands the engine context back', cxBad.join(' | ') || 'X === main context');
+    ok(X === mainCx && X0 === mainCx, 'the engine context is still the main canvas');
+
+    // The guarantee that matters: a scratch render that throws mid-draw must still
+    // restore the context, which is what withCtx() exists for.
+    var realGun = gun, threw = false;
+    gun = function () { throw new Error('scratch draw failed'); };
+    try { clsIcon(3, 4); } catch (e) { threw = true; }
+    gun = realGun;
+    ok(threw, 'a throwing scratch render propagates its error');
+    ok(X === mainCx, 'and still hands the engine context back', 'X ' + (X === mainCx ? 'restored' : 'left dangling'));
+
     section('PERF / DRAW PATH');
     var gcount = 0, gp = CanvasRenderingContext2D.prototype;
     ['createRadialGradient', 'createLinearGradient'].forEach(function (k) {

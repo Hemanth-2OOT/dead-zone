@@ -58,13 +58,13 @@
   <div class="modal-sheet gp-sheet">
     <div class="modal-head">
       <h2 style="color:#ffd36b;margin:0">SELECT WEAPON</h2>
-      <button class="modal-x" onclick="closeGunPicker()" aria-label="Close">&times;</button>
+      <button class="modal-x" data-act="closeGunPicker" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body gp-body">
       <p class="gp-hint">TAP A WEAPON TO EQUIP &bull; LOADOUT CARRIES FOR THE WHOLE RUN</p>
       <div id="gunpick-grid" class="gp-grid"></div>
     </div>
-    <div class="gp-foot"><button class="go" onclick="closeGunPicker()">BACK TO FIGHT</button></div>
+    <div class="gp-foot"><button class="go" data-act="closeGunPicker">BACK TO FIGHT</button></div>
   </div>
 </div>
 
@@ -87,29 +87,29 @@
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.0</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.1</span>
         </div>
 
-        <button type="button" id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record">
+        <button type="button" id="best-badge" data-act="openTacticalRecords" title="Tap to inspect tactical survival record">
           <svg viewBox="0 0 24 24" fill="none" stroke="#dcb44a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
           <span id="best">SURVIVAL RECORD: WAVE 0</span>
         </button>
 
         <div class="act-box">
-          <button class="go" id="play">DEPLOY</button>
+          <button data-act="begin" class="go" id="play">DEPLOY</button>
         </div>
 
         <!-- Secondary actions live beside the primary CTA as compact chips. -->
         <div class="lb-sub">
-          <button class="hub-btn" onclick="openMapModal()">
+          <button class="hub-btn" data-act="openMapModal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z"/><path d="M9 4v16M15 6v16"/></svg>
             MAPS
           </button>
-          <button class="hub-btn" onclick="openMissionsModal()">
+          <button class="hub-btn" data-act="openMissionsModal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
             MISSIONS
           </button>
-          <button id="daily">DAILY +200</button>
+          <button data-act="claimDaily" id="daily">DAILY +200</button>
         </div>
 
         <div id="next-goal" class="next-goal"></div>
@@ -138,7 +138,7 @@
           <div class="mb-canvas"><canvas id="zone-preview" width="460" height="240"></canvas></div>
           <div class="mb-foot">
             <span class="mb-k">Live Tactical Overview</span>
-            <button class="mb-change" onclick="openMapModal()">CHANGE MAP</button>
+            <button class="mb-change" data-act="openMapModal">CHANGE MAP</button>
           </div>
         </div>
       </div>
@@ -152,9 +152,9 @@
           <div style="font-size:10.5px;opacity:.7">Dedicated Tactical Modes &bull; Exclusive Cosmetic Weapon Skins</div>
         </div>
         <div id="ev-filter" style="display:flex;gap:6px">
-          <button class="ev-tab on" onclick="filterEvents('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
-          <button class="ev-tab" onclick="filterEvents('active')" style="padding:4px 8px;min-height:28px;font-size:10px">AVAILABLE</button>
-          <button class="ev-tab" onclick="filterEvents('done')" style="padding:4px 8px;min-height:28px;font-size:10px">COMPLETED</button>
+          <button class="ev-tab on" data-act="filterEvents" data-arg="all" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+          <button class="ev-tab" data-act="filterEvents" data-arg="active" style="padding:4px 8px;min-height:28px;font-size:10px">AVAILABLE</button>
+          <button class="ev-tab" data-act="filterEvents" data-arg="done" style="padding:4px 8px;min-height:28px;font-size:10px">COMPLETED</button>
         </div>
       </div>
       <div id="ev-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
@@ -175,12 +175,12 @@
         </div>
       </div>
       <div id="sh-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
-        <button class="sh-tab on" onclick="filterShop('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
-        <button class="sh-tab" onclick="filterShop('COMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">COMMON</button>
-        <button class="sh-tab" onclick="filterShop('UNCOMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">UNCOMMON</button>
-        <button class="sh-tab" onclick="filterShop('RARE')" style="padding:4px 8px;min-height:28px;font-size:10px">RARE</button>
-        <button class="sh-tab" onclick="filterShop('EPIC')" style="padding:4px 8px;min-height:28px;font-size:10px">EPIC</button>
-        <button class="sh-tab" onclick="filterShop('LEGENDARY')" style="padding:4px 8px;min-height:28px;font-size:10px">LEGENDARY</button>
+        <button class="sh-tab on" data-act="filterShop" data-arg="all" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="COMMON" style="padding:4px 8px;min-height:28px;font-size:10px">COMMON</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="UNCOMMON" style="padding:4px 8px;min-height:28px;font-size:10px">UNCOMMON</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="RARE" style="padding:4px 8px;min-height:28px;font-size:10px">RARE</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="EPIC" style="padding:4px 8px;min-height:28px;font-size:10px">EPIC</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="LEGENDARY" style="padding:4px 8px;min-height:28px;font-size:10px">LEGENDARY</button>
       </div>
       <div id="shop-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
     </div>
@@ -194,10 +194,10 @@
           <div style="font-size:10.5px;opacity:.7">Custom Camouflage & Weapon Finishes &bull; 100% Cosmetic Parity</div>
         </div>
         <div id="sk-filter" style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="sk-tab on" onclick="filterSkins('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
-          <button class="sk-tab" onclick="filterSkins('weap')" style="padding:4px 8px;min-height:28px;font-size:10px">WEAPONS</button>
-          <button class="sk-tab" onclick="filterSkins('op')" style="padding:4px 8px;min-height:28px;font-size:10px">OPERATIVES</button>
-          <button class="sk-tab" onclick="filterSkins('unlocked')" style="padding:4px 8px;min-height:28px;font-size:10px">UNLOCKED</button>
+          <button class="sk-tab on" data-act="filterSkins" data-arg="all" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+          <button class="sk-tab" data-act="filterSkins" data-arg="weap" style="padding:4px 8px;min-height:28px;font-size:10px">WEAPONS</button>
+          <button class="sk-tab" data-act="filterSkins" data-arg="op" style="padding:4px 8px;min-height:28px;font-size:10px">OPERATIVES</button>
+          <button class="sk-tab" data-act="filterSkins" data-arg="unlocked" style="padding:4px 8px;min-height:28px;font-size:10px">UNLOCKED</button>
         </div>
       </div>
       <div id="skin-turntable-card" style="margin-bottom:12px;background:radial-gradient(ellipse at center, rgba(30,40,28,.85) 0%, rgba(10,14,10,.98) 100%);border:1.5px solid rgba(143,174,74,.35);border-radius:10px;padding:12px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 18px rgba(0,0,0,.5)">
@@ -229,8 +229,8 @@
           <div id="hero-skills" class="hs-skills"></div>
           <div id="hero-skin" class="hs-skin"></div>
           <div class="hs-btns">
-            <button onclick="tab(3)">CHANGE SKIN</button>
-            <button onclick="tab(5)">SKILL TREE</button>
+            <button data-act="tab" data-arg="3">CHANGE SKIN</button>
+            <button data-act="tab" data-arg="5">SKILL TREE</button>
           </div>
         </div>
       </div>
@@ -252,29 +252,29 @@
         <b class="settitle">TACTICAL SETTINGS</b>
         <div class="setgrp">
           <span class="setlbl">CONTROLS</span>
-          <button id="ctlsizebtn" class="setbtn" onclick="cycleCtlSize()">CONTROL SIZE: 100%</button>
-          <button id="ctlopbtn" class="setbtn" onclick="cycleCtlOpacity()">CONTROL OPACITY: 100%</button>
-          <button id="ctlbtn" class="setbtn" onclick="cycleCtlMode()">JOYSTICK: FIXED</button>
+          <button id="ctlsizebtn" class="setbtn" data-act="cycleCtlSize">CONTROL SIZE: 100%</button>
+          <button id="ctlopbtn" class="setbtn" data-act="cycleCtlOpacity">CONTROL OPACITY: 100%</button>
+          <button id="ctlbtn" class="setbtn" data-act="cycleCtlMode">JOYSTICK: FIXED</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">VISUAL COMFORT</span>
-          <button id="shakebtn" class="setbtn" onclick="toggleShake()">CAMERA SHAKE: NORMAL</button>
-          <button id="fxbtn" class="setbtn" onclick="cycleFx()">VISUAL EFFECTS: FULL</button>
-          <button id="rmbtn" class="setbtn" onclick="cycleReducedMotion()">REDUCED MOTION: AUTO</button>
-          <button id="qualbtn" class="setbtn" onclick="toggleQuality()">GRAPHICS QUALITY: HIGH</button>
-          <button id="gorebtn" class="setbtn" onclick="toggleGore()">BLOOD &amp; GORE: FULL</button>
+          <button id="shakebtn" class="setbtn" data-act="toggleShake">CAMERA SHAKE: NORMAL</button>
+          <button id="fxbtn" class="setbtn" data-act="cycleFx">VISUAL EFFECTS: FULL</button>
+          <button id="rmbtn" class="setbtn" data-act="cycleReducedMotion">REDUCED MOTION: AUTO</button>
+          <button id="qualbtn" class="setbtn" data-act="toggleQuality">GRAPHICS QUALITY: HIGH</button>
+          <button id="gorebtn" class="setbtn" data-act="toggleGore">BLOOD &amp; GORE: FULL</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">GENERAL</span>
-          <button id="sndbtn" class="setbtn">SOUND: ON</button>
-          <button id="apbtn" class="setbtn">AUTO-PICK POWERS: OFF</button>
+          <button data-act="toggleMute" id="sndbtn" class="setbtn">SOUND: ON</button>
+          <button data-act="toggleAutoPick" id="apbtn" class="setbtn">AUTO-PICK POWERS: OFF</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">Survivor Suit Tint</span>
           <div style="display:flex;gap:8px">
-            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#d8c9a0';SV.col=PC;sv()">Sand</button>
-            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#7fb2d9';SV.col=PC;sv()">Blue</button>
-            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#d98f7f';SV.col=PC;sv()">Red</button>
+            <button style="flex:1;min-height:34px;font-size:11px" data-act="setColor" data-arg="#d8c9a0">Sand</button>
+            <button style="flex:1;min-height:34px;font-size:11px" data-act="setColor" data-arg="#7fb2d9">Blue</button>
+            <button style="flex:1;min-height:34px;font-size:11px" data-act="setColor" data-arg="#d98f7f">Red</button>
           </div>
         </div>
       </div>
@@ -282,15 +282,15 @@
   </div>
 
   <nav id="nav">
-    <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>SHOP</button>
-        <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
+    <button data-act="tab" data-arg="0" class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
+    <button data-act="tab" data-arg="1"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
+    <button data-act="tab" data-arg="2"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>SHOP</button>
+        <button data-act="tab" data-arg="3"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
+    <button data-act="tab" data-arg="4"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
+    <button data-act="tab" data-arg="5"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
+    <button data-act="tab" data-arg="6"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
+    <button data-act="tab" data-arg="7"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
+    <button data-act="tab" data-arg="8"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
   </nav>
 </div>
 
@@ -305,8 +305,8 @@
   </div>
   <div id="ev-rew" style="font-size:12px;background:rgba(224,184,58,.1);border:1px solid rgba(224,184,58,.3);padding:6px;border-radius:6px;margin-bottom:12px"></div>
   <div class="ov-btns">
-    <button class="go" id="ev-deploy-btn">DEPLOY OPERATION</button>
-    <button onclick="$('ev-modal').classList.remove('on')">RETURN TO LOBBY</button>
+    <button class="go" id="ev-deploy-btn" data-act="deployEvent">DEPLOY OPERATION</button>
+    <button data-act="closeModal" data-arg="ev-modal">RETURN TO LOBBY</button>
   </div>
 </div>
 
@@ -315,8 +315,8 @@
   <h1>YOU DIED</h1>
   <p id="sum"></p>
   <div class="ov-btns">
-    <button class="go" id="again">DEPLOY AGAIN</button>
-    <button id="lob">BACK TO LOBBY</button>
+    <button data-act="begin" class="go" id="again">DEPLOY AGAIN</button>
+    <button data-act="toLobby" id="lob">BACK TO LOBBY</button>
   </div>
 </div>
 
@@ -339,8 +339,8 @@
   <h2>PAUSED</h2>
   <p id="pw" style="font-size:13px"></p>
   <div class="ov-btns">
-    <button class="go" id="resume">RESUME</button>
-    <button id="quit">ABORT RUN</button>
+    <button data-act="resume" class="go" id="resume">RESUME</button>
+    <button data-act="quit" id="quit">ABORT RUN</button>
   </div>
 </div>
 
@@ -349,7 +349,7 @@
   <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-head">
       <h2 style="color:#ffd36b;margin:0">DEPLOYMENT SECTORS</h2>
-      <button class="modal-x" onclick="closeMapModal()" aria-label="Close">&times;</button>
+      <button class="modal-x" data-act="closeMapModal" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
       <canvas id="map-modal-preview" width="600" height="240" style="width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0c0f0a"></canvas>
@@ -364,7 +364,7 @@
       </div>
       <div id="map-select-lbl" style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
       <div id="maps"></div>
-      <button class="go" onclick="closeMapModal()" style="min-height:40px">CLOSE</button>
+      <button class="go" data-act="closeMapModal" style="min-height:40px">CLOSE</button>
     </div>
   </div>
 </div>
@@ -374,15 +374,15 @@
   <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-head">
       <h2 style="color:#ffd36b;margin:0">MISSIONS &amp; REWARDS</h2>
-      <button class="modal-x" onclick="closeMissionsModal()" aria-label="Close">&times;</button>
+      <button class="modal-x" data-act="closeMissionsModal" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
       <div class="rewards-box" id="lobby-panel" style="max-height:none;margin:0">
         <div class="rtabs">
-          <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
-          <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
-          <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
-          <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
+          <button id="rtab-m" class="ev-tab on" data-act="switchLobbyRewards" data-arg="m">MISSIONS</button>
+          <button id="rtab-l" class="ev-tab" data-act="switchLobbyRewards" data-arg="l">10-DAY</button>
+          <button id="rtab-c" class="ev-tab" data-act="switchLobbyRewards" data-arg="c">CAREER<span id="rank-claim-count"></span></button>
+          <button id="rtab-s" class="ev-tab" data-act="switchLobbyRewards" data-arg="s">RECORD<span id="ach-count"></span></button>
         </div>
         <div class="rviews" style="min-height:240px">
           <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
@@ -391,7 +391,7 @@
           <div id="rview-s" class="rview"><div id="ach-list"></div></div>
         </div>
       </div>
-      <button class="go" onclick="closeMissionsModal()" style="min-height:40px">CLOSE</button>
+      <button class="go" data-act="closeMissionsModal" style="min-height:40px">CLOSE</button>
     </div>
   </div>
 </div>
@@ -400,5 +400,5 @@
 <div class="ov" id="run-details-modal">
   <h2 style="color:#ffd36b">COMBAT DOSSIER</h2>
   <div id="run-details-content" style="max-width:400px;width:100%;text-align:left;background:rgba(20,24,18,.96);border:1.5px solid #353b26;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;font-size:12px"></div>
-  <button class="go" onclick="$('run-details-modal').classList.remove('on')" style="min-width:140px;margin-top:4px">CLOSE</button>
+  <button class="go" data-act="closeModal" data-arg="run-details-modal" style="min-width:140px;margin-top:4px">CLOSE</button>
 </div>

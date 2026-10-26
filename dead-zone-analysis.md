@@ -78,7 +78,7 @@ it converts two whole classes of "the game is a white screen" bug into a build f
 
 ## 2. Findings
 
-Status markers here reflect section 6 and section 7: findings resolved by the later passes are marked `fixed in N*` / `addressed in N*` and explained in those sections.
+Status markers here reflect sections 6, 7 and 8: findings resolved by the later passes are marked `fixed in N*` / `addressed in N*` and explained in those sections.
 
 Severity is impact × likelihood for a shipped mobile build. "Fixed" items were fixed during
 this review and are verified by the automated pass in §3; everything else is an observation
@@ -136,31 +136,37 @@ lifecycle all live in one file. For a single-file bundle this is workable, but i
 reviewing a HUD change require loading the collision code as well. A pure-Geometry split
 (`hud.js` / `controls.js` / `combat.js`) would shrink review surface without changing the build.
 
-### F8 — Global context swapping is fragile by construction · **Low · open**
+### F8 — Global context swapping is fragile by construction · **Low · fixed in N11**
 `skinIcon()` and `renderTurntable()` point the shared `X` binding at a scratch canvas and
 restore it in `finally`. The pattern is correct as written (and the `finally` blocks are a
 deliberate hardening), but any early `return` added outside a `try` silently leaves the main
 loop drawing into a 180×54 offscreen canvas. A helper (`withCtx(cx, fn)`) would make the
-invariant impossible to break.
+invariant impossible to break. Every scratch render now goes through that helper, and an audit
+check fails the build if any module other than `engine_core.js` assigns `X`.
 
-### F9 — Mixed event-binding styles · **Low · open**
+### F9 — Mixed event-binding styles · **Low · fixed in N10**
 18 `addEventListener` calls plus 7 inline `onclick=` handlers inside generated markup. Inline
 handlers are re-parsed on every `innerHTML` render and cannot be detached; the lobby rebuilds
-its list markup on every state change, so this is a small but recurring allocation cost.
+its list markup on every state change, so this is a small but recurring allocation cost. The worse
+cost was blindness: a name inside an `onclick` string counted as a *caller* in the dead-code scan,
+and a stale index in the markup failed silently. All markup handlers are now `data-act` attributes
+fed to one delegated listener, which the audit and the harness both check.
 
-### F10 — Release signing key is public history · **High for release integrity · open (documented, see N9)**
+### F10 — Release signing key is public history · **High for release integrity · open by decision, see N9/N13**
 Commits `e975ad5` and `c849a6c` carried keystore material; `README.md` documents the exposure
 and the build now reads credentials from `keystore.properties` (gitignored) or `RELEASE_*` env
 vars, warning loudly and falling back to the debug keystore when absent. The residual risk is
 that anyone can sign an APK that installs as an upgrade of builds published before the change.
 Rotating to a fresh release identity for store distribution is the mitigation.
 
-### F11 — Save growth and quota · **Low · open**
+### F11 — Save growth and quota · **Low · fixed in N12**
 `SV` is a single JSON blob rewritten on level-up, boss relics, tab changes and menu actions
 (38 `sv()` call sites, none of them in the per-kill path — that part is healthy). There is no
 size cap; long-lived accounts accumulate stats until a `QuotaExceededError` hits, which the
 `try` in `sv()` swallows, silently stopping persistence. A write-counter + previous-good-copy
-guard would surface it instead.
+guard would surface it instead. Both halves are now in place: the write is surfaced in the lobby
+tagline, and the incoming save is size-bounded before it is adopted, so an oversized payload cannot
+be carried forward into every later write.
 
 ### F12 — Single-file bundle and cold start · **Low · design note**
 679 KB of HTML+JS parsed on every launch. It is the deliberate price of the "no module
@@ -302,11 +308,12 @@ does not remove the blobs, and rewriting published history is not something to d
 shared remote. Documented in `README.md`: the key must be treated as compromised and rotated if the
 repository is ever shared, at the cost of in-place updates for existing installs.
 
-### Still open
+### Still open at this point
 
 `F8` (global canvas context swapping is fragile by construction), `F9` (three event-binding styles),
-`F12` (single-file bundle and cold start) are design notes rather than defects; none of them is a
-correctness or release-integrity risk, and none of them was touched by this release.
+`F12` (single-file bundle and cold start) are design notes rather than defects; none of them was a
+correctness or release-integrity risk, and none of them was touched by this release. F8 and F9 were
+fixed in the next one (see section 8).
 
 ---
 
@@ -342,3 +349,110 @@ shop, credits had nothing to buy, and the tab router was quietly one entry short
 the built bundle headlessly: **150 assertions, 0 console errors**, including buying and equipping
 through the real DOM handlers, the aim-stick trigger consuming rounds with no FIRE button in the
 path, and the tab-index shift. No open findings from this pass.
+
+---
+
+## 8. v1.0.1 pass — the three deferred findings
+
+This pass took the three findings §6 left marked "design note" (F8, F9, F11) plus the one it left
+"cannot be fixed by commit" (F10). They share a cause worth naming: state that exactly one code path
+was supposed to touch, reachable from several, with no check that would notice when it wasn't.
+
+### N10 — Markup no longer carries JavaScript (F9) · **Low · fixed**
+
+`body.html` had 20 inline handlers and `engine_events_missions.js` / `engine_lobby.js` generated seven
+more inside `innerHTML` strings. Four things made that worse than an allocation cost:
+
+1. The dead-code scan in `tools/audit.js` matches bare identifiers against the whole corpus, and
+   `body.html` is part of that corpus — so `onclick="openTacticalRecords()"` made a function with no
+   live caller look referenced.
+2. The panel router is positional. Adding the SHOP tab shifted SKINS/HERO/SKILLS/STATS/RELICS/OPTS by
+   one, and a markup handler holding the old index shows the wrong panel instead of throwing.
+3. A handler naming a function that no longer exists throws only when that button is tapped, inside
+   the production error overlay, with no test coverage.
+4. `event.stopPropagation()` was used inside two generated handlers to stop a card tap from also
+   firing the card's own handler — semantics that don't survive any refactor of the markup.
+
+Now: `data-act="name" data-arg="…"`, and one delegated listener in `engine_bootstrap.js` over a
+`UI_ACTIONS` table (the card-tap case became a `closest('[data-act]')` walk-up, which is what
+`stopPropagation` was emulating). Two audit checks and one harness section guard it — the audit fails
+on any `on*=` attribute in `src_v2` or in generated HTML, and on any `data-act` that isn't a table key
+(including the `${cond ? 'a' : 'b'}` form); the harness clicks all nine nav buttons plus the sound
+toggle, the map modal, a shop tier chip and the daily button, and asserts the DOM result of each.
+Render-scoped closures that capture per-render state (perk cards, the gun picker) keep direct
+`.onclick` — routing those through the table would mean serialising that state into the DOM.
+
+### N11 — One helper owns the scratch-context swap (F8) · **Low · fixed**
+
+`gunIcon`, `charSkinIcon`, `clsIcon` and `drawHeroBand` each saved `X` (the global 2D context) before
+pointing it at an offscreen canvas and restored it afterwards by hand. The `finally` blocks in the
+original code were in the right place, but the invariant lived in four files, and the failure mode is
+invisible: a throw between the assignment and the restore leaves the *main loop* rendering into a
+220×128 thumbnail. The lobby still paints its background, so the game looks frozen at the menu with
+nothing in the console.
+
+`withCtx(cx, fn)` in `engine_core.js` (save → set → `try` → `finally` restore) is now the only way to
+swap, and `tools/audit.js` fails if any other module contains a bare `X =`. The harness asserts
+`X === document.getElementById('c').getContext('2d')` after each scratch render, and after deliberately
+replacing `gun()` with a throwing stub so the restore is proven on the error path, not just the happy
+one. That last assertion is the one that would have failed before this pass.
+
+### N12 — The save is size-bounded on the way in (F11) · **Low · fixed**
+
+`sanitizeSV` clamped the collections it knew about but copied every other key of the incoming object
+verbatim, and `sv()` had a `try` around the write that turned a `QuotaExceededError` into a single
+console warning. The combination was worse than either half: a save with a 50 000-key `pace.times`
+(the ghost-pace line is written per wave) was adopted whole, written back out on the next `sv()`, and
+thrown back by the quota — every time, for the rest of the account's life, because the payload was
+still there. `pruneSave()` couldn't rescue it: it only knows the pace line, and the payload can live
+anywhere.
+
+Three changes:
+
+* Known maps are capped and coerced on load — `MAP_MAX` 256 keys for id-keyed maps (`skins`, `eqSkin`,
+  `evDone`, `dailyMissions`, `loginClaimed`, `rankClaimed`, `mast`, `ach`, `asc`), `PACE_MAX` 4096 for
+  the wave-keyed pace line, 64 for `ar`/`eq`/`own`/`ucl`, with flags coerced to 0/1, non-finite numbers
+  dropped, and relic/loadout ids required to index a real table row.
+* Unknown keys survive only while they are small (≤ 1 KB) and few (≤ 32), which keeps the
+  forward-compatibility intent ("a key written by a newer build is not data loss") without keeping a
+  quota bomb.
+* `sv()` gained a last resort: if the string is still over `SAVE_MAX_BYTES` after the pace line is
+  pruned, `dropHistory()` clears the pace line and the `lt` caches (both rebuild themselves) and warns
+  once. Losing the run history is bad; losing every credit earned after that point is worse.
+
+`tools/test-logic.js` gained a `SAVE BOUNDS` section (13 assertions) that drives a 3.8 MB, 50 000-key
+hostile save through the sanitiser and asserts the result is bounded, coerced, still a fixed point when
+sanitised twice, and that the oversized unknown key is dropped.
+
+### N13 — The signing key in history, checked rather than assumed (F10) · **open by decision**
+
+The earlier note said the keystore *and its passwords* were public history. The keystore part is true
+(`android/app/release.keystore`, added by `e975ad5`, still reachable in the blob store of a public
+repository); the password part is not, as far as this tree can show:
+
+```
+git log --all -p -- android/app/keystore.properties android/keystore.properties   # no output
+```
+
+`keystore.properties` was never committed — only `keystore.properties.example`, and the tracked-text
+scan in `tools/audit.js` finds no `storePassword` literal anywhere in the tree. A JKS without its
+password is not usable, so the practical exposure is offline guessing against the keystore file (the
+password quality is unknown to me) plus the standard "never reuse this key elsewhere" caveat. That
+lowers the severity but does not remove it: the release identity of every APK published so far is
+public material.
+
+Rotating is *not* done here, deliberately. It changes the app's signing identity, so anyone who already
+installed a release APK could not update in place afterwards, and it means new credentials in four
+GitHub secrets plus a fresh keystore in the owner's hands — a decision about the project's release
+identity, not a code fix, and one that is best taken knowingly. The procedure if the password is ever
+believed leaked: `keytool -genkeypair` under a new alias → replace `android/app/release.keystore` →
+update `RELEASE_KEYSTORE_BASE64` / `RELEASE_STORE_PASSWORD` / `RELEASE_KEY_PASSWORD` /
+`RELEASE_KEY_ALIAS` → cut a new tag (the release workflow signs and verifies whatever the tag builds).
+
+**Verification.** `npm test` = build (3 static audits) + `tools/audit.js` (**24 checks**, 0 warnings,
+including the three new UI-binding checks) + `tools/test-logic.js` (**33 assertions**, including the 13
+new save-bounds ones). The browser harness runs the built v1.0.1 bundle headlessly: **165 assertions,
+0 console errors**, including the nine-way nav sweep, the runtime `data-act` resolution check, the
+zero-inline-handler check and the throwing-scratch-render context assertion. As before, "verified"
+means the input paths and the rendering were driven in a browser, not that anything was profiled on a
+device.

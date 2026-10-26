@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.0.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];

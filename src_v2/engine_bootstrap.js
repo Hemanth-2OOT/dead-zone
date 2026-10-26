@@ -1,9 +1,67 @@
-// DEAD ZONE v1.0.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.0.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
-const playBtn = document.getElementById('play');
-if (playBtn) playBtn.onclick = begin;
-const againBtn = document.getElementById('again');
-if (againBtn) againBtn.onclick = begin;
+/* ================================================================== */
+// UI ACTIONS
+//
+// Every button in the shell - and in the markup the lobby renders, such as shop
+// cards and mission rows - declares what it does with `data-act`, and the single
+// delegated listener at the bottom of this file runs it. Nothing binds with an
+// inline onclick attribute any more, which means: the markup carries no JS, a
+// re-rendered button needs no re-binding, and a name that no longer resolves is
+// caught by `npm run audit` before it ships instead of silently doing nothing
+// when a player taps it.
+//
+// Render-scoped closures (perk cards, the gun picker list) still assign .onclick
+// directly, because their handlers capture per-render state that a data
+// attribute cannot carry.
+const UI_ACTIONS = {
+  // run lifecycle
+  begin,
+  resume,
+  quit,
+  toLobby: () => {
+    // Credits are already banked by the death path (saveBest), so this only has
+    // to leave the run; returnToLobby() also disarms the between-wave beat and
+    // clears any lingering draft overlay.
+    if (typeof clearEventContext === 'function') clearEventContext();
+    if (typeof returnToLobby === 'function') returnToLobby();
+    else { const o = document.getElementById('over'); if (o) o.classList.remove('on'); }
+  },
+  // shell
+  tab: a => tab(Number(a) || 0),
+  closeModal: a => { const el = document.getElementById(a); if (el) el.classList.remove('on'); },
+  setColor: c => { PC = c; SV.col = PC; sv(); },
+  toggleMute: () => { SV.mute = SV.mute ? 0 : 1; MUTE = SV.mute; sv(); lobby(); },
+  toggleAutoPick: () => { SV.ap = SV.ap ? 0 : 1; sv(); lobby(); },
+  claimDaily,
+  openMapModal, closeMapModal,
+  openMissionsModal, closeMissionsModal,
+  openTacticalRecords,
+  closeGunPicker,
+  // filters
+  filterEvents, filterSkins, filterShop, switchLobbyRewards,
+  // comfort settings
+  cycleCtlSize, cycleCtlOpacity, cycleCtlMode, cycleFx, cycleReducedMotion,
+  toggleShake, toggleQuality, toggleGore,
+  // cards the lobby event/mission/skin views render
+  openEventBriefing, claimMission, claimLoginDay, claimRank,
+  inspectSkin, equipSkinDirect,
+  unequipSkin: unequipSkinDirect,
+  unequipOpSkin: unequipOpSkinDirect,
+  deployEvent: k => {
+    const m = document.getElementById('ev-modal');
+    if (m) m.classList.remove('on');
+    beginEvent(k);
+  }
+};
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  const el = t && t.closest ? t.closest('[data-act]') : null;
+  if (!el) return;
+  const fn = UI_ACTIONS[el.dataset.act];
+  if (typeof fn === 'function') fn(el.dataset.arg, el);
+});
 // The between-wave screen and its NEXT WAVE button are gone; waves roll on
 // automatically once the clear beat and any perk draft are finished. Space or
 // Enter still skips the beat if the player wants to move faster.
@@ -53,22 +111,10 @@ addEventListener('mouseup', () => { M.down = 0; });
   if (C) C.addEventListener(n, tch, { passive: false });
 });
 
-const lobBtn = document.getElementById('lob');
-if (lobBtn) {
-  // Credits are already banked by the death path (saveBest), so this only has
-  // to leave the run; returnToLobby() also disarms the between-wave beat and
-  // clears any lingering draft overlay.
-  lobBtn.onclick = () => {
-    if (typeof clearEventContext === 'function') clearEventContext();
-    if (typeof returnToLobby === 'function') returnToLobby();
-    else { const o = document.getElementById('over'); if (o) o.classList.remove('on'); }
-  };
-}
-
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '1.0.0';
+const GAME_VERSION = '1.0.1';
 
 ld();
 init();
@@ -79,33 +125,7 @@ lobby();
 { const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION + (typeof saveWarning === 'function' ? saveWarning() : ''); }
 initGameAssets();
 
-const resBtn = document.getElementById('resume');
-if (resBtn) resBtn.onclick = resume;
-const quitBtn = document.getElementById('quit');
-if (quitBtn) quitBtn.onclick = quit;
-
-document.querySelectorAll('#nav button').forEach((b, i) => {
-  b.onclick = () => tab(i);
-});
-
-const sndBtn = document.getElementById('sndbtn');
-if (sndBtn) {
-  sndBtn.onclick = () => {
-    SV.mute = SV.mute ? 0 : 1;
-    MUTE = SV.mute;
-    sv();
-    lobby();
-  };
-}
-
-const apBtn = document.getElementById('apbtn');
-if (apBtn) {
-  apBtn.onclick = () => {
-    SV.ap = SV.ap ? 0 : 1;
-    sv();
-    lobby();
-  };
-}
+refreshDailyBtn();
 
 // Daily login credit. This used to write SV.day but never read it, so the
 // button could be tapped repeatedly for +200 each time. Gate on the stored date
@@ -119,24 +139,20 @@ function refreshDailyBtn() {
   b.style.opacity = claimed ? '0.5' : '1';
 }
 
-const dailyBtn = document.getElementById('daily');
-if (dailyBtn) {
-  dailyBtn.onclick = () => {
-    if (typeof SV === 'undefined' || !SV) return;
-    const today = new Date().toDateString();
-    if (SV.day === today) {
-      if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow', 3);
-      return;
-    }
-    SV.cr = (SV.cr || 0) + 200;
-    SV.day = today;
-    SV.rev = (SV.rev || 0) + 1;
-    SV.ts = Date.now();
-    sv();
-    if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits', 3);
-    lobby();
-    refreshDailyBtn();
-  };
+function claimDaily() {
+  if (typeof SV === 'undefined' || !SV) return;
+  const today = new Date().toDateString();
+  if (SV.day === today) {
+    if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow', 3);
+    return;
+  }
+  SV.cr = (SV.cr || 0) + 200;
+  SV.day = today;
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
+  sv();
+  if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits', 3);
+  lobby();
   refreshDailyBtn();
 }
 

@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.0.1 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -76,6 +76,22 @@ function sanitizeSV(s) {
     if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     out[k] = s[k];
   }
+  // The copy above is deliberately permissive about *names* (see the note about
+  // forward compatibility), but it must not be permissive about *size*: a save
+  // carrying one 5 MB unknown key would be copied back out on every sv() and the
+  // write would throw with the payload still in place, so no amount of pruning
+  // could recover it. Unknown keys survive only while they stay small and few.
+  {
+    const KNOWN = Object.keys(SV);
+    let junkKept = 0;
+    for (const k of Object.keys(out)) {
+      if (KNOWN.indexOf(k) >= 0) continue;
+      let size = 0;
+      try { size = JSON.stringify(out[k]).length; } catch (e) { size = Infinity; }
+      if (!(size <= 1024) || junkKept >= 32) delete out[k];
+      else junkKept++;
+    }
+  }
   // `Math.max(0, Math.floor(Number(v) || 0))` is not enough on its own: an edited
   // save containing `Infinity` passes straight through it (Number(Infinity) is
   // truthy, Math.floor keeps it, Math.max accepts it) and poisons every derived
@@ -116,25 +132,115 @@ function sanitizeSV(s) {
   if (!Array.isArray(out.own)) out.own = [1];
   out.own[0] = 1;
   while (out.own.length < WEAP.length) out.own.push(0);
+  // The clamp above only grows the array; a hand-edited save with a million
+  // entries kept them all and every `for (i < own.length)` walk in the game
+  // inherited the length.
+  if (out.own.length > WEAP.length) out.own.length = WEAP.length;
+  for (let i = 0; i < out.own.length; i++) out.own[i] = out.own[i] ? 1 : 0;
   if (!Array.isArray(out.ucl)) out.ucl = [1];
   out.ucl[0] = 1;
-  if (!Array.isArray(out.ar)) out.ar = [];
-  if (!Array.isArray(out.eq)) out.eq = [];
+  if (typeof CL !== 'undefined' && CL.length && out.ucl.length > CL.length) out.ucl.length = CL.length;
+  for (let i = 0; i < out.ucl.length; i++) out.ucl[i] = out.ucl[i] ? 1 : 0;
+  // Owned ascension relics / equipped perk slots: ids must point at a real row,
+  // and the list is capped, because both are walked on every applySV().
+  const idList = (arr, len) => {
+    if (!Array.isArray(arr)) return [];
+    const out2 = [];
+    for (const v of arr) {
+      const i = Math.floor(Number(v));
+      if (!isFinite(i) || i < 0 || i >= len || out2.indexOf(i) >= 0) continue;
+      out2.push(i);
+      if (out2.length >= 64) break;
+    }
+    return out2;
+  };
+  out.ar = idList(out.ar, (typeof AR !== 'undefined' && AR.length) ? AR.length : 0);
+  out.eq = idList(out.eq, (typeof AR !== 'undefined' && AR.length) ? AR.length : 0);
   if (typeof out.map !== 'number' || out.map < 0 || out.map >= MP.length) out.map = 0;
   if (typeof out.ap !== 'number') out.ap = 0;
   out.v = 3;
-  if (!out.skins || typeof out.skins !== 'object') out.skins = { default: 1 };
-  if (!out.eqSkin || typeof out.eqSkin !== 'object') out.eqSkin = {};
-  if (!out.evDone || typeof out.evDone !== 'object') out.evDone = {};
-  if (!out.dailyMissions || typeof out.dailyMissions !== 'object') out.dailyMissions = {};
-  if (!out.loginClaimed || typeof out.loginClaimed !== 'object') out.loginClaimed = {};
-  if (!out.rankClaimed || typeof out.rankClaimed !== 'object') out.rankClaimed = {};
-  if (!out.mast || typeof out.mast !== 'object') out.mast = {};
-  if (!out.ach || typeof out.ach !== 'object') out.ach = {};
-  if (!out.lt || typeof out.lt !== 'object') out.lt = {};
-  if (!out.pace || typeof out.pace !== 'object') out.pace = { times: {} };
-  if (!out.pace.times || typeof out.pace.times !== 'object') out.pace.times = {};
-  if (!out.asc || typeof out.asc !== 'object') out.asc = {};
+  // Progress maps are unbounded on the way in: `JSON.parse` returns whatever the
+  // file holds, the copy loop above takes all of it, and the oversized result is
+  // written straight back on the next sv(). The write then throws
+  // QuotaExceededError and the player finishes a session with nothing saved.
+  // Every map is therefore capped and its values coerced. The caps sit well above
+  // anything the game itself can produce (the largest real table is 22 weapons),
+  // so a legitimate save is never trimmed.
+  const MAP_MAX = 256;
+  const PACE_MAX = 4096;      // one entry per wave of a record run
+  const mapOf = (v, max) => {
+    const o = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    const keys = Object.keys(o);
+    if (keys.length <= max) return o;
+    const kept = {};
+    for (const k of keys.slice(0, max)) kept[k] = o[k];
+    return kept;
+  };
+  const flagMap = (v, max) => {
+    const o = mapOf(v, max), r = {};
+    for (const k of Object.keys(o)) r[k] = o[k] ? 1 : 0;
+    return r;
+  };
+  const numMap = (v, max, lo, hi) => {
+    const o = mapOf(v, max), r = {};
+    for (const k of Object.keys(o)) {
+      const n = num(o[k], lo, hi, null);
+      if (n !== null) r[k] = n;
+    }
+    return r;
+  };
+  out.skins = flagMap(out.skins, MAP_MAX - 1);   // -1 leaves room for `default`
+  if (!out.skins.default) out.skins.default = 1;
+  // eqSkin maps a weapon index to a skin id; only short strings survive.
+  {
+    const o = mapOf(out.eqSkin, MAP_MAX), r = {};
+    for (const k of Object.keys(o)) {
+      const v = o[k];
+      if (typeof v === 'string' && v.length <= 32) r[k] = v;
+    }
+    out.eqSkin = r;
+  }
+  out.evDone = flagMap(out.evDone, MAP_MAX);
+  out.dailyMissions = numMap(out.dailyMissions, MAP_MAX, 0, 1e6);
+  out.loginClaimed = flagMap(out.loginClaimed, MAP_MAX);
+  out.rankClaimed = flagMap(out.rankClaimed, MAP_MAX);
+  out.mast = numMap(out.mast, MAP_MAX, 0, 1e12);
+  out.ach = flagMap(out.ach, MAP_MAX);
+  out.asc = numMap(out.asc, MAP_MAX, 0, 1e6);
+  {
+    const o = mapOf(out.lt, 64), r = {};
+    for (const k of Object.keys(o)) {
+      const v = o[k];
+      if (typeof v === 'number' && isFinite(v)) r[k] = v;
+      else if (v && typeof v === 'object') r[k] = numMap(v, 32, 0, 1e9);
+    }
+    out.lt = r;
+  }
+  // Ghost pace is keyed by wave number, so junk keys are dropped rather than
+  // trimmed by count, and the survivor count is capped far above a real run.
+  // (pruneSave() in sv() is the emergency shredder that keeps only the last 80.)
+  {
+    const raw = (out.pace && typeof out.pace === 'object' && out.pace.times && typeof out.pace.times === 'object') ? out.pace.times : {};
+    const rawWave = (out.pace && typeof out.pace === 'object') ? out.pace.wave : undefined;
+    const keys = Object.keys(raw).filter(k => {
+      const n = Number(k);
+      return isFinite(n) && n >= 0 && n <= 100000;
+    }).sort((a, b) => Number(a) - Number(b));
+    const times = {};
+    for (const k of keys.slice(-PACE_MAX)) {
+      const n = num(raw[k], 0, 1e9, null);
+      if (n !== null) times[k] = n;
+    }
+    out.pace = { times };
+    if (typeof rawWave === 'number') out.pace.wave = num(rawWave, 0, 100000, 0);
+  }
+  // Player-chosen tint is a hex colour or nothing; the date stamps are short
+  // strings. Both are read straight into DOM/style without further checking.
+  out.col = (typeof out.col === 'string' && /^#[0-9a-f]{3,8}$/i.test(out.col)) ? out.col : null;
+  for (const k of ['day', 'dmDate', 'lastLogin']) {
+    out[k] = (typeof out[k] === 'string') ? out[k].slice(0, 64) : '';
+  }
+  out.eqOpSkin = (typeof out.eqOpSkin === 'string' && out.eqOpSkin.length <= 32) ? out.eqOpSkin : null;
   out.runStreak = num(out.runStreak, 0, 10000, 0);
   out.loginDays = num(out.loginDays, 1, 10, 1);
   out.ap = num(out.ap, 0, 1e6, 0);
@@ -195,6 +301,7 @@ function ld() {
 const SAVE_MAX_BYTES = 512 * 1024;
 const PACE_KEEP = 80;
 let SAVE_FAIL_LOGGED = 0;
+let SAVE_TRIM_LOGGED = 0;
 
 function pruneSave() {
   if (!SV || !SV.pace || !SV.pace.times) return false;
@@ -205,6 +312,15 @@ function pruneSave() {
   for (const k of keys.slice(-PACE_KEEP)) keep[k] = SV.pace.times[k];
   SV.pace.times = keep;
   return true;
+}
+
+// Last resort before giving up on the write entirely: the ghost-pace line and the
+// lifetime caches are the only parts of the save that grow during a session, and
+// both rebuild themselves. Losing them is bad; losing every credit and unlock
+// earned after this point is worse.
+function dropHistory() {
+  if (SV.pace) SV.pace = { times: {} };
+  if (SV.lt) SV.lt = {};
 }
 
 function saveWarning() {
@@ -220,6 +336,14 @@ function sv() {
     SV.sp = Math.max(0, Math.floor(Number(SV.sp) || 0));
     let str = JSON.stringify(SV);
     if (str.length > SAVE_MAX_BYTES && pruneSave()) str = JSON.stringify(SV);
+    if (str.length > SAVE_MAX_BYTES) {
+      dropHistory();
+      str = JSON.stringify(SV);
+      if (!SAVE_TRIM_LOGGED) {
+        SAVE_TRIM_LOGGED = 1;
+        try { console.warn('[dead-zone] save was oversized; run history trimmed'); } catch (_) {}
+      }
+    }
     // Real rolling backup: keep the previous good save as dzs_bak so a corrupt
     // write cannot take both slots down at once. It used to write the same
     // string to both keys, which made the "backup" useless.

@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v1.0.1 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -583,16 +583,15 @@ function clsIcon(ci, wi = 0) {
   cv.width = 220;
   cv.height = 128;
   const cx = cv.getContext('2d');
-  const oldX = X;
-  X = cx;
-  X.save();
-  X.translate(50, 64);
-  X.scale(1.7, 1.7);
-  if (typeof bodyBack === 'function') bodyBack(ci);
-  if (typeof gun === 'function') gun(wi, 0);
-  if (typeof bodyFront === 'function') bodyFront(ci);
-  X.restore();
-  X = oldX;
+  withCtx(cx, () => {
+    X.save();
+    X.translate(50, 64);
+    X.scale(1.7, 1.7);
+    if (typeof bodyBack === 'function') bodyBack(ci);
+    if (typeof gun === 'function') gun(wi, 0);
+    if (typeof bodyFront === 'function') bodyFront(ci);
+    X.restore();
+  });
   return CI_CACHE[k] = cv.toDataURL();
 }
 

@@ -528,3 +528,56 @@ recorded above:
   call): static screen-space gradients are built once per resize instead of per frame. Measured on the
   bundled build: 3.83 -> 0.32 gradient objects per frame at unchanged frame time.
 * **`engine_hud.js`** split out of `engine_world.js` (pure move, same single script scope).
+
+
+## Release v1.0.1 — the UI binding, the scratch canvas and the save bounds
+
+Three of the audit findings that shipped as "documented" in v1.0.0 are fixed here. All three are the
+same shape of bug: state that only one code path was supposed to touch, reachable from several.
+
+* **F9 — the markup no longer carries JavaScript.** Every `onclick="fn('x')"` in `body.html` and in the
+  markup `engine_events_missions.js` / `engine_lobby.js` render into a string is now
+  `data-act="name" data-arg="…"`, and `engine_bootstrap.js` owns one delegated `click` listener over a
+  `UI_ACTIONS` table (last section of that file). A click walks up from the target to the nearest
+  `[data-act]` and calls the matching action with `dataset.arg`. Why it was worth the churn: the inline
+  handlers were invisible to every check the repo has — the dead-code scan counts a name inside an
+  `onclick` string as a *caller*, so a deleted function stayed "referenced", and a stale tab index in
+  the markup (the SHOP insertion shifted every panel) produced a tap that did nothing instead of an
+  error. Two new audit checks and one harness section now cover it: `no inline event handlers in markup
+  or generated html`, `every data-act names a real UI action` (both the literal and the
+  `${cond ? 'a' : 'b'}` form), and a harness that clicks all nine nav buttons and asserts each one opens
+  exactly its panel. Render-scoped closures that capture per-render state (perk cards, the gun picker)
+  keep their direct `.onclick`; converting those would need the state passed through the DOM.
+* **F8 — one helper owns the scratch canvas swap.** `withCtx(cx, fn)` in `engine_core.js` saves `X`,
+  points it at the scratch context and restores it in a `finally`. `gunIcon`/`charSkinIcon`
+  (`engine_data.js`), `clsIcon` (`engine_render_player.js`) and `drawHeroBand` (`engine_lobby.js`) now
+  go through it instead of assigning `X = cx` and restoring by hand. The old code restored `X` on the
+  normal path only, so a throw between the assignment and the restore left the *main loop* drawing into
+  a 220×128 offscreen canvas — the lobby keeps painting its background, so the game looks "frozen at the
+  menu" with no error. The audit now fails if any module other than `engine_core.js` contains a bare
+  `X =` assignment, and the harness asserts `X === document.getElementById('c').getContext('2d')` after
+  each scratch render *and* after forcing one to throw mid-draw.
+* **F11 — a save has a size, and it is enforced on the way in.** `sanitizeSV` used to copy every key of
+  the incoming object and clamp only the collections it knew about, so a hand-edited save with a 50 000
+  key `pace.times` (or `skins`, `mast`, `ach`, `ar`, `own`, …) was adopted whole and written straight
+  back out. The write then throws `QuotaExceededError`, the player finishes the session with nothing
+  saved, and the payload is still in the save for the next write — unrecoverable by pruning, which only
+  knows about the pace line. Now: every known map is capped (`MAP_MAX` 256 for id-keyed maps, `PACE_MAX`
+  4096 for the wave-keyed pace line, 64 for the relic/loadout lists), values are coerced or dropped
+  (flags to 0/1, non-finite numbers dropped, ids must index a real table row), `col` must be a hex
+  colour, the date stamps are truncated, and an *unknown* key survives only while it is under 1 KB and
+  among the first 32 — that keeps the forward-compatibility intent ("a key from a newer build is not
+  data loss") without leaving a quota bomb in place. `sv()` also gained a last-resort path: if the
+  string is still over `SAVE_MAX_BYTES` after pruning the pace line, `dropHistory()` clears the pace
+  line and the `lt` caches (both rebuild themselves) and warns once, because losing the run history is
+  better than losing every credit the player earned after that point.
+* **F10 — the keystore in git history: looked at, deliberately not rotated.** `android/app/release.keystore`
+  is in history (added by `e975ad5`, removed from tracking later and now gitignored), and the repository
+  is public. The audit's tracked-file scan and `git log --all -p` over every `keystore.properties` path
+  both come back empty for `storePassword`/`keyPassword`, so the file is exposed without its password,
+  and a JKS is useless without it. Rotating it would change the app's signing identity, which breaks
+  in-place updates for anyone who already installed a release APK, so it stays a decision for the owner
+  rather than something a release commit does silently. The procedure, if the password ever leaks: new
+  `keytool -genkeypair` under a new alias → replace `android/app/release.keystore` locally → update
+  `RELEASE_KEYSTORE_BASE64`/`RELEASE_STORE_PASSWORD`/`RELEASE_KEY_PASSWORD`/`RELEASE_KEY_ALIAS` →
+  cut a new tag.

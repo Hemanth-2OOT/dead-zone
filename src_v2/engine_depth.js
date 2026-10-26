@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v1.0.1 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth

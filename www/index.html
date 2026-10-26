@@ -1494,13 +1494,13 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <div class="modal-sheet gp-sheet">
     <div class="modal-head">
       <h2 style="color:#ffd36b;margin:0">SELECT WEAPON</h2>
-      <button class="modal-x" onclick="closeGunPicker()" aria-label="Close">&times;</button>
+      <button class="modal-x" data-act="closeGunPicker" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body gp-body">
       <p class="gp-hint">TAP A WEAPON TO EQUIP &bull; LOADOUT CARRIES FOR THE WHOLE RUN</p>
       <div id="gunpick-grid" class="gp-grid"></div>
     </div>
-    <div class="gp-foot"><button class="go" onclick="closeGunPicker()">BACK TO FIGHT</button></div>
+    <div class="gp-foot"><button class="go" data-act="closeGunPicker">BACK TO FIGHT</button></div>
   </div>
 </div>
 
@@ -1523,29 +1523,29 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.0</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.1</span>
         </div>
 
-        <button type="button" id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record">
+        <button type="button" id="best-badge" data-act="openTacticalRecords" title="Tap to inspect tactical survival record">
           <svg viewBox="0 0 24 24" fill="none" stroke="#dcb44a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
           <span id="best">SURVIVAL RECORD: WAVE 0</span>
         </button>
 
         <div class="act-box">
-          <button class="go" id="play">DEPLOY</button>
+          <button data-act="begin" class="go" id="play">DEPLOY</button>
         </div>
 
         <!-- Secondary actions live beside the primary CTA as compact chips. -->
         <div class="lb-sub">
-          <button class="hub-btn" onclick="openMapModal()">
+          <button class="hub-btn" data-act="openMapModal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z"/><path d="M9 4v16M15 6v16"/></svg>
             MAPS
           </button>
-          <button class="hub-btn" onclick="openMissionsModal()">
+          <button class="hub-btn" data-act="openMissionsModal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
             MISSIONS
           </button>
-          <button id="daily">DAILY +200</button>
+          <button data-act="claimDaily" id="daily">DAILY +200</button>
         </div>
 
         <div id="next-goal" class="next-goal"></div>
@@ -1574,7 +1574,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <div class="mb-canvas"><canvas id="zone-preview" width="460" height="240"></canvas></div>
           <div class="mb-foot">
             <span class="mb-k">Live Tactical Overview</span>
-            <button class="mb-change" onclick="openMapModal()">CHANGE MAP</button>
+            <button class="mb-change" data-act="openMapModal">CHANGE MAP</button>
           </div>
         </div>
       </div>
@@ -1588,9 +1588,9 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <div style="font-size:10.5px;opacity:.7">Dedicated Tactical Modes &bull; Exclusive Cosmetic Weapon Skins</div>
         </div>
         <div id="ev-filter" style="display:flex;gap:6px">
-          <button class="ev-tab on" onclick="filterEvents('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
-          <button class="ev-tab" onclick="filterEvents('active')" style="padding:4px 8px;min-height:28px;font-size:10px">AVAILABLE</button>
-          <button class="ev-tab" onclick="filterEvents('done')" style="padding:4px 8px;min-height:28px;font-size:10px">COMPLETED</button>
+          <button class="ev-tab on" data-act="filterEvents" data-arg="all" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+          <button class="ev-tab" data-act="filterEvents" data-arg="active" style="padding:4px 8px;min-height:28px;font-size:10px">AVAILABLE</button>
+          <button class="ev-tab" data-act="filterEvents" data-arg="done" style="padding:4px 8px;min-height:28px;font-size:10px">COMPLETED</button>
         </div>
       </div>
       <div id="ev-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
@@ -1611,12 +1611,12 @@ button:active:not(:disabled) { transform: scale(0.96); }
         </div>
       </div>
       <div id="sh-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
-        <button class="sh-tab on" onclick="filterShop('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
-        <button class="sh-tab" onclick="filterShop('COMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">COMMON</button>
-        <button class="sh-tab" onclick="filterShop('UNCOMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">UNCOMMON</button>
-        <button class="sh-tab" onclick="filterShop('RARE')" style="padding:4px 8px;min-height:28px;font-size:10px">RARE</button>
-        <button class="sh-tab" onclick="filterShop('EPIC')" style="padding:4px 8px;min-height:28px;font-size:10px">EPIC</button>
-        <button class="sh-tab" onclick="filterShop('LEGENDARY')" style="padding:4px 8px;min-height:28px;font-size:10px">LEGENDARY</button>
+        <button class="sh-tab on" data-act="filterShop" data-arg="all" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="COMMON" style="padding:4px 8px;min-height:28px;font-size:10px">COMMON</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="UNCOMMON" style="padding:4px 8px;min-height:28px;font-size:10px">UNCOMMON</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="RARE" style="padding:4px 8px;min-height:28px;font-size:10px">RARE</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="EPIC" style="padding:4px 8px;min-height:28px;font-size:10px">EPIC</button>
+        <button class="sh-tab" data-act="filterShop" data-arg="LEGENDARY" style="padding:4px 8px;min-height:28px;font-size:10px">LEGENDARY</button>
       </div>
       <div id="shop-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
     </div>
@@ -1630,10 +1630,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <div style="font-size:10.5px;opacity:.7">Custom Camouflage & Weapon Finishes &bull; 100% Cosmetic Parity</div>
         </div>
         <div id="sk-filter" style="display:flex;gap:5px;flex-wrap:wrap">
-          <button class="sk-tab on" onclick="filterSkins('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
-          <button class="sk-tab" onclick="filterSkins('weap')" style="padding:4px 8px;min-height:28px;font-size:10px">WEAPONS</button>
-          <button class="sk-tab" onclick="filterSkins('op')" style="padding:4px 8px;min-height:28px;font-size:10px">OPERATIVES</button>
-          <button class="sk-tab" onclick="filterSkins('unlocked')" style="padding:4px 8px;min-height:28px;font-size:10px">UNLOCKED</button>
+          <button class="sk-tab on" data-act="filterSkins" data-arg="all" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+          <button class="sk-tab" data-act="filterSkins" data-arg="weap" style="padding:4px 8px;min-height:28px;font-size:10px">WEAPONS</button>
+          <button class="sk-tab" data-act="filterSkins" data-arg="op" style="padding:4px 8px;min-height:28px;font-size:10px">OPERATIVES</button>
+          <button class="sk-tab" data-act="filterSkins" data-arg="unlocked" style="padding:4px 8px;min-height:28px;font-size:10px">UNLOCKED</button>
         </div>
       </div>
       <div id="skin-turntable-card" style="margin-bottom:12px;background:radial-gradient(ellipse at center, rgba(30,40,28,.85) 0%, rgba(10,14,10,.98) 100%);border:1.5px solid rgba(143,174,74,.35);border-radius:10px;padding:12px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 18px rgba(0,0,0,.5)">
@@ -1665,8 +1665,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <div id="hero-skills" class="hs-skills"></div>
           <div id="hero-skin" class="hs-skin"></div>
           <div class="hs-btns">
-            <button onclick="tab(3)">CHANGE SKIN</button>
-            <button onclick="tab(5)">SKILL TREE</button>
+            <button data-act="tab" data-arg="3">CHANGE SKIN</button>
+            <button data-act="tab" data-arg="5">SKILL TREE</button>
           </div>
         </div>
       </div>
@@ -1688,29 +1688,29 @@ button:active:not(:disabled) { transform: scale(0.96); }
         <b class="settitle">TACTICAL SETTINGS</b>
         <div class="setgrp">
           <span class="setlbl">CONTROLS</span>
-          <button id="ctlsizebtn" class="setbtn" onclick="cycleCtlSize()">CONTROL SIZE: 100%</button>
-          <button id="ctlopbtn" class="setbtn" onclick="cycleCtlOpacity()">CONTROL OPACITY: 100%</button>
-          <button id="ctlbtn" class="setbtn" onclick="cycleCtlMode()">JOYSTICK: FIXED</button>
+          <button id="ctlsizebtn" class="setbtn" data-act="cycleCtlSize">CONTROL SIZE: 100%</button>
+          <button id="ctlopbtn" class="setbtn" data-act="cycleCtlOpacity">CONTROL OPACITY: 100%</button>
+          <button id="ctlbtn" class="setbtn" data-act="cycleCtlMode">JOYSTICK: FIXED</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">VISUAL COMFORT</span>
-          <button id="shakebtn" class="setbtn" onclick="toggleShake()">CAMERA SHAKE: NORMAL</button>
-          <button id="fxbtn" class="setbtn" onclick="cycleFx()">VISUAL EFFECTS: FULL</button>
-          <button id="rmbtn" class="setbtn" onclick="cycleReducedMotion()">REDUCED MOTION: AUTO</button>
-          <button id="qualbtn" class="setbtn" onclick="toggleQuality()">GRAPHICS QUALITY: HIGH</button>
-          <button id="gorebtn" class="setbtn" onclick="toggleGore()">BLOOD &amp; GORE: FULL</button>
+          <button id="shakebtn" class="setbtn" data-act="toggleShake">CAMERA SHAKE: NORMAL</button>
+          <button id="fxbtn" class="setbtn" data-act="cycleFx">VISUAL EFFECTS: FULL</button>
+          <button id="rmbtn" class="setbtn" data-act="cycleReducedMotion">REDUCED MOTION: AUTO</button>
+          <button id="qualbtn" class="setbtn" data-act="toggleQuality">GRAPHICS QUALITY: HIGH</button>
+          <button id="gorebtn" class="setbtn" data-act="toggleGore">BLOOD &amp; GORE: FULL</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">GENERAL</span>
-          <button id="sndbtn" class="setbtn">SOUND: ON</button>
-          <button id="apbtn" class="setbtn">AUTO-PICK POWERS: OFF</button>
+          <button data-act="toggleMute" id="sndbtn" class="setbtn">SOUND: ON</button>
+          <button data-act="toggleAutoPick" id="apbtn" class="setbtn">AUTO-PICK POWERS: OFF</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">Survivor Suit Tint</span>
           <div style="display:flex;gap:8px">
-            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#d8c9a0';SV.col=PC;sv()">Sand</button>
-            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#7fb2d9';SV.col=PC;sv()">Blue</button>
-            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#d98f7f';SV.col=PC;sv()">Red</button>
+            <button style="flex:1;min-height:34px;font-size:11px" data-act="setColor" data-arg="#d8c9a0">Sand</button>
+            <button style="flex:1;min-height:34px;font-size:11px" data-act="setColor" data-arg="#7fb2d9">Blue</button>
+            <button style="flex:1;min-height:34px;font-size:11px" data-act="setColor" data-arg="#d98f7f">Red</button>
           </div>
         </div>
       </div>
@@ -1718,15 +1718,15 @@ button:active:not(:disabled) { transform: scale(0.96); }
   </div>
 
   <nav id="nav">
-    <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>SHOP</button>
-        <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
-    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
+    <button data-act="tab" data-arg="0" class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
+    <button data-act="tab" data-arg="1"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
+    <button data-act="tab" data-arg="2"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>SHOP</button>
+        <button data-act="tab" data-arg="3"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
+    <button data-act="tab" data-arg="4"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
+    <button data-act="tab" data-arg="5"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
+    <button data-act="tab" data-arg="6"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>STATS</button>
+    <button data-act="tab" data-arg="7"><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 21,8 17,21 7,21 3,8"/></svg>RELICS</button>
+    <button data-act="tab" data-arg="8"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OPTS</button>
   </nav>
 </div>
 
@@ -1741,8 +1741,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
   </div>
   <div id="ev-rew" style="font-size:12px;background:rgba(224,184,58,.1);border:1px solid rgba(224,184,58,.3);padding:6px;border-radius:6px;margin-bottom:12px"></div>
   <div class="ov-btns">
-    <button class="go" id="ev-deploy-btn">DEPLOY OPERATION</button>
-    <button onclick="$('ev-modal').classList.remove('on')">RETURN TO LOBBY</button>
+    <button class="go" id="ev-deploy-btn" data-act="deployEvent">DEPLOY OPERATION</button>
+    <button data-act="closeModal" data-arg="ev-modal">RETURN TO LOBBY</button>
   </div>
 </div>
 
@@ -1751,8 +1751,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <h1>YOU DIED</h1>
   <p id="sum"></p>
   <div class="ov-btns">
-    <button class="go" id="again">DEPLOY AGAIN</button>
-    <button id="lob">BACK TO LOBBY</button>
+    <button data-act="begin" class="go" id="again">DEPLOY AGAIN</button>
+    <button data-act="toLobby" id="lob">BACK TO LOBBY</button>
   </div>
 </div>
 
@@ -1775,8 +1775,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <h2>PAUSED</h2>
   <p id="pw" style="font-size:13px"></p>
   <div class="ov-btns">
-    <button class="go" id="resume">RESUME</button>
-    <button id="quit">ABORT RUN</button>
+    <button data-act="resume" class="go" id="resume">RESUME</button>
+    <button data-act="quit" id="quit">ABORT RUN</button>
   </div>
 </div>
 
@@ -1785,7 +1785,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-head">
       <h2 style="color:#ffd36b;margin:0">DEPLOYMENT SECTORS</h2>
-      <button class="modal-x" onclick="closeMapModal()" aria-label="Close">&times;</button>
+      <button class="modal-x" data-act="closeMapModal" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
       <canvas id="map-modal-preview" width="600" height="240" style="width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#0c0f0a"></canvas>
@@ -1800,7 +1800,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       </div>
       <div id="map-select-lbl" style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
       <div id="maps"></div>
-      <button class="go" onclick="closeMapModal()" style="min-height:40px">CLOSE</button>
+      <button class="go" data-act="closeMapModal" style="min-height:40px">CLOSE</button>
     </div>
   </div>
 </div>
@@ -1810,15 +1810,15 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <div class="modal-sheet" style="max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-head">
       <h2 style="color:#ffd36b;margin:0">MISSIONS &amp; REWARDS</h2>
-      <button class="modal-x" onclick="closeMissionsModal()" aria-label="Close">&times;</button>
+      <button class="modal-x" data-act="closeMissionsModal" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px">
       <div class="rewards-box" id="lobby-panel" style="max-height:none;margin:0">
         <div class="rtabs">
-          <button id="rtab-m" class="ev-tab on" onclick="switchLobbyRewards('m')">MISSIONS</button>
-          <button id="rtab-l" class="ev-tab" onclick="switchLobbyRewards('l')">10-DAY</button>
-          <button id="rtab-c" class="ev-tab" onclick="switchLobbyRewards('c')">CAREER<span id="rank-claim-count"></span></button>
-          <button id="rtab-s" class="ev-tab" onclick="switchLobbyRewards('s')">RECORD<span id="ach-count"></span></button>
+          <button id="rtab-m" class="ev-tab on" data-act="switchLobbyRewards" data-arg="m">MISSIONS</button>
+          <button id="rtab-l" class="ev-tab" data-act="switchLobbyRewards" data-arg="l">10-DAY</button>
+          <button id="rtab-c" class="ev-tab" data-act="switchLobbyRewards" data-arg="c">CAREER<span id="rank-claim-count"></span></button>
+          <button id="rtab-s" class="ev-tab" data-act="switchLobbyRewards" data-arg="s">RECORD<span id="ach-count"></span></button>
         </div>
         <div class="rviews" style="min-height:240px">
           <div id="rview-m" class="rview on"><div id="daily-list"></div></div>
@@ -1827,7 +1827,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <div id="rview-s" class="rview"><div id="ach-list"></div></div>
         </div>
       </div>
-      <button class="go" onclick="closeMissionsModal()" style="min-height:40px">CLOSE</button>
+      <button class="go" data-act="closeMissionsModal" style="min-height:40px">CLOSE</button>
     </div>
   </div>
 </div>
@@ -1836,7 +1836,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 <div class="ov" id="run-details-modal">
   <h2 style="color:#ffd36b">COMBAT DOSSIER</h2>
   <div id="run-details-content" style="max-width:400px;width:100%;text-align:left;background:rgba(20,24,18,.96);border:1.5px solid #353b26;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;font-size:12px"></div>
-  <button class="go" onclick="$('run-details-modal').classList.remove('on')" style="min-width:140px;margin-top:4px">CLOSE</button>
+  <button class="go" data-act="closeModal" data-arg="run-details-modal" style="min-width:140px;margin-top:4px">CLOSE</button>
 </div>
 
 <script>
@@ -2980,11 +2980,11 @@ function gunIcon(i) {
   if (GI[key]) return GI[key];
   const cv = document.createElement('canvas'); cv.width = 160; cv.height = 48;
   const cx = cv.getContext('2d');
-  const oldX = X; X = cx;
-  X.save(); X.translate(22, 24); X.scale(1.6, 1.6);
-  gun(i, 0);
-  X.restore();
-  X = oldX;
+  withCtx(cx, () => {
+    X.save(); X.translate(22, 24); X.scale(1.6, 1.6);
+    gun(i, 0);
+    X.restore();
+  });
   return GI[key] = cv.toDataURL();
 }
 
@@ -3185,28 +3185,28 @@ function charSkinIcon(skinKey) {
   const sk = SKINS[skinKey]; if (!sk) return '';
   const cv = document.createElement('canvas'); cv.width = 130; cv.height = 76;
   const cx = cv.getContext('2d');
-  const oldX = X; X = cx;
-  X.save(); X.translate(46, 38); X.scale(1.25, 1.25);
-  const customCls = { pk: sk.pk, ac: sk.ac, hm: sk.hm, vz: sk.vz };
-  // Shadow
-  X.fillStyle = '#00000066'; X.beginPath(); X.ellipse(4, 5, 16, 18, 0, 0, 6.28); X.fill();
-  // Boots
-  X.fillStyle = '#1c1f1a'; X.beginPath(); X.roundRect(-7, -13, 11, 6, 2); X.roundRect(-7, 7, 11, 6, 2); X.fill();
-  // Pack & Torso
-  X.fillStyle = sk.pk; X.beginPath(); X.roundRect(-16, -9, 9, 18, 3); X.fill();
-  X.strokeStyle = '#141812'; X.lineWidth = 1.5; X.stroke();
-  X.fillStyle = '#2d3326'; X.beginPath(); X.ellipse(0, 0, 11, 16, 0, 0, 6.28); X.fill();
-  X.strokeStyle = sk.ac; X.lineWidth = 2.5; X.stroke();
-  // Gun
-  gun(sk.wi || SV.start || 0, 0);
-  // Arms & Helmet
-  X.lineCap = 'round'; X.strokeStyle = sk.ac; X.lineWidth = 6;
-  X.beginPath(); X.moveTo(1, -11); X.lineTo(16, -4); X.moveTo(1, 11); X.lineTo(26, 3); X.stroke();
-  X.fillStyle = sk.hm; X.beginPath(); X.arc(0, 0, 9, 0, 6.28); X.fill();
-  X.strokeStyle = '#181e14'; X.lineWidth = 1.5; X.stroke();
-  X.fillStyle = sk.vz; X.beginPath(); X.roundRect(4, -5.5, 4, 11, 2); X.fill();
-  X.restore();
-  X = oldX;
+  withCtx(cx, () => {
+    X.save(); X.translate(46, 38); X.scale(1.25, 1.25);
+    const customCls = { pk: sk.pk, ac: sk.ac, hm: sk.hm, vz: sk.vz };
+    // Shadow
+    X.fillStyle = '#00000066'; X.beginPath(); X.ellipse(4, 5, 16, 18, 0, 0, 6.28); X.fill();
+    // Boots
+    X.fillStyle = '#1c1f1a'; X.beginPath(); X.roundRect(-7, -13, 11, 6, 2); X.roundRect(-7, 7, 11, 6, 2); X.fill();
+    // Pack & Torso
+    X.fillStyle = sk.pk; X.beginPath(); X.roundRect(-16, -9, 9, 18, 3); X.fill();
+    X.strokeStyle = '#141812'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = '#2d3326'; X.beginPath(); X.ellipse(0, 0, 11, 16, 0, 0, 6.28); X.fill();
+    X.strokeStyle = sk.ac; X.lineWidth = 2.5; X.stroke();
+    // Gun
+    gun(sk.wi || SV.start || 0, 0);
+    // Arms & Helmet
+    X.lineCap = 'round'; X.strokeStyle = sk.ac; X.lineWidth = 6;
+    X.beginPath(); X.moveTo(1, -11); X.lineTo(16, -4); X.moveTo(1, 11); X.lineTo(26, 3); X.stroke();
+    X.fillStyle = sk.hm; X.beginPath(); X.arc(0, 0, 9, 0, 6.28); X.fill();
+    X.strokeStyle = '#181e14'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = sk.vz; X.beginPath(); X.roundRect(4, -5.5, 4, 11, 2); X.fill();
+    X.restore();
+  });
   return cv.toDataURL();
 }
 
@@ -3214,7 +3214,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v1.0.0 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.0.1 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -3292,6 +3292,22 @@ function sanitizeSV(s) {
     if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     out[k] = s[k];
   }
+  // The copy above is deliberately permissive about *names* (see the note about
+  // forward compatibility), but it must not be permissive about *size*: a save
+  // carrying one 5 MB unknown key would be copied back out on every sv() and the
+  // write would throw with the payload still in place, so no amount of pruning
+  // could recover it. Unknown keys survive only while they stay small and few.
+  {
+    const KNOWN = Object.keys(SV);
+    let junkKept = 0;
+    for (const k of Object.keys(out)) {
+      if (KNOWN.indexOf(k) >= 0) continue;
+      let size = 0;
+      try { size = JSON.stringify(out[k]).length; } catch (e) { size = Infinity; }
+      if (!(size <= 1024) || junkKept >= 32) delete out[k];
+      else junkKept++;
+    }
+  }
   // `Math.max(0, Math.floor(Number(v) || 0))` is not enough on its own: an edited
   // save containing `Infinity` passes straight through it (Number(Infinity) is
   // truthy, Math.floor keeps it, Math.max accepts it) and poisons every derived
@@ -3332,25 +3348,115 @@ function sanitizeSV(s) {
   if (!Array.isArray(out.own)) out.own = [1];
   out.own[0] = 1;
   while (out.own.length < WEAP.length) out.own.push(0);
+  // The clamp above only grows the array; a hand-edited save with a million
+  // entries kept them all and every `for (i < own.length)` walk in the game
+  // inherited the length.
+  if (out.own.length > WEAP.length) out.own.length = WEAP.length;
+  for (let i = 0; i < out.own.length; i++) out.own[i] = out.own[i] ? 1 : 0;
   if (!Array.isArray(out.ucl)) out.ucl = [1];
   out.ucl[0] = 1;
-  if (!Array.isArray(out.ar)) out.ar = [];
-  if (!Array.isArray(out.eq)) out.eq = [];
+  if (typeof CL !== 'undefined' && CL.length && out.ucl.length > CL.length) out.ucl.length = CL.length;
+  for (let i = 0; i < out.ucl.length; i++) out.ucl[i] = out.ucl[i] ? 1 : 0;
+  // Owned ascension relics / equipped perk slots: ids must point at a real row,
+  // and the list is capped, because both are walked on every applySV().
+  const idList = (arr, len) => {
+    if (!Array.isArray(arr)) return [];
+    const out2 = [];
+    for (const v of arr) {
+      const i = Math.floor(Number(v));
+      if (!isFinite(i) || i < 0 || i >= len || out2.indexOf(i) >= 0) continue;
+      out2.push(i);
+      if (out2.length >= 64) break;
+    }
+    return out2;
+  };
+  out.ar = idList(out.ar, (typeof AR !== 'undefined' && AR.length) ? AR.length : 0);
+  out.eq = idList(out.eq, (typeof AR !== 'undefined' && AR.length) ? AR.length : 0);
   if (typeof out.map !== 'number' || out.map < 0 || out.map >= MP.length) out.map = 0;
   if (typeof out.ap !== 'number') out.ap = 0;
   out.v = 3;
-  if (!out.skins || typeof out.skins !== 'object') out.skins = { default: 1 };
-  if (!out.eqSkin || typeof out.eqSkin !== 'object') out.eqSkin = {};
-  if (!out.evDone || typeof out.evDone !== 'object') out.evDone = {};
-  if (!out.dailyMissions || typeof out.dailyMissions !== 'object') out.dailyMissions = {};
-  if (!out.loginClaimed || typeof out.loginClaimed !== 'object') out.loginClaimed = {};
-  if (!out.rankClaimed || typeof out.rankClaimed !== 'object') out.rankClaimed = {};
-  if (!out.mast || typeof out.mast !== 'object') out.mast = {};
-  if (!out.ach || typeof out.ach !== 'object') out.ach = {};
-  if (!out.lt || typeof out.lt !== 'object') out.lt = {};
-  if (!out.pace || typeof out.pace !== 'object') out.pace = { times: {} };
-  if (!out.pace.times || typeof out.pace.times !== 'object') out.pace.times = {};
-  if (!out.asc || typeof out.asc !== 'object') out.asc = {};
+  // Progress maps are unbounded on the way in: `JSON.parse` returns whatever the
+  // file holds, the copy loop above takes all of it, and the oversized result is
+  // written straight back on the next sv(). The write then throws
+  // QuotaExceededError and the player finishes a session with nothing saved.
+  // Every map is therefore capped and its values coerced. The caps sit well above
+  // anything the game itself can produce (the largest real table is 22 weapons),
+  // so a legitimate save is never trimmed.
+  const MAP_MAX = 256;
+  const PACE_MAX = 4096;      // one entry per wave of a record run
+  const mapOf = (v, max) => {
+    const o = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    const keys = Object.keys(o);
+    if (keys.length <= max) return o;
+    const kept = {};
+    for (const k of keys.slice(0, max)) kept[k] = o[k];
+    return kept;
+  };
+  const flagMap = (v, max) => {
+    const o = mapOf(v, max), r = {};
+    for (const k of Object.keys(o)) r[k] = o[k] ? 1 : 0;
+    return r;
+  };
+  const numMap = (v, max, lo, hi) => {
+    const o = mapOf(v, max), r = {};
+    for (const k of Object.keys(o)) {
+      const n = num(o[k], lo, hi, null);
+      if (n !== null) r[k] = n;
+    }
+    return r;
+  };
+  out.skins = flagMap(out.skins, MAP_MAX - 1);   // -1 leaves room for `default`
+  if (!out.skins.default) out.skins.default = 1;
+  // eqSkin maps a weapon index to a skin id; only short strings survive.
+  {
+    const o = mapOf(out.eqSkin, MAP_MAX), r = {};
+    for (const k of Object.keys(o)) {
+      const v = o[k];
+      if (typeof v === 'string' && v.length <= 32) r[k] = v;
+    }
+    out.eqSkin = r;
+  }
+  out.evDone = flagMap(out.evDone, MAP_MAX);
+  out.dailyMissions = numMap(out.dailyMissions, MAP_MAX, 0, 1e6);
+  out.loginClaimed = flagMap(out.loginClaimed, MAP_MAX);
+  out.rankClaimed = flagMap(out.rankClaimed, MAP_MAX);
+  out.mast = numMap(out.mast, MAP_MAX, 0, 1e12);
+  out.ach = flagMap(out.ach, MAP_MAX);
+  out.asc = numMap(out.asc, MAP_MAX, 0, 1e6);
+  {
+    const o = mapOf(out.lt, 64), r = {};
+    for (const k of Object.keys(o)) {
+      const v = o[k];
+      if (typeof v === 'number' && isFinite(v)) r[k] = v;
+      else if (v && typeof v === 'object') r[k] = numMap(v, 32, 0, 1e9);
+    }
+    out.lt = r;
+  }
+  // Ghost pace is keyed by wave number, so junk keys are dropped rather than
+  // trimmed by count, and the survivor count is capped far above a real run.
+  // (pruneSave() in sv() is the emergency shredder that keeps only the last 80.)
+  {
+    const raw = (out.pace && typeof out.pace === 'object' && out.pace.times && typeof out.pace.times === 'object') ? out.pace.times : {};
+    const rawWave = (out.pace && typeof out.pace === 'object') ? out.pace.wave : undefined;
+    const keys = Object.keys(raw).filter(k => {
+      const n = Number(k);
+      return isFinite(n) && n >= 0 && n <= 100000;
+    }).sort((a, b) => Number(a) - Number(b));
+    const times = {};
+    for (const k of keys.slice(-PACE_MAX)) {
+      const n = num(raw[k], 0, 1e9, null);
+      if (n !== null) times[k] = n;
+    }
+    out.pace = { times };
+    if (typeof rawWave === 'number') out.pace.wave = num(rawWave, 0, 100000, 0);
+  }
+  // Player-chosen tint is a hex colour or nothing; the date stamps are short
+  // strings. Both are read straight into DOM/style without further checking.
+  out.col = (typeof out.col === 'string' && /^#[0-9a-f]{3,8}$/i.test(out.col)) ? out.col : null;
+  for (const k of ['day', 'dmDate', 'lastLogin']) {
+    out[k] = (typeof out[k] === 'string') ? out[k].slice(0, 64) : '';
+  }
+  out.eqOpSkin = (typeof out.eqOpSkin === 'string' && out.eqOpSkin.length <= 32) ? out.eqOpSkin : null;
   out.runStreak = num(out.runStreak, 0, 10000, 0);
   out.loginDays = num(out.loginDays, 1, 10, 1);
   out.ap = num(out.ap, 0, 1e6, 0);
@@ -3411,6 +3517,7 @@ function ld() {
 const SAVE_MAX_BYTES = 512 * 1024;
 const PACE_KEEP = 80;
 let SAVE_FAIL_LOGGED = 0;
+let SAVE_TRIM_LOGGED = 0;
 
 function pruneSave() {
   if (!SV || !SV.pace || !SV.pace.times) return false;
@@ -3421,6 +3528,15 @@ function pruneSave() {
   for (const k of keys.slice(-PACE_KEEP)) keep[k] = SV.pace.times[k];
   SV.pace.times = keep;
   return true;
+}
+
+// Last resort before giving up on the write entirely: the ghost-pace line and the
+// lifetime caches are the only parts of the save that grow during a session, and
+// both rebuild themselves. Losing them is bad; losing every credit and unlock
+// earned after this point is worse.
+function dropHistory() {
+  if (SV.pace) SV.pace = { times: {} };
+  if (SV.lt) SV.lt = {};
 }
 
 function saveWarning() {
@@ -3436,6 +3552,14 @@ function sv() {
     SV.sp = Math.max(0, Math.floor(Number(SV.sp) || 0));
     let str = JSON.stringify(SV);
     if (str.length > SAVE_MAX_BYTES && pruneSave()) str = JSON.stringify(SV);
+    if (str.length > SAVE_MAX_BYTES) {
+      dropHistory();
+      str = JSON.stringify(SV);
+      if (!SAVE_TRIM_LOGGED) {
+        SAVE_TRIM_LOGGED = 1;
+        try { console.warn('[dead-zone] save was oversized; run history trimmed'); } catch (_) {}
+      }
+    }
     // Real rolling backup: keep the previous good save as dzs_bak so a corrupt
     // write cannot take both slots down at once. It used to write the same
     // string to both keys, which made the "backup" useless.
@@ -3916,7 +4040,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v1.0.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.0.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -3971,7 +4095,7 @@ function renderEventsUI() {
       </div>
       <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px">
         <span style="color:#e0b83a;font-size:11px">${diffStars}</span>
-        <button onclick="openEventBriefing('${k}')" style="min-height:34px;padding:0 18px;font-weight:700;border-color:${ev.col}">${isDone?'REPLAY OP':'INSPECT OP'}</button>
+        <button data-act="openEventBriefing" data-arg="${k}" style="min-height:34px;padding:0 18px;font-weight:700;border-color:${ev.col}">${isDone?'REPLAY OP':'INSPECT OP'}</button>
       </div>
     </div>`;
   }).join('');
@@ -3999,10 +4123,7 @@ function openEventBriefing(k) {
   
   const deployBtn = $('ev-deploy-btn');
   deployBtn.textContent = isDone ? 'REPLAY OPERATION' : 'DEPLOY OPERATION';
-  deployBtn.onclick = () => {
-    $('ev-modal').classList.remove('on');
-    beginEvent(k);
-  };
+  deployBtn.dataset.arg = k;   // the action itself is declared in the markup
   $('ev-modal').classList.add('on');
 }
 
@@ -4165,7 +4286,7 @@ function renderMissionsUI() {
         </div>
         <div style="font-size:9.5px;opacity:.75">Progress: ${m.cur}/${m.target} &bull; Reward: +${m.reward} CR</div>
       </div>
-      <button onclick="claimMission('${k}')" ${!canClaim?'disabled':''} style="padding:4px 10px;min-height:28px;font-size:10px;font-weight:800;${isDone?'border-color:#8fae4a;color:#8fae4a;background:transparent':''}">${isDone?'CLAIMED':(canClaim?'CLAIM':'IN PROGRESS')}</button>
+      <button data-act="claimMission" data-arg="${k}" ${!canClaim?'disabled':''} style="padding:4px 10px;min-height:28px;font-size:10px;font-weight:800;${isDone?'border-color:#8fae4a;color:#8fae4a;background:transparent':''}">${isDone?'CLAIMED':(canClaim?'CLAIM':'IN PROGRESS')}</button>
     </div>`;
   }).join('');
 }
@@ -4194,7 +4315,7 @@ function renderLoginTrackUI() {
     return `<div class="login-card" style="flex:0 0 130px;min-width:130px;scroll-snap-align:start;background:${isClaimed?'rgba(143,174,74,.18)':isAvailable?'rgba(224,184,58,.18)':'rgba(255,255,255,.05)'};border:1.5px solid ${isClaimed?'#8fae4a':isAvailable?'#e0b83a':'rgba(255,255,255,.12)'};border-radius:8px;padding:8px 6px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box">
       <div style="font-size:10px;font-weight:900;letter-spacing:.5px;color:${isAvailable?'#ffd36b':'#aaa'}">DAY ${r.day}</div>
       <div style="font-size:11px;font-weight:800;margin:4px 0;color:${isClaimed?'#8fae4a':isAvailable?'#f0ece1':'#888'}">${label}</div>
-      <button onclick="claimLoginDay(${r.day})" ${!isAvailable?'disabled':''} style="font-size:9.5px;padding:4px 6px;min-height:26px;width:100%;font-weight:700">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'LOCKED')}</button>
+      <button data-act="claimLoginDay" data-arg="${r.day}" ${!isAvailable?'disabled':''} style="font-size:9.5px;padding:4px 6px;min-height:26px;width:100%;font-weight:700">${isClaimed?'CLAIMED':(isAvailable?'CLAIM':'LOCKED')}</button>
     </div>`;
   }).join('');
 }
@@ -4235,7 +4356,7 @@ function renderRankRewards() {
         <div style="font-size:10.5px;font-weight:800;color:#f0ece1;letter-spacing:.4px">${m.label}</div>
         <div style="font-size:9.5px;color:#ffd36b;font-weight:700">+${m.cr} CR${claimed?' \u2022 CLAIMED':ready?'':` \u2022 ${lvl}/${m.r}`}</div>
       </div>
-      <button onclick="claimRank(${m.r})" ${!ready?'disabled':''} style="font-size:9.5px;padding:4px 8px;min-height:26px;font-weight:800;flex-shrink:0">${claimed?'DONE':ready?'CLAIM':'LOCKED'}</button>
+      <button data-act="claimRank" data-arg="${m.r}" ${!ready?'disabled':''} style="font-size:9.5px;padding:4px 8px;min-height:26px;font-weight:800;flex-shrink:0">${claimed?'DONE':ready?'CLAIM':'LOCKED'}</button>
     </div>`;
   }).join('');
 }
@@ -4558,7 +4679,7 @@ function renderSkinsUI(){
     }
 
     const flourish = (tier === 'EPIC' || tier === 'LEGENDARY');
-    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${skCol};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${skCol}66">
+    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" data-act="inspectSkin" data-arg="${k}" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${skCol};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${skCol}66">
       ${flourish ? '<div class="sk-pixel"></div><div class="sk-aura"></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
@@ -4593,10 +4714,10 @@ function renderSkinsUI(){
       </div>
       <div style="margin-top:auto;display:flex;gap:6px">
         ${isOwned ? `
-          <button onclick="event.stopPropagation();equipSkinDirect('${k}')" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
+          <button data-act="equipSkinDirect" data-arg="${k}" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
             ${isEquipped ? 'EQUIPPED' : 'EQUIP SKIN'}
           </button>
-          ${isEquipped ? `<button onclick="event.stopPropagation();${isOp ? "unequipOpSkinDirect()" : "unequipSkinDirect("+wi+")"}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
+          ${isEquipped ? `<button data-act="${isOp ? 'unequipOpSkin' : 'unequipSkin'}" data-arg="${isOp ? '' : wi}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
         ` : `
           <button disabled style="flex:1;min-height:34px;font-size:11px;opacity:.5">LOCKED</button>
         `}
@@ -5729,7 +5850,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v1.0.0 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v1.0.1 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -6314,16 +6435,15 @@ function clsIcon(ci, wi = 0) {
   cv.width = 220;
   cv.height = 128;
   const cx = cv.getContext('2d');
-  const oldX = X;
-  X = cx;
-  X.save();
-  X.translate(50, 64);
-  X.scale(1.7, 1.7);
-  if (typeof bodyBack === 'function') bodyBack(ci);
-  if (typeof gun === 'function') gun(wi, 0);
-  if (typeof bodyFront === 'function') bodyFront(ci);
-  X.restore();
-  X = oldX;
+  withCtx(cx, () => {
+    X.save();
+    X.translate(50, 64);
+    X.scale(1.7, 1.7);
+    if (typeof bodyBack === 'function') bodyBack(ci);
+    if (typeof gun === 'function') gun(wi, 0);
+    if (typeof bodyFront === 'function') bodyFront(ci);
+    X.restore();
+  });
   return CI_CACHE[k] = cv.toDataURL();
 }
 
@@ -6336,7 +6456,7 @@ function resetCharacterIconCache() {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v1.0.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v1.0.1 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -7305,7 +7425,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v1.0.0 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v1.0.1 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -7683,7 +7803,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v1.0.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v1.0.1 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -8222,7 +8342,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v1.0.0 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v1.0.1 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -9497,7 +9617,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v1.0.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v1.0.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -9883,7 +10003,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v1.0.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.0.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -13879,7 +13999,7 @@ function drawControls() {
 
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v1.0.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v1.0.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -14324,7 +14444,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v1.0.0 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.0.1 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -14772,7 +14892,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v1.0.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v1.0.1 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 // Announcer queue (screen-space banners).
 //
@@ -15225,7 +15345,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v1.0.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.0.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -15618,7 +15738,7 @@ function lobby() {
 
   const bestBadge = document.getElementById('best-badge');
   if (bestBadge) {
-    bestBadge.onclick = () => openTacticalRecords();
+    // Clicks are handled by the delegated data-act listener (see engine_bootstrap.js).
   }
 
   drawZonePreview(getCurMap());
@@ -15965,45 +16085,45 @@ function drawHeroBand() {
   const cv = document.getElementById('hero-preview');
   const ci = SV.cls || 0;
   const c = CL[ci] || CL[0] || { n: 'Infantry', hp: 100, spd: 175, dm: 1, sk: [], d: '' };
-  const prevX = (typeof X !== 'undefined') ? X : null;
   if (cv) {
     const cx = cv.getContext('2d');
-    if (prevX) X = cx;
+    // Drawn through withCtx so the engine context is always handed back, even
+    // if a body or gun sprite throws mid-draw.
     try {
-      const w = cv.width, h = cv.height;
-      cx.clearRect(0, 0, w, h);
-      const g = cx.createRadialGradient(w * 0.5, h * 0.6, 6, w * 0.5, h * 0.6, w * 0.72);
-      g.addColorStop(0, 'rgba(62,80,44,0.95)');
-      g.addColorStop(0.55, 'rgba(24,31,18,0.98)');
-      g.addColorStop(1, 'rgba(8,11,7,1)');
-      cx.fillStyle = g;
-      cx.fillRect(0, 0, w, h);
-      // Floor grid, in the same pixel-art spirit as the arena
-      cx.strokeStyle = 'rgba(143,174,74,0.16)';
-      cx.lineWidth = 1;
-      for (let i = -3; i <= 3; i++) {
-        cx.beginPath();
-        cx.moveTo(w * 0.5 + i * 26, h * 0.72);
-        cx.lineTo(w * 0.5 + i * 74, h);
-        cx.stroke();
-      }
-      for (let j = 1; j <= 3; j++) {
-        cx.beginPath();
-        const yy = h * 0.72 + j * j * 6;
-        cx.moveTo(0, yy); cx.lineTo(w, yy); cx.stroke();
-      }
-      // Character, scaled up from the sprite's own 1.7x icon framing
-      cx.save();
-      cx.translate(w * 0.34, h * 0.56);
-      cx.scale(2.35, 2.35);
-      if (typeof bodyBack === 'function') bodyBack(ci);
-      if (typeof gun === 'function') gun(SV.start || 0, 0);
-      if (typeof bodyFront === 'function') bodyFront(ci);
-      cx.restore();
+      withCtx(cx, () => {
+        const w = cv.width, h = cv.height;
+        cx.clearRect(0, 0, w, h);
+        const g = cx.createRadialGradient(w * 0.5, h * 0.6, 6, w * 0.5, h * 0.6, w * 0.72);
+        g.addColorStop(0, 'rgba(62,80,44,0.95)');
+        g.addColorStop(0.55, 'rgba(24,31,18,0.98)');
+        g.addColorStop(1, 'rgba(8,11,7,1)');
+        cx.fillStyle = g;
+        cx.fillRect(0, 0, w, h);
+        // Floor grid, in the same pixel-art spirit as the arena
+        cx.strokeStyle = 'rgba(143,174,74,0.16)';
+        cx.lineWidth = 1;
+        for (let i = -3; i <= 3; i++) {
+          cx.beginPath();
+          cx.moveTo(w * 0.5 + i * 26, h * 0.72);
+          cx.lineTo(w * 0.5 + i * 74, h);
+          cx.stroke();
+        }
+        for (let j = 1; j <= 3; j++) {
+          cx.beginPath();
+          const yy = h * 0.72 + j * j * 6;
+          cx.moveTo(0, yy); cx.lineTo(w, yy); cx.stroke();
+        }
+        // Character, scaled up from the sprite's own 1.7x icon framing
+        cx.save();
+        cx.translate(w * 0.34, h * 0.56);
+        cx.scale(2.35, 2.35);
+        if (typeof bodyBack === 'function') bodyBack(ci);
+        if (typeof gun === 'function') gun(SV.start || 0, 0);
+        if (typeof bodyFront === 'function') bodyFront(ci);
+        cx.restore();
+      });
     } catch (e) {
       console.warn('[DeadZone] hero preview failed', e);
-    } finally {
-      if (prevX) X = prevX;
     }
   }
   const nameEl = document.getElementById('hero-name');
@@ -16507,12 +16627,70 @@ function showDeployScreen(title, sub, kicker, onReady) {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v1.0.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.0.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
-const playBtn = document.getElementById('play');
-if (playBtn) playBtn.onclick = begin;
-const againBtn = document.getElementById('again');
-if (againBtn) againBtn.onclick = begin;
+/* ================================================================== */
+// UI ACTIONS
+//
+// Every button in the shell - and in the markup the lobby renders, such as shop
+// cards and mission rows - declares what it does with `data-act`, and the single
+// delegated listener at the bottom of this file runs it. Nothing binds with an
+// inline onclick attribute any more, which means: the markup carries no JS, a
+// re-rendered button needs no re-binding, and a name that no longer resolves is
+// caught by `npm run audit` before it ships instead of silently doing nothing
+// when a player taps it.
+//
+// Render-scoped closures (perk cards, the gun picker list) still assign .onclick
+// directly, because their handlers capture per-render state that a data
+// attribute cannot carry.
+const UI_ACTIONS = {
+  // run lifecycle
+  begin,
+  resume,
+  quit,
+  toLobby: () => {
+    // Credits are already banked by the death path (saveBest), so this only has
+    // to leave the run; returnToLobby() also disarms the between-wave beat and
+    // clears any lingering draft overlay.
+    if (typeof clearEventContext === 'function') clearEventContext();
+    if (typeof returnToLobby === 'function') returnToLobby();
+    else { const o = document.getElementById('over'); if (o) o.classList.remove('on'); }
+  },
+  // shell
+  tab: a => tab(Number(a) || 0),
+  closeModal: a => { const el = document.getElementById(a); if (el) el.classList.remove('on'); },
+  setColor: c => { PC = c; SV.col = PC; sv(); },
+  toggleMute: () => { SV.mute = SV.mute ? 0 : 1; MUTE = SV.mute; sv(); lobby(); },
+  toggleAutoPick: () => { SV.ap = SV.ap ? 0 : 1; sv(); lobby(); },
+  claimDaily,
+  openMapModal, closeMapModal,
+  openMissionsModal, closeMissionsModal,
+  openTacticalRecords,
+  closeGunPicker,
+  // filters
+  filterEvents, filterSkins, filterShop, switchLobbyRewards,
+  // comfort settings
+  cycleCtlSize, cycleCtlOpacity, cycleCtlMode, cycleFx, cycleReducedMotion,
+  toggleShake, toggleQuality, toggleGore,
+  // cards the lobby event/mission/skin views render
+  openEventBriefing, claimMission, claimLoginDay, claimRank,
+  inspectSkin, equipSkinDirect,
+  unequipSkin: unequipSkinDirect,
+  unequipOpSkin: unequipOpSkinDirect,
+  deployEvent: k => {
+    const m = document.getElementById('ev-modal');
+    if (m) m.classList.remove('on');
+    beginEvent(k);
+  }
+};
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  const el = t && t.closest ? t.closest('[data-act]') : null;
+  if (!el) return;
+  const fn = UI_ACTIONS[el.dataset.act];
+  if (typeof fn === 'function') fn(el.dataset.arg, el);
+});
 // The between-wave screen and its NEXT WAVE button are gone; waves roll on
 // automatically once the clear beat and any perk draft are finished. Space or
 // Enter still skips the beat if the player wants to move faster.
@@ -16562,22 +16740,10 @@ addEventListener('mouseup', () => { M.down = 0; });
   if (C) C.addEventListener(n, tch, { passive: false });
 });
 
-const lobBtn = document.getElementById('lob');
-if (lobBtn) {
-  // Credits are already banked by the death path (saveBest), so this only has
-  // to leave the run; returnToLobby() also disarms the between-wave beat and
-  // clears any lingering draft overlay.
-  lobBtn.onclick = () => {
-    if (typeof clearEventContext === 'function') clearEventContext();
-    if (typeof returnToLobby === 'function') returnToLobby();
-    else { const o = document.getElementById('over'); if (o) o.classList.remove('on'); }
-  };
-}
-
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '1.0.0';
+const GAME_VERSION = '1.0.1';
 
 ld();
 init();
@@ -16588,33 +16754,7 @@ lobby();
 { const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION + (typeof saveWarning === 'function' ? saveWarning() : ''); }
 initGameAssets();
 
-const resBtn = document.getElementById('resume');
-if (resBtn) resBtn.onclick = resume;
-const quitBtn = document.getElementById('quit');
-if (quitBtn) quitBtn.onclick = quit;
-
-document.querySelectorAll('#nav button').forEach((b, i) => {
-  b.onclick = () => tab(i);
-});
-
-const sndBtn = document.getElementById('sndbtn');
-if (sndBtn) {
-  sndBtn.onclick = () => {
-    SV.mute = SV.mute ? 0 : 1;
-    MUTE = SV.mute;
-    sv();
-    lobby();
-  };
-}
-
-const apBtn = document.getElementById('apbtn');
-if (apBtn) {
-  apBtn.onclick = () => {
-    SV.ap = SV.ap ? 0 : 1;
-    sv();
-    lobby();
-  };
-}
+refreshDailyBtn();
 
 // Daily login credit. This used to write SV.day but never read it, so the
 // button could be tapped repeatedly for +200 each time. Gate on the stored date
@@ -16628,24 +16768,20 @@ function refreshDailyBtn() {
   b.style.opacity = claimed ? '0.5' : '1';
 }
 
-const dailyBtn = document.getElementById('daily');
-if (dailyBtn) {
-  dailyBtn.onclick = () => {
-    if (typeof SV === 'undefined' || !SV) return;
-    const today = new Date().toDateString();
-    if (SV.day === today) {
-      if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow', 3);
-      return;
-    }
-    SV.cr = (SV.cr || 0) + 200;
-    SV.day = today;
-    SV.rev = (SV.rev || 0) + 1;
-    SV.ts = Date.now();
-    sv();
-    if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits', 3);
-    lobby();
-    refreshDailyBtn();
-  };
+function claimDaily() {
+  if (typeof SV === 'undefined' || !SV) return;
+  const today = new Date().toDateString();
+  if (SV.day === today) {
+    if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow', 3);
+    return;
+  }
+  SV.cr = (SV.cr || 0) + 200;
+  SV.day = today;
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
+  sv();
+  if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits', 3);
+  lobby();
   refreshDailyBtn();
 }
 

@@ -150,6 +150,56 @@ ok([null, undefined, 0, 'string', true].every(v => api.sanitizeSV(v) === null), 
 ok(api.sanitizeSV(hostile[7]).own.length >= api.WEAP.length, 'a truncated own[] is refilled to the weapon count');
 ok(!('polluted' in Object.prototype), 'sanitiser does not pollute Object.prototype');
 
+/* ------------------------------------------------------------ save bounds - */
+// A save is attacker-controlled input: it is JSON in localStorage (rooted phones,
+// devtools, a device sync, or plain corruption). sanitizeSV is the only gate
+// between it and the arithmetic, the render loop and the quota.
+section('SAVE BOUNDS');
+{
+  const huge = {
+    v: 3, lvl: 5, cr: 10, own: [], skins: {}, mast: {}, ach: {}, asc: {}, weekly: {},
+    pace: { times: {} }, lt: {}, ar: [], eq: [], eqSkin: {}, dailyMissions: {}
+  };
+  for (let i = 0; i < 50000; i++) {
+    huge.pace.times[i] = 1 + (i % 7);
+    huge.skins['s' + i] = 1;
+    huge.mast['w' + i] = 100;
+    huge.ach['a' + i] = 1;
+    huge.weekly['k' + i] = i;
+    huge.own.push(1);
+    huge.ar.push(1);
+    huge.eq.push(2);
+    huge.lt['k' + i] = i;
+  }
+  huge.pace.times = Object.assign({ abc: 5, '-3': 5, 12.5: 3 }, huge.pace.times);
+  huge.mast.w0 = 1 / 0;                       // Infinity
+  huge.skins.s0 = null;
+  huge.col = 'javascript:alert(1)';
+  huge.eqOpSkin = { not: 'a string' };
+  huge.day = 'x'.repeat(500);
+  huge.junk = 'y'.repeat(5000);               // unknown key, oversized payload
+
+  const bounded = api.sanitizeSV(huge);
+  const paceN = Object.keys(bounded.pace.times).length;
+  const mapN = (m) => Object.keys(bounded[m]).length;
+  ok(paceN <= 4096, 'an oversized pace line is capped on load', paceN + ' entries');
+  ok(!('abc' in bounded.pace.times) && !('-3' in bounded.pace.times), 'non-wave keys are dropped from the pace line');
+  ok(mapN('skins') <= 256 && mapN('mast') <= 256 && mapN('ach') <= 256, 'progress maps are capped on load',
+     'skins ' + mapN('skins') + ', mast ' + mapN('mast') + ', ach ' + mapN('ach'));
+  ok(bounded.own.length === api.WEAP.length && bounded.own.every(v => v === 0 || v === 1), 'own[] is trimmed to the weapon table and coerced to flags',
+     bounded.own.length + ' entries for ' + api.WEAP.length + ' weapons');
+  ok(Object.keys(bounded.mast).every(k => typeof bounded.mast[k] === 'number' && isFinite(bounded.mast[k])), 'a non-finite mastery value is dropped');
+  ok(bounded.skins.s0 === 0, 'map values are coerced to flags', 'skins.s0 = ' + JSON.stringify(bounded.skins.s0));
+  ok(bounded.col === null, 'a non-hex tint is rejected', JSON.stringify(bounded.col));
+  ok(bounded.eqOpSkin === null, 'a non-string operative skin id is rejected', JSON.stringify(bounded.eqOpSkin));
+  ok(bounded.day.length <= 64, 'date stamps are truncated', bounded.day.length + ' chars');
+  ok(bounded.ar.length <= 64 && bounded.eq.length <= 64, 'relic/loadout lists are capped', bounded.ar.length + ' / ' + bounded.eq.length);
+  ok(!('junk' in bounded), 'an oversized unknown key is dropped instead of being copied back out');
+  const size = JSON.stringify(bounded).length;
+  ok(size < 120000, 'a 50k-key hostile save sanitises to a small blob', size + ' bytes (was ' + JSON.stringify(huge).length + ')');
+  ok(api.sanitizeSV(bounded) !== null && JSON.stringify(api.sanitizeSV(bounded)).length === size, 'sanitising an already-clean save is a fixed point');
+}
+
 /* ------------------------------------------------------------ persistence - */
 section('PERSISTENCE');
 const store = api.storage;

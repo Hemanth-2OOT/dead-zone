@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.0.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -391,7 +391,7 @@ function lobby() {
 
   const bestBadge = document.getElementById('best-badge');
   if (bestBadge) {
-    bestBadge.onclick = () => openTacticalRecords();
+    // Clicks are handled by the delegated data-act listener (see engine_bootstrap.js).
   }
 
   drawZonePreview(getCurMap());
@@ -738,45 +738,45 @@ function drawHeroBand() {
   const cv = document.getElementById('hero-preview');
   const ci = SV.cls || 0;
   const c = CL[ci] || CL[0] || { n: 'Infantry', hp: 100, spd: 175, dm: 1, sk: [], d: '' };
-  const prevX = (typeof X !== 'undefined') ? X : null;
   if (cv) {
     const cx = cv.getContext('2d');
-    if (prevX) X = cx;
+    // Drawn through withCtx so the engine context is always handed back, even
+    // if a body or gun sprite throws mid-draw.
     try {
-      const w = cv.width, h = cv.height;
-      cx.clearRect(0, 0, w, h);
-      const g = cx.createRadialGradient(w * 0.5, h * 0.6, 6, w * 0.5, h * 0.6, w * 0.72);
-      g.addColorStop(0, 'rgba(62,80,44,0.95)');
-      g.addColorStop(0.55, 'rgba(24,31,18,0.98)');
-      g.addColorStop(1, 'rgba(8,11,7,1)');
-      cx.fillStyle = g;
-      cx.fillRect(0, 0, w, h);
-      // Floor grid, in the same pixel-art spirit as the arena
-      cx.strokeStyle = 'rgba(143,174,74,0.16)';
-      cx.lineWidth = 1;
-      for (let i = -3; i <= 3; i++) {
-        cx.beginPath();
-        cx.moveTo(w * 0.5 + i * 26, h * 0.72);
-        cx.lineTo(w * 0.5 + i * 74, h);
-        cx.stroke();
-      }
-      for (let j = 1; j <= 3; j++) {
-        cx.beginPath();
-        const yy = h * 0.72 + j * j * 6;
-        cx.moveTo(0, yy); cx.lineTo(w, yy); cx.stroke();
-      }
-      // Character, scaled up from the sprite's own 1.7x icon framing
-      cx.save();
-      cx.translate(w * 0.34, h * 0.56);
-      cx.scale(2.35, 2.35);
-      if (typeof bodyBack === 'function') bodyBack(ci);
-      if (typeof gun === 'function') gun(SV.start || 0, 0);
-      if (typeof bodyFront === 'function') bodyFront(ci);
-      cx.restore();
+      withCtx(cx, () => {
+        const w = cv.width, h = cv.height;
+        cx.clearRect(0, 0, w, h);
+        const g = cx.createRadialGradient(w * 0.5, h * 0.6, 6, w * 0.5, h * 0.6, w * 0.72);
+        g.addColorStop(0, 'rgba(62,80,44,0.95)');
+        g.addColorStop(0.55, 'rgba(24,31,18,0.98)');
+        g.addColorStop(1, 'rgba(8,11,7,1)');
+        cx.fillStyle = g;
+        cx.fillRect(0, 0, w, h);
+        // Floor grid, in the same pixel-art spirit as the arena
+        cx.strokeStyle = 'rgba(143,174,74,0.16)';
+        cx.lineWidth = 1;
+        for (let i = -3; i <= 3; i++) {
+          cx.beginPath();
+          cx.moveTo(w * 0.5 + i * 26, h * 0.72);
+          cx.lineTo(w * 0.5 + i * 74, h);
+          cx.stroke();
+        }
+        for (let j = 1; j <= 3; j++) {
+          cx.beginPath();
+          const yy = h * 0.72 + j * j * 6;
+          cx.moveTo(0, yy); cx.lineTo(w, yy); cx.stroke();
+        }
+        // Character, scaled up from the sprite's own 1.7x icon framing
+        cx.save();
+        cx.translate(w * 0.34, h * 0.56);
+        cx.scale(2.35, 2.35);
+        if (typeof bodyBack === 'function') bodyBack(ci);
+        if (typeof gun === 'function') gun(SV.start || 0, 0);
+        if (typeof bodyFront === 'function') bodyFront(ci);
+        cx.restore();
+      });
     } catch (e) {
       console.warn('[DeadZone] hero preview failed', e);
-    } finally {
-      if (prevX) X = prevX;
     }
   }
   const nameEl = document.getElementById('hero-name');
