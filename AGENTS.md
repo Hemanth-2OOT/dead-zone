@@ -367,3 +367,75 @@ The vision tool is not reliable for these screenshots; decode the PNG with Pillo
   instead of stacking a second banner. `drawAnnouncements()` renders the major at
   `H * 0.2` and the minors 52px below in a steady column with no scale punch — the old
   per-entry punch on every alive banner was the wave-clear flicker.
+
+## Post-v2.11.0 notes — mobile combat pad & weapon HUD (v2.12.0)
+
+The v2.12.0 release carries two changesets: the boon-freeze / control-layer work (`engine_core`,
+`engine_feel`, `engine_director`, `engine_fx`, `engine_lobby`, `engine_meta`, `engine_passives`,
+`engine_persistence` + AGENTS.md) and this layout pass (`engine_world.js`, `engine_data.js`).
+
+### One anchored combat pad (`engine_world.js`)
+`padAnchor()` derives every control position from the live aim-stick position, which is itself
+derived from the viewport and the safe-area insets, so the pad keeps its proportions and its
+distance from the resting thumb on any landscape size. Cells (`padUnit()` = `max(0.88, ctlScale)`):
+
+```
+        colB        colA     colA = jR.x - 96u    row1 = rowY -  80u
+         (o)         (o)     colB = colA - 80u    row2 = rowY - 156u
+         (o)         (o)     rowY = jR.y -  8u
+                         (o)  aim stick
+row2: slot 2   | slot 3        drawn radii: FIRE 34u, others 27u, pause 20u
+row1: slot 0   | slot 1        hit radii:   FIRE 38u, others 31u, pause 26u
+rowY: RELOAD   | FIRE
+```
+Before this, RELOAD was positioned off `weaponHudRect()` (`r.x + r.w + 34 * ctlScale()`), i.e. on the
+far right edge of the weapon card - a screen and a half from FIRE - and the four abilities fanned
+around the aim stick on an arc whose upper cells collided with the FIRE column on 360px-tall
+screens. Slot 0 is the class's signature skill (DASH for Infantry) and sits directly above FIRE;
+slot 1 (grenade for Infantry/Commando) sits above RELOAD.
+
+`abilitySlots()` de-duplicates the ability list: Infantry and Commando already list `gren` in their
+own `CL[].sk` kit, so the always-available grenade entry is only appended when the class does not
+have it. That used to put two buttons on screen that threw the same grenade ("GRENADE" and "GREN").
+
+PAUSE moved from `W - 34 * ctlScale()` into the top HUD's own 50px right-hand gutter
+(`W - 25u - insetR()`, vertically centred on the cash/horde plate at `26u + insetT`): at 20u it no
+longer eats into the plate's reserved gutter, and at 26u its touch target is still >= 44px.
+
+### Weapon card (`drawWeaponHud`)
+`weaponHudRect()` is now sized from the viewport (`w = clamp(146, W * 0.22, 200)`,
+`h = 52 * padUnit()`, bottom margin 8 + safe-area) and centred; it no longer subtracts 30px or
+borrows a fixed 46px height. Contents are measured, never hardcoded:
+- icon column 32u (the same `gun()` sprite the picker uses) with a two-chevron "tap to change" mark
+- row A: weapon name (left, `fitLabel()` shrinks then ellipsises into the space left of the right
+  column) and `ammo / mag` right-aligned - the two can never meet
+- row B: `DMG n` left, fire mode right, both at 9u
+- `weaponMode(w)` labels SEMI / AUTO / BOLT / PUMP from the weapon's own `r` and `p`; it describes
+  the gun, it changes no rate, damage or reload
+- reloading turns the border, ammo figure and mode label amber and adds a bottom-edge progress bar;
+  low ammo (<= 25% of the magazine) shows the count in orange-red
+- the card only shrinks the name, so a long name can never collide with "12 / 34"
+
+### Ability icons on the canvas
+`getSkillIcon()` now caches its offscreen canvas in `SK_CANVAS` next to the data URL, and
+`drawSkillGlyph(ctx, id, x, y, size, col)` blits it. The battlefield buttons therefore use exactly
+the glyphs the lobby shows, with no per-frame rasterisation. Cooldown draws as a ring that refills
+(not a pie over the icon), the grenade carries a charge badge (`S.gr`, dimmed at 0), and state
+colours are fixed: ready `#e4eec8`, cooling `#9fb086`, unavailable `#8a917e`.
+
+### Verification recipe
+A temporary `www/_c.html` harness (deleted before packaging) framed `index.html` at 800x360,
+854x393, 915x412 and 960x440, read the geometry from the game's own `padAnchor()`/`BT`/`jPos()`/
+`weaponHudRect()`, spied `CanvasRenderingContext2D.fillText` to capture the HUD's real text boxes,
+and drove the real `touchStart`/`touchEnd` path. 69 assertions, all passing:
+- every control >= 44px touch target; drawn vs hit radii within 12px; FIRE the largest
+- no touch target overlaps another (tightest ~10px, fire/sk0) and none overlaps a stick
+- all controls inside the viewport; pad top 114.8 / 130.1 / 136.4 / 145.6 at the four sizes, all
+  clear of the 48px top HUD band; leftmost pad pixel > W/2 at every size
+- RELOAD 16.7-19.9px from FIRE, same row, <= 84px centre to centre
+- the weapon card touches no control and no stick; its four labels never intersect and never leave
+  the card, including the longest weapon name ("Glacier Breaker") and a switched weapon
+- FIRE holds and releases; RELOAD reloads without adding a shot and cannot stack or fire while full;
+  the gap between two controls fires nothing (it is the aim zone); left stick + aim stick + FIRE run
+  together and releasing one leaves the others held; no stuck input after all fingers lift
+- desktop `r` still reloads; no console errors

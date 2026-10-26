@@ -66,12 +66,32 @@ function ctlScale() {
 function insetR() { return saInsets()[1]; }
 function jRad() { return 46 * ctlScale(); }
 function jKnob() { return 20 * ctlScale(); }
-function btRad() { return 22 * ctlScale(); }
 
-// Tap radius per button. Kept close to the drawn size so the target a player
-// aims at is the target the game reads - the old generous radii made neighbouring
-// abilities overlap and the first match in the array won the tap.
-function btHit(b) { return (b.hr || 25) * ctlScale(); }
+// Button sizing unit. It never drops below 0.88 even when the player chooses the
+// smallest control size, so a 360px-tall landscape screen still gets a
+// thumb-sized target; above that it scales with the viewport.
+function padUnit() { return Math.max(0.88, ctlScale()); }
+
+// Drawn radius. FIRE is deliberately larger than everything else: it is the one
+// action a thumb should find without looking. PAUSE is smaller because it shares
+// the top-right corner with the cash/horde plate, which reserves a 50px gutter
+// for it - a bigger ring would eat into that readout.
+function btnRad(b) {
+  const u = padUnit();
+  if (b && b.fire) return 34 * u;
+  if (b && b.pause) return 20 * u;
+  return 27 * u;
+}
+
+// Tap radius per button, kept just outside the drawn ring so the target a player
+// aims at is the target the game reads. Neighbouring buttons never overlap - the
+// pad pitch below is wider than the largest pair of hit radii.
+function btHit(b) {
+  const u = padUnit();
+  if (b && b.fire) return 38 * u;
+  if (b && b.pause) return 26 * u;
+  return 31 * u;
+}
 
 function jPos(k) {
   const s = ctlScale();
@@ -81,14 +101,65 @@ function jPos(k) {
   return [k === 'l' ? edge : W - edge, H - drop];
 }
 
-// FIRE sits in the empty band between the weapon card and the aim stick, at the
-// stick's own height. Far enough from the stick that a thumb aiming near the rim
-// cannot catch the trigger by accident, close enough to hold for a magazine.
-function fireBtnPos() {
-  const s = ctlScale();
+// ---------------------------------------------------------------------------
+// Combat-control pad
+// ---------------------------------------------------------------------------
+// One coherent block anchored to the bottom-right, laid out as a three-row
+// lattice so every action lives in a cell a thumb learns once:
+//
+//          colB      colA              row2   utility   | utility
+//           (o)       (o)              row1   skill 0   | skill 1
+//           (o)       (o)              rowY   RELOAD    | FIRE
+//                                                    (o)  aim stick
+//
+// FIRE takes the largest cell, one thumb-width from the resting thumb, and
+// RELOAD is its immediate neighbour so changing a magazine never needs a reach.
+// Slot 0 - the class's signature skill, DASH for Infantry - sits directly above
+// FIRE, and the longer-cooldown skills plus the grenade form the cluster above
+// them.
+//
+// Every coordinate derives from the aim stick's live position, which is itself
+// derived from the viewport and the safe-area insets, so the pad keeps both its
+// proportions and its distance from the thumb on any landscape size. The old
+// layout fanned these actions up the middle of the right half and left RELOAD
+// next to the weapon card, a screen-and-a-half from FIRE.
+function padAnchor() {
+  const bs = padUnit();
   const j = jPos('r');
-  return [j[0] - 104 * s, j[1] + 4 * s];
+  const colA = j[0] - 96 * bs;      // FIRE column
+  const colB = colA - 80 * bs;      // RELOAD / grenade column
+  const rowY = j[1] - 8 * bs;       // primary row, at stick height
+  return { bs, colA, colB, rowY, row1: rowY - 80 * bs, row2: rowY - 156 * bs };
 }
+function fireBtnPos() { const a = padAnchor(); return [a.colA, a.rowY]; }
+function reloadBtnPos() { const a = padAnchor(); return [a.colB, a.rowY]; }
+
+// Ability slots, nearest-FIRE first. Slot 0 is the class's signature skill; the
+// remaining cells take the rest of the kit plus the always-available grenade.
+// Infantry and Commando already list 'gren' in their own kit, so the grenade is
+// only appended when the class does not have it - that duplicate was putting two
+// buttons on screen for the same throw.
+function abilitySlots() {
+  const cls = (typeof CL !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0] : null;
+  const out = (cls && cls.sk) ? cls.sk.slice() : [];
+  if (out.indexOf('gren') < 0) out.push('gren');
+  return out.slice(0, 4);
+}
+function clusterPos(i) {
+  const a = padAnchor();
+  const cells = [
+    [a.colA, a.row1],   // 0: signature skill, directly above FIRE
+    [a.colB, a.row1],   // 1: second skill, above RELOAD
+    [a.colA, a.row2],   // 2
+    [a.colB, a.row2]    // 3
+  ];
+  const c = cells[i] || cells[0];
+  return [c[0], c[1]];
+}
+
+// A slot with no skill (a class can have fewer skills than the lattice has cells)
+// is not a button: it must not draw, and it must not swallow a tap.
+function btActive(b) { return !!(b && (b.fire || b.ar || b.k)); }
 
 // Keeps a floating stick origin inside the playable area so a thumb that starts
 // the drag against an edge still gets a full range of motion.
@@ -101,28 +172,27 @@ function clampStickOrigin(x, y) {
   ];
 }
 
-// Ability cluster: a compact, uniform 2x2 block in the right-hand band, anchored
-// above the aim stick and clear of the pause button, the weapon card and the top
-// HUD bar. Slots are ordered by how often they are used - slot 0 (the class's
-// signature skill) takes the bottom-right cell, the one nearest the resting
-// thumb; the grenade, used least, takes the far corner.
-//
-// This replaced an arc of four buttons around the aim stick. The arc fanned out
-// into exactly the band the FIRE button now needs, so an arc plus a trigger could
-// not both fit on a 360px-tall screen - and the arc's angles meant four
-// different button positions for a player to learn.
-const CLU_CELL = [
-  [1, 1],  // slot 0
-  [0, 1],  // slot 1
-  [1, 0],  // slot 2
-  [0, 0],  // slot 3
-];
-function clusterPos(i) {
-  const s = ctlScale();
-  const j = jPos('r');
-  const cell = CLU_CELL[i] || [0, 0];
-  const pitch = 52 * s;
-  return [j[0] + (cell[0] - 1) * pitch, j[1] - 104 * s - cell[1] * pitch];
+// Circular-arrow reload glyph, drawn rather than typed so it stays crisp and
+// identical at every button size. Same symbol the button always used, with a
+// readable stroke weight and an arrowhead that shows the direction of travel.
+function drawReloadGlyph(cx, cy, size, col) {
+  const rr = size * 0.42;
+  const a0 = -1.15, a1 = 3.5;
+  const th = Math.max(1.8, size * 0.14);
+  X.save();
+  X.strokeStyle = col; X.fillStyle = col;
+  X.lineWidth = th; X.lineCap = 'round'; X.lineJoin = 'round';
+  X.beginPath(); X.arc(cx, cy, rr, a0, a1); X.stroke();
+  const hx = cx + Math.cos(a0) * rr, hy = cy + Math.sin(a0) * rr;
+  const t = size * 0.26;
+  X.translate(hx, hy);
+  X.rotate(a0 + Math.PI / 2);
+  X.beginPath();
+  X.moveTo(0, -t * 0.62);
+  X.lineTo(t * 0.62, t * 0.5);
+  X.lineTo(-t * 0.62, t * 0.5);
+  X.closePath(); X.fill();
+  X.restore();
 }
 
 // Activation feedback rings: pushed by btPress(), drawn for a beat and gone.
@@ -130,44 +200,54 @@ const BT_FX = [];
 function btPress(b, x, y) {
   BT_FX.push({
     x, y,
-    r: btRad() * (b.rr || 1) + 4,
+    r: btnRad(b) + 4,
     t0: (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(),
     col: b.fire ? '#ff7a4a' : '#8fae4a'
   });
   if (BT_FX.length > 10) BT_FX.shift();
 }
 
-// On-screen action buttons. `hr` is the tap radius, `rr` a draw-size multiplier.
+// Combat buttons. Sizes, hit radii and positions all come from the pad helpers
+// above; nothing here carries a pixel coordinate.
 const BT = [
   // Held, not tapped: firing continues for as long as the button is down, and the
   // weapon's own cadence, ammo and reloads still govern the rate.
-  { id: 'fire', n: 'FIRE', fire: 1, rr: 1.25, hr: 46, p: () => fireBtnPos(), f() {} },
+  { id: 'fire', n: 'FIRE', fire: 1, p: () => fireBtnPos(), f() {} },
+  // One entry per ability cell. The skill key is read live, so changing class
+  // re-labels and re-icons the same four cells instead of rebuilding the pad.
   {
     id: 'sk0',
-    get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[0] : 'dash'; },
-    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'DASH'; },
+    get k() { return abilitySlots()[0]; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) || ''; },
     p: () => clusterPos(0),
-    f() { skill(this.k); }
+    f() { const k = this.k; if (k) skill(k); }
   },
   {
     id: 'sk1',
-    get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[1] : 'nova'; },
-    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'NOVA'; },
+    get k() { return abilitySlots()[1]; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) || ''; },
     p: () => clusterPos(1),
-    f() { skill(this.k); }
+    f() { const k = this.k; if (k) skill(k); }
   },
   {
     id: 'sk2',
-    get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[2] : 'rage'; },
-    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'RAGE'; },
+    get k() { return abilitySlots()[2]; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) || ''; },
     p: () => clusterPos(2),
-    f() { skill(this.k); }
+    f() { const k = this.k; if (k) skill(k); }
   },
-  { id: 'gren', n: 'GREN', k: 'gren', p: () => clusterPos(3), f: () => skill('gren') },
-  { id: 'pause', n: 'II', ar: 1, p: () => { const [saT, saR] = saInsets(); const s = ctlScale(); return [W - 34 * s - saR, 30 * s + saT]; }, f: () => pause() },
-  // Reload sits beside the weapon card. Swapping is done in the weapon picker
-  // now: two tiny arrows flanking the card were easy to hit while dragging.
-  { id: 'reload', n: '\u21bb', ar: 1, p: () => { const [, , saB] = saInsets(); const r = weaponHudRect(); return [r.x + r.w + 34 * ctlScale(), H - 29 - saB]; }, f: () => { if (run) startReload(); } }
+  {
+    id: 'sk3',
+    get k() { return abilitySlots()[3]; },
+    get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) || ''; },
+    p: () => clusterPos(3),
+    f() { const k = this.k; if (k) skill(k); }
+  },
+  // Pause lives in the top HUD's own right-hand gutter, vertically centred on the
+  // cash/horde plate, so it neither covers the readout nor the pad below.
+  { id: 'pause', n: 'II', ar: 1, pause: 1, p: () => { const [saT, saR] = saInsets(); const u = padUnit(); return [W - 25 * u - saR, 26 * u + saT]; }, f: () => pause() },
+  // Reload is the primary row's other half, one thumb-width from FIRE.
+  { id: 'reload', n: 'RELOAD', ar: 1, p: () => reloadBtnPos(), f: () => { if (run) startReload(); } }
 ];
 
 function txt(x, y, s, c, b) {
@@ -1935,8 +2015,39 @@ function update(dt) {
 // gun is anyway. The bottom-centre card now shows the equipped gun and, when
 // tapped, opens a preview sheet of every gun the account owns.
 function weaponHudRect() {
-  const w = Math.min(132, Math.max(96, W * 0.16));
-  return { x: Math.round(W / 2 - w / 2 - 30), y: H - 52, w: Math.round(w), h: 46 };
+  const bs = padUnit();
+  const w = Math.min(200, Math.max(146, Math.round(W * 0.22)));
+  const h = Math.round(52 * bs);
+  const [, , saB] = saInsets();
+  return { x: Math.round(W / 2 - w / 2), y: Math.round(H - h - 8 - saB), w, h };
+}
+
+// Fire-mode label, derived from the weapon's own cadence and pellet count. It
+// describes how the gun already behaves - no stat, rate or reload is changed by
+// it.
+function weaponMode(w) {
+  if (!w) return 'SEMI';
+  if (w.p > 1) return 'PUMP';
+  if (w.r <= 0.14) return 'AUTO';
+  if (w.r >= 0.5) return 'BOLT';
+  return 'SEMI';
+}
+
+// Fits a label into a pixel width: shrink a little, then ellipsise. Long weapon
+// names used to run straight through the ammunition readout.
+function fitLabel(txt, maxW, px, weight, family) {
+  const set = f => { X.font = weight + ' ' + f + 'px ' + family; };
+  set(px);
+  if (X.measureText(txt).width <= maxW) return txt;
+  const floor = px * 0.72;
+  for (let f = px - 0.5; f >= floor; f -= 0.5) {
+    set(f);
+    if (X.measureText(txt).width <= maxW) return txt;
+  }
+  set(floor);
+  let t = txt;
+  while (t.length > 2 && X.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1);
+  return t + '\u2026';
 }
 
 // True when the tap landed on the weapon card (the picker trigger).
@@ -1948,40 +2059,82 @@ function weaponHudHit(x, y) {
 function drawWeaponHud() {
   if (!P || !P.w) return;
   const r = weaponHudRect();
+  const bs = padUnit();
   const wDef = WEAP[P.cur] || WEAP[0];
   const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[wDef.tier]) ? TIER_COLORS[wDef.tier] : '#8fae4a';
-  X.save();
-  X.beginPath(); X.roundRect(r.x, r.y, r.w, r.h, 7);
-  X.fillStyle = 'rgba(16,20,15,0.88)'; X.fill();
-  X.strokeStyle = P.reloading ? '#ffd36b' : tcol + 'cc'; X.lineWidth = 1.6; X.stroke();
-  // Tier pip down the left edge so rarity reads at a glance
-  X.beginPath(); X.roundRect(r.x + 2, r.y + 3, 3, r.h - 6, 2);
-  X.fillStyle = tcol; X.fill();
+  const reloading = !!P.reloading;
+  const magMax = wDef.mag || 12;
+  const ammo = (P.ammo != null ? P.ammo : magMax);
+  const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
+  const pad = Math.round(9 * bs);
 
   X.save();
-  X.translate(r.x + 14, r.y + 15);
-  X.scale(0.56, 0.56);
+  X.beginPath(); X.roundRect(r.x, r.y, r.w, r.h, 8);
+  X.fillStyle = 'rgba(14,18,13,0.90)'; X.fill();
+  X.strokeStyle = reloading ? '#ffd36b' : tcol + 'cc'; X.lineWidth = 1.5; X.stroke();
+  // Tier pip down the left edge so rarity still reads at a glance.
+  X.beginPath(); X.roundRect(r.x + 2.5, r.y + 5, 3, r.h - 10, 2);
+  X.fillStyle = tcol; X.fill();
+
+  // --- Columns: icon | flexible text | right-aligned ammo -------------------
+  // Every value is measured and placed inside the card, so the rows cannot
+  // collide no matter how long the weapon name or the magazine figure is.
+  const iconW = Math.round(32 * bs);
+  const icx = r.x + Math.round(5 * bs) + iconW / 2;
+  const icy = r.y + r.h * 0.42;
+  X.save();
+  X.translate(icx - 12 * 0.62 * bs, icy - 5 * 0.62 * bs);
+  X.scale(0.62 * bs, 0.62 * bs);
   if (typeof gun === 'function') gun(P.cur, 0);
   X.restore();
 
-  const owned = (P.w || []).filter(Boolean).length;
-  X.textAlign = 'left'; X.textBaseline = 'middle';
-  X.fillStyle = tcol; X.font = '900 11px Arial';
-  X.fillText((wDef.n || 'GUN').toUpperCase(), r.x + 42, r.y + 14);
-  X.fillStyle = 'rgba(213,208,194,0.72)'; X.font = '700 8.5px Arial';
-  X.fillText('DMG ' + Math.round(wDef.d), r.x + 42, r.y + 27);
-  X.fillText('MAG ' + (wDef.mag || 12), r.x + 42 + 46, r.y + 27);
+  const ammoTxt = ammo + ' / ' + magMax;
+  const modeTxt = reloading ? 'RELOADING' : weaponMode(wDef);
+  X.font = `900 ${Math.round(15 * bs)}px Arial`;
+  const ammoW = X.measureText(ammoTxt).width;
+  X.font = `700 ${Math.round(9 * bs)}px Arial`;
+  const modeW = X.measureText(modeTxt).width;
 
-  // Ammo, and the swap affordance
-  X.textAlign = 'right'; X.textBaseline = 'alphabetic';
-  const ammo = (P.ammo != null ? P.ammo : 12);
-  X.fillStyle = P.reloading ? '#ffd36b' : (ammo <= 3 ? '#ff5a3a' : '#e8e4cf');
-  X.font = '900 13px Arial';
-  X.fillText(P.reloading ? 'RLD' : String(ammo), r.x + r.w - 8, r.y + 22);
-  X.font = '700 8px Arial'; X.fillStyle = 'rgba(255,255,255,0.5)';
-  X.fillText('TAP \u25b8 ' + owned, r.x + r.w - 8, r.y + 38);
+  const rx = r.x + r.w - pad;
+  const tx = icx + iconW / 2 + Math.round(7 * bs);
+  const nameMax = Math.max(24, rx - Math.max(ammoW, modeW) - Math.round(9 * bs) - tx);
+  const rowA = r.y + Math.round(17 * bs);
+  const rowB = r.y + Math.round(35 * bs);
+
+  X.textBaseline = 'middle'; X.textAlign = 'left';
+  X.fillStyle = tcol;
+  X.fillText(fitLabel((wDef.n || 'GUN').toUpperCase(), nameMax, Math.round(12 * bs), '900', 'Arial'), tx, rowA);
+  X.fillStyle = 'rgba(213,208,194,0.72)';
+  X.font = `700 ${Math.round(9 * bs)}px Arial`;
+  X.fillText('DMG ' + Math.round(wDef.d), tx, rowB);
+
+  X.textAlign = 'right';
+  X.fillStyle = reloading ? '#ffd36b' : (ammo <= Math.ceil(magMax * 0.25) ? '#ff5a3a' : '#efe9d6');
+  X.font = `900 ${Math.round(15 * bs)}px Arial`;
+  X.fillText(ammoTxt, rx, rowA);
+  X.fillStyle = reloading ? '#ffd36b' : 'rgba(213,208,194,0.62)';
+  X.font = `700 ${Math.round(9 * bs)}px Arial`;
+  X.fillText(modeTxt, rx, rowB);
+
+  // Tap-to-change affordance: two small chevrons under the weapon icon, so the
+  // card still reads as a control without a text label fighting the ammunition.
+  const sy = r.y + r.h - Math.round(8 * bs);
+  X.strokeStyle = 'rgba(213,208,194,0.45)'; X.lineWidth = 1.4; X.lineCap = 'round'; X.lineJoin = 'round';
+  X.beginPath();
+  X.moveTo(icx - 6, sy - 2.4); X.lineTo(icx - 2.6, sy); X.lineTo(icx - 6, sy + 2.4);
+  X.moveTo(icx + 6, sy - 2.4); X.lineTo(icx + 2.6, sy); X.lineTo(icx + 6, sy + 2.4);
+  X.stroke();
+
+  // Reload progress along the bottom edge, never over the ammunition readout.
+  if (prog > 0) {
+    X.beginPath(); X.roundRect(r.x + 6, r.y + r.h - 5, r.w - 12, 2.5, 1.5);
+    X.fillStyle = 'rgba(255,255,255,0.12)'; X.fill();
+    X.beginPath(); X.roundRect(r.x + 6, r.y + r.h - 5, Math.max(3, (r.w - 12) * prog), 2.5, 1.5);
+    X.fillStyle = '#ffd36b'; X.fill();
+  }
   X.restore();
   X.textBaseline = 'alphabetic';
+  X.textAlign = 'left';
 }
 
 /* ---- Owned-weapon picker -------------------------------------------- */
@@ -2965,94 +3118,133 @@ function drawControls() {
     X.restore();
   }
 
-  // 3. Dual Virtual Joysticks
+  // 3. Dual virtual joysticks. One base ring plus a smaller thumb indicator;
+  //    the MOVE/AIM label is only drawn while the stick is at rest, so nothing is
+  //    written under a moving finger.
   const ctlAlpha = ctlPref().opacity;
   const [lx, ly] = jPos('l');
   const [rx, ry] = jPos('r');
+  const drawStick = (side) => {
+    const held = J[side];
+    const base = held ? [held.ox, held.oy] : (side === 'l' ? [lx, ly] : [rx, ry]);
+    const cur = held ? [held.x, held.y] : base;
+    const acc = side === 'l' ? '255,255,255' : '255,110,80';
+    X.save();
+    X.globalAlpha = ctlAlpha;
+    X.lineWidth = 2.5;
+    X.strokeStyle = 'rgba(' + acc + ',0.28)';
+    X.fillStyle = 'rgba(0,0,0,0.22)';
+    X.beginPath(); X.arc(base[0], base[1], jRad(), 0, 6.28); X.fill(); X.stroke();
+    if (!held) {
+      X.fillStyle = 'rgba(' + acc + ',0.22)';
+      X.font = '900 ' + Math.round(11 * ctlScale()) + 'px Arial';
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      X.fillText(side === 'l' ? 'MOVE' : 'AIM', base[0], base[1]);
+    }
+    X.beginPath(); X.arc(cur[0], cur[1], jKnob(), 0, 6.28);
+    X.fillStyle = 'rgba(' + acc + ',0.4)'; X.fill();
+    X.strokeStyle = 'rgba(' + acc + ',0.75)'; X.lineWidth = 2; X.stroke();
+    X.restore();
+  };
+  drawStick('l');
+  drawStick('r');
 
-  // Left joystick (Movement). The base ring follows the live origin so a
-  // floating stick appears under the thumb that summoned it.
-  const lBase = J.l ? [J.l.ox, J.l.oy] : [lx, ly];
-  X.save();
-  X.globalAlpha = ctlAlpha;
-  X.lineWidth = 2.5;
-  X.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  X.fillStyle = 'rgba(0, 0, 0, 0.22)';
-  X.beginPath(); X.arc(lBase[0], lBase[1], jRad(), 0, 6.28); X.fill(); X.stroke();
-  X.fillStyle = 'rgba(255, 255, 255, 0.2)';
-  X.font = `900 ${Math.round(11 * ctlScale())}px Arial`; X.textAlign = 'center'; X.textBaseline = 'middle';
-  X.fillText('MOVE', lBase[0], lBase[1]);
-  const curL = J.l ? [J.l.x, J.l.y] : [lx, ly];
-  X.fillStyle = 'rgba(255, 255, 255, 0.35)';
-  X.beginPath(); X.arc(curL[0], curL[1], jKnob(), 0, 6.28); X.fill();
-  X.strokeStyle = 'rgba(255, 255, 255, 0.65)'; X.lineWidth = 2; X.stroke();
-  X.restore();
-
-  // Right joystick (Aim & Fire)
-  const rBase = J.r ? [J.r.ox, J.r.oy] : [rx, ry];
-  X.save();
-  X.globalAlpha = ctlAlpha;
-  X.lineWidth = 2.5;
-  X.strokeStyle = 'rgba(255, 110, 80, 0.28)';
-  X.fillStyle = 'rgba(0, 0, 0, 0.22)';
-  X.beginPath(); X.arc(rBase[0], rBase[1], jRad(), 0, 6.28); X.fill(); X.stroke();
-  X.fillStyle = 'rgba(255, 110, 80, 0.22)';
-  X.font = `900 ${Math.round(11 * ctlScale())}px Arial`; X.textAlign = 'center'; X.textBaseline = 'middle';
-  X.fillText('AIM', rBase[0], rBase[1]);
-  const curR = J.r ? [J.r.x, J.r.y] : [rx, ry];
-  X.fillStyle = 'rgba(255, 110, 80, 0.42)';
-  X.beginPath(); X.arc(curR[0], curR[1], jKnob(), 0, 6.28); X.fill();
-  X.strokeStyle = 'rgba(255, 130, 100, 0.75)'; X.lineWidth = 2; X.stroke();
-  X.restore();
-
-  // 4. On-screen Action & Utility Buttons
+  // 4. Combat-control pad. One lattice, one button size, icons instead of words:
+  //    fire, reload and the class abilities are drawn from the same geometry the
+  //    hit-test uses, so what a player sees is what the game reads.
   const reloading = !!(P && P.reloading);
   const noAmmo = !!(P && P.ammo != null && P.ammo <= 0);
+  const magMax = (P && WEAP[P.cur] && WEAP[P.cur].mag) || 12;
   for (const b of BT) {
-    const p = b.p();
-    const bx = p[0], by = p[1];
-    const r = btRad() * (b.rr || 1);
-    const cdRatio = (b.k && SK[b.k] && SK[b.k].cd > 0) ? Math.max(0, Math.min(1, SK[b.k].cd / (SK[b.k].max || 1))) : 0;
+    if (!btActive(b)) continue;
+    const pos = b.p();
+    const bx = pos[0], by = pos[1];
+    const r = btnRad(b);
 
-    // The trigger reads as the primary action: solid orange-red, brightest while
-    // held, muted while the weapon is empty or reloading.
     if (b.fire) {
       const held = fireHeld();
       const dry = reloading || noAmmo;
       X.save();
       X.globalAlpha = ctlAlpha;
-      X.fillStyle = held ? 'rgba(255,104,62,0.88)' : dry ? 'rgba(46,30,24,0.8)' : 'rgba(150,44,26,0.84)';
-      X.beginPath(); X.arc(bx, by, r, 0, 6.28); X.fill();
-      X.strokeStyle = dry ? 'rgba(140,90,70,0.55)' : held ? '#ffd7c2' : '#ff7a4a';
-      X.lineWidth = held ? 3 : 2.2; X.stroke();
-      X.fillStyle = dry ? 'rgba(214,186,170,0.7)' : '#fff3ea';
-      X.font = `900 ${Math.round(13 * ctlScale())}px Impact, Arial Black, sans-serif`;
+      X.beginPath(); X.arc(bx, by, r, 0, 6.28);
+      X.fillStyle = held ? 'rgba(255,104,62,0.90)' : dry ? 'rgba(40,28,22,0.82)' : 'rgba(150,44,26,0.86)';
+      X.fill();
+      X.strokeStyle = dry ? 'rgba(140,90,70,0.5)' : held ? '#ffd7c2' : '#ff7a4a';
+      X.lineWidth = held ? 3.4 : 2.4; X.stroke();
+      X.strokeStyle = dry ? 'rgba(150,110,90,0.2)' : 'rgba(255,190,160,0.26)';
+      X.lineWidth = 1.2;
+      X.beginPath(); X.arc(bx, by, r * 0.76, 0, 6.28); X.stroke();
+      X.fillStyle = dry ? 'rgba(214,186,170,0.65)' : '#fff3ea';
+      X.font = '900 ' + Math.round(15 * padUnit()) + 'px Impact, Arial Black, sans-serif';
       X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText(reloading ? 'RELOAD' : 'FIRE', bx, by);
+      X.fillText('FIRE', bx, by);
       X.restore();
       continue;
     }
 
-    X.save();
-    X.globalAlpha = ctlAlpha;
-    X.fillStyle = cdRatio > 0 ? 'rgba(25, 30, 22, 0.72)' : 'rgba(20, 26, 18, 0.88)';
-    X.beginPath(); X.arc(bx, by, r, 0, 6.28); X.fill();
-    X.strokeStyle = cdRatio > 0 ? 'rgba(90, 100, 80, 0.45)' : (b.ar ? '#3d4f34' : '#8fae4a');
-    X.lineWidth = 1.8; X.stroke();
-
-    if (cdRatio > 0) {
-      X.fillStyle = 'rgba(0, 0, 0, 0.55)';
-      X.beginPath();
-      X.moveTo(bx, by);
-      X.arc(bx, by, r - 1, -1.57, -1.57 + 6.28 * cdRatio);
-      X.closePath();
-      X.fill();
+    if (b.id === 'pause') {
+      X.save(); X.globalAlpha = ctlAlpha;
+      X.beginPath(); X.arc(bx, by, r, 0, 6.28);
+      X.fillStyle = 'rgba(20,26,18,0.82)'; X.fill();
+      X.strokeStyle = '#3d4f34'; X.lineWidth = 1.6; X.stroke();
+      X.fillStyle = '#d5d0c2';
+      const bw = Math.max(3, r * 0.2), bh = r * 0.8;
+      X.fillRect(bx - r * 0.36 - bw / 2, by - bh / 2, bw, bh);
+      X.fillRect(bx + r * 0.36 - bw / 2, by - bh / 2, bw, bh);
+      X.restore();
+      continue;
     }
 
-    X.fillStyle = cdRatio > 0 ? '#7a8570' : (b.ar ? '#d5d0c2' : '#f0ece1');
-    X.font = b.ar ? `bold ${Math.round(12 * ctlScale())}px Arial` : `900 ${Math.round(10 * ctlScale())}px Impact, Arial Black, sans-serif`;
-    X.textAlign = 'center'; X.textBaseline = 'middle';
-    X.fillText(b.n, bx, by);
+    if (b.id === 'reload') {
+      // Three readable states: idle/ready, reloading (amber + progress ring),
+      // and magazine already full (dimmed, so a wasted press is obvious before
+      // it happens). startReload() itself rejects overlapping requests.
+      const full = P && P.ammo != null && P.ammo >= magMax;
+      const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
+      X.save();
+      X.globalAlpha = ctlAlpha * (full && !reloading ? 0.55 : 1);
+      X.beginPath(); X.arc(bx, by, r, 0, 6.28);
+      X.fillStyle = reloading ? 'rgba(48,40,20,0.9)' : 'rgba(20,26,18,0.88)'; X.fill();
+      X.strokeStyle = reloading ? '#ffd36b' : full ? 'rgba(90,100,80,0.4)' : '#8fae4a';
+      X.lineWidth = 2; X.stroke();
+      if (prog > 0) {
+        X.strokeStyle = '#ffd36b'; X.lineWidth = 3.2; X.lineCap = 'round';
+        X.beginPath(); X.arc(bx, by, r + 3.5, -1.5708, -1.5708 + 6.28 * prog); X.stroke();
+      }
+      drawReloadGlyph(bx, by, r * 1.0, reloading ? '#ffd36b' : full ? '#8a917e' : '#e6e2d2');
+      X.restore();
+      continue;
+    }
+
+    // Abilities: class glyph, cooldown ring, and the grenade's charge count.
+    const key = b.k;
+    const sk = (typeof SK !== 'undefined' && SK[key]) ? SK[key] : null;
+    const cdRatio = (sk && sk.cd > 0) ? Math.max(0, Math.min(1, sk.cd / (sk.max || 1))) : 0;
+    const charges = (key === 'gren') ? ((typeof S !== 'undefined' && S) ? (S.gr || 0) : 0) : null;
+    const unavail = (charges === 0);
+    X.save();
+    X.globalAlpha = ctlAlpha * (unavail ? 0.55 : 1);
+    X.beginPath(); X.arc(bx, by, r, 0, 6.28);
+    X.fillStyle = cdRatio > 0 ? 'rgba(25,30,22,0.78)' : 'rgba(20,26,18,0.88)'; X.fill();
+    X.strokeStyle = unavail ? 'rgba(120,110,90,0.45)' : cdRatio > 0 ? 'rgba(110,120,95,0.5)' : '#8fae4a';
+    X.lineWidth = 2; X.stroke();
+    if (cdRatio > 0) {
+      // Cooldown reads as a ring refilling instead of a pie hiding the icon.
+      X.strokeStyle = 'rgba(190,205,150,0.6)'; X.lineWidth = 3; X.lineCap = 'round';
+      X.beginPath(); X.arc(bx, by, r - 2.5, -1.5708, -1.5708 + 6.28 * cdRatio); X.stroke();
+    }
+    drawSkillGlyph(X, key, bx, by, r * 1.2, unavail ? '#8a917e' : cdRatio > 0 ? '#9fb086' : '#e4eec8');
+    if (charges != null) {
+      const lab = '\u00d7' + charges;
+      X.font = '900 ' + Math.round(9 * padUnit()) + 'px Arial';
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      const bw2 = Math.max(15, X.measureText(lab).width + 8);
+      const gx = bx + r * 0.6, gy = by + r * 0.7;
+      X.beginPath(); X.roundRect(gx - bw2 / 2, gy - 7, bw2, 14, 7);
+      X.fillStyle = charges > 0 ? 'rgba(255,183,90,0.94)' : 'rgba(120,110,90,0.72)'; X.fill();
+      X.fillStyle = '#241a10';
+      X.fillText(lab, gx, gy);
+    }
     X.restore();
   }
 
@@ -3252,6 +3444,7 @@ function touchStart(t) {
   // near the aim stick cannot also start an aim drag.
   if (run) {
     for (const b of BT) {
+      if (!btActive(b)) continue;
       const p = b.p();
       const hr = btHit(b);
       if (Math.hypot(t.clientX - p[0], t.clientY - p[1]) >= hr) continue;

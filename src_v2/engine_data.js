@@ -344,12 +344,16 @@ function getStatIcon(statId, col = '#e0b83a') {
 }
 
 const SK_CACHE = {};
+// Same glyphs kept as live canvases so the in-game HUD buttons can draw them
+// with drawImage instead of re-rasterising a data URL every frame.
+const SK_CANVAS = {};
 function getSkillIcon(skillId, col = '#8fae4a') {
   const k = skillId + '_' + col;
   if (SK_CACHE[k]) return SK_CACHE[k];
   const cv = document.createElement('canvas'); cv.width = 40; cv.height = 40;
   const cx = cv.getContext('2d');
   cx.strokeStyle = col; cx.fillStyle = col; cx.lineWidth = 2.4; cx.lineCap = 'round'; cx.lineJoin = 'round';
+  SK_CANVAS[k] = cv;
   if (skillId === 'dash') {
     cx.beginPath(); cx.moveTo(6, 20); cx.lineTo(26, 20); cx.stroke();
     cx.beginPath(); cx.moveTo(18, 12); cx.lineTo(28, 20); cx.lineTo(18, 28); cx.stroke();
@@ -542,6 +546,20 @@ function getSkillIcon(skillId, col = '#8fae4a') {
     cx.beginPath(); cx.moveTo(20, 8); cx.lineTo(20, 32); cx.moveTo(8, 20); cx.lineTo(32, 20); cx.stroke();
   }
   return SK_CACHE[k] = cv.toDataURL();
+}
+
+// In-game counterpart of getSkillIcon(): draws the same cached glyph straight
+// onto the game canvas. Sharing the offscreen canvas keeps the lobby icons and
+// the battlefield buttons identical, and drawImage of a small canvas is cheaper
+// than any per-frame rasterisation.
+function drawSkillGlyph(ctx, skillId, cx, cy, size, col = '#8fae4a') {
+  if (!skillId) return false;
+  const k = skillId + '_' + col;
+  if (!SK_CANVAS[k]) getSkillIcon(skillId, col);
+  const cv = SK_CANVAS[k];
+  if (!cv) return false;
+  ctx.drawImage(cv, cx - size / 2, cy - size / 2, size, size);
+  return true;
 }
 
 function threatStars(diff) {
