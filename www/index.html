@@ -1523,7 +1523,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v2.11.0</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.0</span>
         </div>
 
         <button type="button" id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record">
@@ -1596,7 +1596,31 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div id="ev-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
     </div>
 
-    <!-- TAB 2: GUNS ARMORY -->
+    <!-- TAB 2: SHOP. Weapons are listed by tier and then by price, so the
+         ladder reads top-to-bottom. Rank unlocks still apply: a gun can be
+         earned by playing or bought early with credits. -->
+    <div class="pp" id="psh">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;width:100%">
+        <div>
+          <b style="font-size:15px;letter-spacing:1px;color:#f0ece1">BLACK MARKET ARMORY</b>
+          <div style="font-size:10.5px;opacity:.7">Buy any weapon early with credits &bull; Rank unlocks still grant guns free</div>
+        </div>
+        <div style="text-align:right;min-width:96px">
+          <div style="font-size:10px;letter-spacing:1px;opacity:.7">CREDITS</div>
+          <b id="shop-cr" style="font-size:17px;color:#e0b83a">0</b>
+        </div>
+      </div>
+      <div id="sh-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="sh-tab on" onclick="filterShop('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+        <button class="sh-tab" onclick="filterShop('COMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">COMMON</button>
+        <button class="sh-tab" onclick="filterShop('UNCOMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">UNCOMMON</button>
+        <button class="sh-tab" onclick="filterShop('RARE')" style="padding:4px 8px;min-height:28px;font-size:10px">RARE</button>
+        <button class="sh-tab" onclick="filterShop('EPIC')" style="padding:4px 8px;min-height:28px;font-size:10px">EPIC</button>
+        <button class="sh-tab" onclick="filterShop('LEGENDARY')" style="padding:4px 8px;min-height:28px;font-size:10px">LEGENDARY</button>
+      </div>
+      <div id="shop-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
+    </div>
+
 
     <!-- TAB 3: SKINS HUB -->
     <div class="pp" id="psk">
@@ -1641,8 +1665,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <div id="hero-skills" class="hs-skills"></div>
           <div id="hero-skin" class="hs-skin"></div>
           <div class="hs-btns">
-            <button onclick="tab(2)">CHANGE SKIN</button>
-            <button onclick="tab(4)">SKILL TREE</button>
+            <button onclick="tab(3)">CHANGE SKIN</button>
+            <button onclick="tab(5)">SKILL TREE</button>
           </div>
         </div>
       </div>
@@ -1667,7 +1691,6 @@ button:active:not(:disabled) { transform: scale(0.96); }
           <button id="ctlsizebtn" class="setbtn" onclick="cycleCtlSize()">CONTROL SIZE: 100%</button>
           <button id="ctlopbtn" class="setbtn" onclick="cycleCtlOpacity()">CONTROL OPACITY: 100%</button>
           <button id="ctlbtn" class="setbtn" onclick="cycleCtlMode()">JOYSTICK: FIXED</button>
-          <button id="firebtn" class="setbtn" onclick="cycleFireMode()">FIRE: AIM TO FIRE</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">VISUAL COMFORT</span>
@@ -1697,6 +1720,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
   <nav id="nav">
     <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>SHOP</button>
         <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>
@@ -2061,8 +2085,7 @@ function ctlPref() {
   return {
     size: Math.max(0.8, Math.min(1.3, n(sv.ctlSize, 1))),
     opacity: Math.max(0.35, Math.min(1, n(sv.ctlOpacity, 1))),
-    floating: sv.ctlMode === 'floating',
-    fireMode: sv.fireMode === 'button' ? 'button' : 'aim'
+    floating: sv.ctlMode === 'floating'
   };
 }
 
@@ -2308,7 +2331,7 @@ const WEAP = [
 // Weapons are no longer bought: each unlocks automatically once the account
 // reaches its rank. One new gun every rank or two, so the arsenal still opens
 // up over time without a shop to visit.
-const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,1,8,19,5,10,13,18];
+const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,3,8,19,5,10,13,18];
 
 /* ---- Weapon tier policy ------------------------------------------------
    One table decides what a tier is worth, so the armoury, the HUD and the
@@ -3214,7 +3237,6 @@ let SV = {
   ctlSize: 1,
   ctlOpacity: 1,
   ctlMode: 'fixed',
-  fireMode: 'aim',
   shakeLvl: 2,
   fx: 'full',
   rm: null,
@@ -3300,7 +3322,6 @@ function sanitizeSV(s) {
   out.ctlSize = Math.max(0.8, Math.min(1.3, Number(out.ctlSize) || 1));
   out.ctlOpacity = Math.max(0.35, Math.min(1, Number(out.ctlOpacity) || 1));
   out.ctlMode = out.ctlMode === 'floating' ? 'floating' : 'fixed';
-  out.fireMode = out.fireMode === 'button' ? 'button' : 'aim';
   out.shakeLvl = Math.max(0, Math.min(2, Number(out.shakeLvl != null ? out.shakeLvl : 2) || 0));
   out.fx = out.fx === 'reduced' ? 'reduced' : 'full';
   out.rm = (out.rm == null) ? null : Boolean(out.rm);
@@ -9884,16 +9905,13 @@ let TCH = 0;
 // Touch ownership. Every active pointer id owns exactly one role, so lifting
 // the aiming finger can never cancel the movement stick (or the FIRE button),
 // and a second finger landing on an ability cannot steal the aim stick.
-const TOUCH_ROLE = new Map();   // pointer id -> 'move' | 'aim' | 'fire' | 'btn'
-let FIRE_HOLD = 0;              // pointer id holding the FIRE button, 0 = idle
-const fireHeld = () => FIRE_HOLD !== 0;
+const TOUCH_ROLE = new Map();   // pointer id -> 'move' | 'aim' | 'btn'
 
 // Called on pause, tab switch, window blur and app backgrounding. Without it a
 // finger that was down when the app lost focus never delivers a touchend, so the
 // stick stayed engaged and the player kept walking (and firing) on resume.
 function releaseAllInputs() {
   J.l = null; J.r = null;
-  FIRE_HOLD = 0;
   TOUCH_ROLE.clear();
   M.down = 0;
 }
@@ -9970,7 +9988,6 @@ function btnRad(b) {
 // pad pitch below is wider than the largest pair of hit radii.
 function btHit(b) {
   const u = padUnit();
-  if (b && b.fire) return 38 * u;
   if (b && b.pause) return pauseHit();
   return 31 * u;
 }
@@ -9991,14 +10008,14 @@ function jPos(k) {
 //
 //          colB      colA              row2   utility   | utility
 //           (o)       (o)              row1   skill 0   | skill 1
-//           (o)       (o)              rowY   RELOAD    | FIRE
+//           (o)       (o)              rowY             | RELOAD
 //                                                    (o)  aim stick
 //
-// FIRE takes the largest cell, one thumb-width from the resting thumb, and
-// RELOAD is its immediate neighbour so changing a magazine never needs a reach.
-// Slot 0 - the class's signature skill, DASH for Infantry - sits directly above
-// FIRE, and the longer-cooldown skills plus the grenade form the cluster above
-// them.
+// RELOAD holds the primary cell, one thumb-width from the resting thumb, because
+// it is the most-pressed button left on the pad now that the aim stick is the
+// trigger. Slot 0 - the class's signature skill, DASH for Infantry - sits
+// directly above it, and the longer-cooldown skills plus the grenade form the
+// cluster above them.
 //
 // Every coordinate derives from the aim stick's live position, which is itself
 // derived from the viewport and the safe-area insets, so the pad keeps both its
@@ -10008,13 +10025,12 @@ function jPos(k) {
 function padAnchor() {
   const bs = padUnit();
   const j = jPos('r');
-  const colA = j[0] - 96 * bs;      // FIRE column
-  const colB = colA - 80 * bs;      // RELOAD / grenade column
+  const colA = j[0] - 96 * bs;      // primary column, nearest the thumb
+  const colB = colA - 80 * bs;      // ability column
   const rowY = j[1] - 8 * bs;       // primary row, at stick height
   return { bs, colA, colB, rowY, row1: rowY - 80 * bs, row2: rowY - 156 * bs };
 }
-function fireBtnPos() { const a = padAnchor(); return [a.colA, a.rowY]; }
-function reloadBtnPos() { const a = padAnchor(); return [a.colB, a.rowY]; }
+function reloadBtnPos() { const a = padAnchor(); return [a.colA, a.rowY]; }
 
 // Ability slots, nearest-FIRE first. Slot 0 is the class's signature skill; the
 // remaining cells take the rest of the kit plus the always-available grenade.
@@ -10030,8 +10046,8 @@ function abilitySlots() {
 function clusterPos(i) {
   const a = padAnchor();
   const cells = [
-    [a.colA, a.row1],   // 0: signature skill, directly above FIRE
-    [a.colB, a.row1],   // 1: second skill, above RELOAD
+    [a.colA, a.row1],   // 0: signature skill, directly above RELOAD
+    [a.colB, a.row1],   // 1: second skill
     [a.colA, a.row2],   // 2
     [a.colB, a.row2]    // 3
   ];
@@ -10165,9 +10181,8 @@ function btFlash(b) {
 // Combat buttons. Sizes, hit radii and positions all come from the pad helpers
 // above; nothing here carries a pixel coordinate.
 const BT = [
-  // Held, not tapped: firing continues for as long as the button is down, and the
-  // weapon's own cadence, ammo and reloads still govern the rate.
-  { id: 'fire', n: 'FIRE', fire: 1, p: () => fireBtnPos(), f() {} },
+  // There is no FIRE entry: aiming with the right stick fires, the mouse fires on
+  // desktop, and the weapon's own cadence, ammo and reloads still govern the rate.
   // One entry per ability cell. The skill key is read live, so changing class
   // re-labels and re-icons the same four cells instead of rebuilding the pad.
   {
@@ -10201,7 +10216,7 @@ const BT = [
   // Pause lives in the top HUD's own right-hand gutter, vertically centred on the
   // cash/horde plate, so it neither covers the readout nor the pad below.
   { id: 'pause', n: 'II', ar: 1, pause: 1, p: () => pausePos(), f: () => pause() },
-  // Reload is the primary row's other half, one thumb-width from FIRE.
+  // Reload is the primary row's only button, one thumb-width from the stick.
   { id: 'reload', n: 'RELOAD', ar: 1, p: () => reloadBtnPos(), f: () => { if (run) startReload(); } }
 ];
 
@@ -11516,16 +11531,16 @@ function update(dt) {
   // Dual virtual sticks & keyboard inputs
   let mx = (K.d || K.arrowright ? 1 : 0) - (K.a || K.arrowleft ? 1 : 0);
   let my = (K.s || K.arrowdown ? 1 : 0) - (K.w || K.arrowup ? 1 : 0);
-  let firing = M.down || fireHeld();
+  let firing = M.down;
 
   const L = stick(J.l);
   if (L[2]) { mx = L[0]; my = L[1]; }
   const R = stick(J.r);
   if (R[2]) {
     P.a = Math.atan2(R[1], R[0]);
-    // Twin-stick default: aiming also fires. Under the FIRE-button preference
-    // the aim stick only steers and the button (or the mouse) drives the trigger.
-    if (ctlPref().fireMode === 'aim') firing = 1;
+    // Twin-stick: aiming also fires. The separate FIRE button was removed, so the
+    // aim stick is the trigger on touch and the mouse is the trigger on desktop.
+    firing = 1;
   }
   else if (!TCH && M.moved) { P.a = Math.atan2(M.y - (P.y - CY), M.x - (P.x - CX)); }
 
@@ -12759,16 +12774,15 @@ function touchStart(t) {
   // Only touchstart is gated: cancels and releases must still be processed or a
   // finger that was already down would stay owned by a dead role.
   if (S && S.gp) return;
-  // Action buttons are claimed before the sticks, so an ability or FIRE press
-  // near the aim stick cannot also start an aim drag.
+  // Action buttons are claimed before the sticks, so an ability press near the
+  // aim stick cannot also start an aim drag.
   if (run) {
     for (const b of BT) {
       if (!btActive(b)) continue;
       const p = b.p();
       const hr = btHit(b);
       if (Math.hypot(t.clientX - p[0], t.clientY - p[1]) >= hr) continue;
-      if (b.fire) { FIRE_HOLD = t.identifier; TOUCH_ROLE.set(t.identifier, 'fire'); }
-      else { b.f(); TOUCH_ROLE.set(t.identifier, 'btn'); }
+      b.f(); TOUCH_ROLE.set(t.identifier, 'btn');
       btPress(b, p[0], p[1]);
       return;
     }
@@ -12799,8 +12813,6 @@ function touchEnd(id) {
   TOUCH_ROLE.delete(id);
   if (role === 'l' || role === 'r') {
     if (J[role] && J[role].id === id) J[role] = null;
-  } else if (role === 'fire') {
-    if (FIRE_HOLD === id) FIRE_HOLD = 0;
   }
 }
 
@@ -13767,29 +13779,10 @@ function drawControls() {
     const bx = pos[0], by = pos[1];
     const r = btnRad(b);
 
-    if (b.fire) {
-      const held = fireHeld();
-      const dry = reloading || noAmmo;
-      // Held breathes gently instead of strobing, so continuous fire stays calm
-      // to look at while still being obviously "down".
-      const pulse = held ? 0.55 + 0.45 * Math.sin(perfNow() / 130) : 0;
-      X.save();
-      X.globalAlpha = ctlAlpha;
-      ctlDisc(bx, by, r,
-        dry ? 'rgba(150,104,80,0.62)' : held ? '#ffd7c2' : '#ff7a4a',
-        {
-          fill: held ? 'rgba(168,52,30,0.90)' : dry ? 'rgba(34,24,19,0.84)' : 'rgba(96,30,18,0.86)',
-          glow: dry ? null : held ? 'rgba(255,140,96,0.85)' : 'rgba(255,122,74,0.5)',
-          glowA: held ? 0.35 + 0.3 * pulse : 0.35,
-          ringW: held ? 3.2 : 2.4
-        });
-      X.fillStyle = dry ? 'rgba(214,186,170,0.6)' : '#fff3ea';
-      X.font = '900 ' + Math.round(15 * padUnit()) + 'px Impact, Arial Black, sans-serif';
-      X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText('FIRE', bx, by);
-      X.restore();
-      continue;
-    }
+    // The dedicated FIRE button was removed: firing is driven by the aim
+    // stick and the tap/hold fire modes, so a separate button only duplicated
+    // the same action and crowded the pad.
+
 
     if (b.id === 'pause') {
       X.save(); X.globalAlpha = ctlAlpha;
@@ -15562,8 +15555,9 @@ function tab(i) {
   });
   document.querySelectorAll('.pp').forEach(p => p.classList.remove('on'));
 
-  // GUNS/armory was retired; panels shift up by one after EVENTS.
-  const pids = ['p0', 'pe', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
+  // Panel ids follow the nav order exactly: PLAY, EVENTS, SHOP, SKINS, HERO,
+  // SKILLS, STATS, RELICS, OPTS.
+  const pids = ['p0', 'pe', 'psh', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
   const target = document.getElementById(pids[i] || 'p0');
   if (target) {
     target.classList.add('on');
@@ -15571,19 +15565,20 @@ function tab(i) {
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
 
-  if (i !== 2 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
+  if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
     cancelAnimationFrame(TURNTABLE_RAF);
     TURNTABLE_RAF = null;
   }
 
   if (i === 0) { mapsUI(); updateZoneMeta(getCurMap()); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
-  else if (i === 2) renderSkinsUI();
-  else if (i === 3) lobby2();
+  else if (i === 2) renderShop();
+  else if (i === 3) renderSkinsUI();
   else if (i === 4) lobby2();
   else if (i === 5) lobby2();
-  else if (i === 6) relics();
-  else if (i === 7) renderSettingsUI();
+  else if (i === 6) lobby2();
+  else if (i === 7) relics();
+  else if (i === 8) renderSettingsUI();
 }
 
 function renderNextGoal() {
@@ -16174,6 +16169,115 @@ function lobby2() {
   }
 }
 
+/* ---- Shop ---------------------------------------------------------------
+   The armory tab was retired when guns became rank rewards. It is back as a
+   shop: the ladder is ordered by tier and then by price, so progression reads
+   top-to-bottom, and rank unlocks still apply. A gun can be earned by playing
+   or bought early with credits, which is the only way to field a tier before
+   its rank arrives. */
+const SHOP_TIER_ORDER = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4 };
+const SHOP_TIER_COLS = { COMMON: '#94a3b8', UNCOMMON: '#4ade80', RARE: '#38bdf8', EPIC: '#c084fc', LEGENDARY: '#f59e0b' };
+let activeShopFilter = 'all';
+
+function shopEntries() {
+  return WEAP.map((w, i) => ({ w, i })).sort((a, b) => {
+    const ta = SHOP_TIER_ORDER[a.w.tier] != null ? SHOP_TIER_ORDER[a.w.tier] : 9;
+    const tb = SHOP_TIER_ORDER[b.w.tier] != null ? SHOP_TIER_ORDER[b.w.tier] : 9;
+    if (ta !== tb) return ta - tb;
+    if ((a.w.c || 0) !== (b.w.c || 0)) return (a.w.c || 0) - (b.w.c || 0);
+    return a.i - b.i;
+  });
+}
+
+function filterShop(f) {
+  activeShopFilter = f;
+  document.querySelectorAll('.sh-tab').forEach(b => {
+    b.classList.toggle('on', b.textContent.trim().toUpperCase() === f.toUpperCase());
+  });
+  renderShop();
+}
+
+function renderShop() {
+  const el = document.getElementById('shop-list'); if (!el) return;
+  if (typeof SV === 'undefined' || !SV) return;
+  if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
+
+  const crEl = document.getElementById('shop-cr');
+  if (crEl) crEl.textContent = (SV.cr || 0).toLocaleString();
+
+  el.onclick = e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    if (b.dataset.buy != null) buyWeapon(parseInt(b.dataset.buy, 10));
+    else if (b.dataset.eq != null) equipWeapon(parseInt(b.dataset.eq, 10));
+  };
+
+  const rows = shopEntries().filter(e => activeShopFilter === 'all' || e.w.tier === activeShopFilter);
+  if (!rows.length) {
+    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;opacity:.6">No weapons in this tier.</div>';
+    return;
+  }
+
+  el.innerHTML = rows.map(({ w, i }) => {
+    const st = weaponStats(i);
+    const owned = Boolean(SV.own && SV.own[i]);
+    const equipped = owned && SV.start === i;
+    const tCol = SHOP_TIER_COLS[w.tier] || '#94a3b8';
+    const rankReq = WEAP_RANK[i] || 0;
+    const cost = Math.max(0, w.c || 0);
+    const affordable = (SV.cr || 0) >= cost;
+    const status = equipped ? 'EQUIPPED' : owned ? 'OWNED' : 'LOCKED';
+    const action = owned
+      ? '<button data-eq="' + i + '"' + (equipped ? ' disabled' : '') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800;border-color:' + (equipped ? '#333' : '#8fae4a') + ';color:' + (equipped ? '#666' : '#8fae4a') + '">' + (equipped ? 'EQUIPPED' : 'EQUIP') + '</button>'
+      : '<button data-buy="' + i + '"' + (affordable ? '' : ' disabled') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800">BUY ' + cost.toLocaleString() + ' CR</button>';
+    const stats = [['DMG', Math.round(st.shot)], ['DPS', Math.round(st.dps)], ['MAG', st.mag], ['RELOAD', st.reload.toFixed(1) + 's']]
+      .map(r => '<div style="text-align:center"><div style="font-size:8.5px;letter-spacing:.5px;opacity:.6">' + r[0] + '</div><div style="font-size:12px;font-weight:800;color:#e8e2d6">' + r[1] + '</div></div>').join('');
+    const origin = rankReq > 0 ? 'RANK ' + rankReq + ' UNLOCK &bull; ' : 'STARTER WEAPON &bull; ';
+    const footer = owned ? (equipped ? 'YOUR DEPLOYED WEAPON' : 'IN YOUR ARSENAL') : cost.toLocaleString() + ' CREDITS';
+    const footerCol = owned ? '#8fae4a' : (affordable ? '#e0b83a' : '#c98a6a');
+    return '<div class="card" style="display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,' + tCol + '0f,rgba(20,24,18,.96));border-left:5px solid ' + tCol + '">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      +   '<div style="min-width:0">'
+      +     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +       '<span style="font-size:8.5px;font-weight:900;padding:1px 5px;border-radius:3px;background:' + tCol + '22;color:' + tCol + ';border:1px solid ' + tCol + '66">' + (w.tier || 'COMMON') + '</span>'
+      +       '<b style="font-size:14px;color:' + (equipped ? '#8fae4a' : '#f0ece1') + '">' + w.n + '</b>'
+      +     '</div>'
+      +     '<div style="font-size:10px;opacity:.72;color:#ccc;margin-top:3px">' + origin + ((w.p || 1) > 1 ? (w.p + ' PELLETS') : 'SINGLE SHOT') + '</div>'
+      +   '</div>'
+      +   '<span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.07);color:' + (owned ? '#8fae4a' : '#888') + ';white-space:nowrap">' + status + '</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(0,0,0,.32);border-radius:6px;padding:7px 8px">' + stats + '</div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      +   '<div style="font-size:11px;font-weight:700;color:' + footerCol + '">' + footer + '</div>'
+      +   action
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function buyWeapon(i) {
+  const w = WEAP[i]; if (!w) return;
+  if (SV.own && SV.own[i]) return;
+  const cost = Math.max(0, w.c || 0);
+  if ((SV.cr || 0) < cost) {
+    if (typeof announce === 'function') announce('NOT ENOUGH CREDITS', '#e07a5a', 'Need ' + cost.toLocaleString() + ' CR', 3);
+    return;
+  }
+  if (!transactMetaCredits(cost, 'weapon_' + i)) return;
+  SV.own[i] = 1;
+  sv();
+  if (typeof snd === 'function') snd(660, 0.12, 'triangle', 0.05, 1.4);
+  renderShop();
+}
+
+function equipWeapon(i) {
+  if (!(SV.own && SV.own[i])) return;
+  SV.start = i;
+  sv();
+  if (typeof snd === 'function') snd(520, 0.1, 'square', 0.04, 1.2);
+  renderShop();
+}
+
 function renderSettingsUI() {
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   set('qualbtn', `GRAPHICS QUALITY: ${QUALITY_SETTINGS.profile.toUpperCase()}`);
@@ -16194,7 +16298,6 @@ function renderSettingsUI() {
   set('ctlsizebtn', `CONTROL SIZE: ${Math.round(c.size * 100)}%`);
   set('ctlopbtn', `CONTROL OPACITY: ${Math.round(c.opacity * 100)}%`);
   set('ctlbtn', `JOYSTICK: ${c.floating ? 'FLOATING' : 'FIXED'}`);
-  set('firebtn', `FIRE: ${c.fireMode === 'button' ? 'FIRE BUTTON' : 'AIM TO FIRE'}`);
 }
 
 function toggleQuality() {
@@ -16246,12 +16349,6 @@ function cycleCtlOpacity() {
 
 function cycleCtlMode() {
   SV.ctlMode = ctlPref().floating ? 'fixed' : 'floating';
-  sv();
-  renderSettingsUI();
-}
-
-function cycleFireMode() {
-  SV.fireMode = ctlPref().fireMode === 'button' ? 'aim' : 'button';
   sv();
   renderSettingsUI();
 }

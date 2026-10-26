@@ -21,7 +21,7 @@ function section(t) { console.log('\n== ' + t + ' =='); }
 
 const { sandbox } = loadEngine();
 const api = exportsOf(sandbox, `({
-  WEAP: WEAP, SKINS: SKINS, CL: CL, MP: MP, ZT: ZT, TIER_POLICY: TIER_POLICY,
+  WEAP: WEAP, WEAP_RANK: WEAP_RANK, SKINS: SKINS, CL: CL, MP: MP, ZT: ZT, TIER_POLICY: TIER_POLICY,
   weaponStats: weaponStats, weaponTierIssues: weaponTierIssues, tierLadderIssues: tierLadderIssues,
   sanitizeSV: sanitizeSV, sv: sv, ld: ld,
   getSV: function () { return SV; },
@@ -65,6 +65,40 @@ ok(skinBad.length === 0, 'every skin resolves to a real operative or weapon', sk
 const opCount = skins.filter(k => api.SKINS[k].type === 'op').length;
 ok(opCount > 0 && opCount < skins.length, 'both skin families are populated', opCount + ' operative / ' + (skins.length - opCount) + ' weapon');
 
+/* ------------------------------------------------------------------ shop - */
+section('SHOP CATALOGUE');
+
+// The shop promises two things the data has to support: tiers run low to high,
+// and price rises within a tier. Both are properties of WEAP/WEAP_RANK, so they
+// are asserted here rather than only inside the renderer.
+const TIER_ORDER = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4 };
+const shopList = api.WEAP.map((w, i) => ({ w, i })).sort((a, b) => {
+  const ta = TIER_ORDER[a.w.tier] != null ? TIER_ORDER[a.w.tier] : 9;
+  const tb = TIER_ORDER[b.w.tier] != null ? TIER_ORDER[b.w.tier] : 9;
+  if (ta !== tb) return ta - tb;
+  if ((a.w.c || 0) !== (b.w.c || 0)) return (a.w.c || 0) - (b.w.c || 0);
+  return a.i - b.i;
+});
+ok(shopList.every((e, k) => k === 0 || TIER_ORDER[shopList[k - 1].w.tier] <= TIER_ORDER[e.w.tier]),
+  'the shop lists every weapon in tier order',
+  shopList.map(e => e.w.tier).join(' < '));
+ok(shopList.every((e, k) => k === 0 || TIER_ORDER[shopList[k - 1].w.tier] !== TIER_ORDER[e.w.tier]
+    || (shopList[k - 1].w.c || 0) <= (e.w.c || 0)),
+  'price rises within each tier');
+ok(shopList.every(e => Number.isFinite(e.w.c) && e.w.c >= 0),
+  'every weapon carries a finite credit price');
+ok(shopList.every(e => TIER_ORDER[e.w.tier] != null),
+  'every weapon has a tier the shop can group by',
+  shopList.filter(e => TIER_ORDER[e.w.tier] == null).map(e => e.w.n).join(', ') || 'no unknown tiers');
+
+// Only the starter Pistol may be free at the default rank; a second free gun
+// makes the shop's first tier pointless. Dual Pistols (index 15) used to sit at
+// rank 1, so it was owned the moment a profile was created.
+const freeAtStart = api.WEAP.map((w, i) => i).filter(i => (api.WEAP_RANK[i] || 0) <= 1);
+ok(freeAtStart.length === 1 && freeAtStart[0] === 0,
+  'exactly one weapon is free at the default rank',
+  freeAtStart.map(i => api.WEAP[i].n).join(', '));
+
 /* -------------------------------------------------------------- sanitiser - */
 section('SAVE SANITISER');
 const hostile = [
@@ -92,7 +126,6 @@ for (const input of hostile) {
   if (!(out.ctlSize >= 0.8 && out.ctlSize <= 1.3)) bad.push('ctlSize ' + out.ctlSize);
   if (!(out.ctlOpacity >= 0.35 && out.ctlOpacity <= 1)) bad.push('ctlOpacity ' + out.ctlOpacity);
   if (['fixed', 'floating'].indexOf(out.ctlMode) < 0) bad.push('ctlMode ' + out.ctlMode);
-  if (['aim', 'button'].indexOf(out.fireMode) < 0) bad.push('fireMode ' + out.fireMode);
   if (out.shakeLvl < 0 || out.shakeLvl > 2) bad.push('shakeLvl ' + out.shakeLvl);
   if (['high', 'med', 'low'].indexOf(out.quality) < 0) bad.push('quality ' + out.quality);
   if (['full', 'reduced', 'minimal'].indexOf(out.goreLvl) < 0) bad.push('goreLvl ' + out.goreLvl);

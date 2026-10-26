@@ -87,7 +87,7 @@
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v2.11.0</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.0</span>
         </div>
 
         <button type="button" id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record">
@@ -160,7 +160,31 @@
       <div id="ev-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
     </div>
 
-    <!-- TAB 2: GUNS ARMORY -->
+    <!-- TAB 2: SHOP. Weapons are listed by tier and then by price, so the
+         ladder reads top-to-bottom. Rank unlocks still apply: a gun can be
+         earned by playing or bought early with credits. -->
+    <div class="pp" id="psh">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;width:100%">
+        <div>
+          <b style="font-size:15px;letter-spacing:1px;color:#f0ece1">BLACK MARKET ARMORY</b>
+          <div style="font-size:10.5px;opacity:.7">Buy any weapon early with credits &bull; Rank unlocks still grant guns free</div>
+        </div>
+        <div style="text-align:right;min-width:96px">
+          <div style="font-size:10px;letter-spacing:1px;opacity:.7">CREDITS</div>
+          <b id="shop-cr" style="font-size:17px;color:#e0b83a">0</b>
+        </div>
+      </div>
+      <div id="sh-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="sh-tab on" onclick="filterShop('all')" style="padding:4px 8px;min-height:28px;font-size:10px">ALL</button>
+        <button class="sh-tab" onclick="filterShop('COMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">COMMON</button>
+        <button class="sh-tab" onclick="filterShop('UNCOMMON')" style="padding:4px 8px;min-height:28px;font-size:10px">UNCOMMON</button>
+        <button class="sh-tab" onclick="filterShop('RARE')" style="padding:4px 8px;min-height:28px;font-size:10px">RARE</button>
+        <button class="sh-tab" onclick="filterShop('EPIC')" style="padding:4px 8px;min-height:28px;font-size:10px">EPIC</button>
+        <button class="sh-tab" onclick="filterShop('LEGENDARY')" style="padding:4px 8px;min-height:28px;font-size:10px">LEGENDARY</button>
+      </div>
+      <div id="shop-list" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
+    </div>
+
 
     <!-- TAB 3: SKINS HUB -->
     <div class="pp" id="psk">
@@ -205,8 +229,8 @@
           <div id="hero-skills" class="hs-skills"></div>
           <div id="hero-skin" class="hs-skin"></div>
           <div class="hs-btns">
-            <button onclick="tab(2)">CHANGE SKIN</button>
-            <button onclick="tab(4)">SKILL TREE</button>
+            <button onclick="tab(3)">CHANGE SKIN</button>
+            <button onclick="tab(5)">SKILL TREE</button>
           </div>
         </div>
       </div>
@@ -231,7 +255,6 @@
           <button id="ctlsizebtn" class="setbtn" onclick="cycleCtlSize()">CONTROL SIZE: 100%</button>
           <button id="ctlopbtn" class="setbtn" onclick="cycleCtlOpacity()">CONTROL OPACITY: 100%</button>
           <button id="ctlbtn" class="setbtn" onclick="cycleCtlMode()">JOYSTICK: FIXED</button>
-          <button id="firebtn" class="setbtn" onclick="cycleFireMode()">FIRE: AIM TO FIRE</button>
         </div>
         <div class="setgrp">
           <span class="setlbl">VISUAL COMFORT</span>
@@ -261,6 +284,7 @@
   <nav id="nav">
     <button class="on"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>PLAY</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>EVENTS</button>
+    <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>SHOP</button>
         <button><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2 2 16l1.46 4.38L7.84 22 22 7.84l-1.62-4.38z"/><path d="M12 12l4 4"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>SKINS</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>HERO</button>
     <button><svg class="nav-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13,2 3,13 11,13 10,22 21,10 13,10"/></svg>SKILLS</button>

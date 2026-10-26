@@ -241,8 +241,7 @@ function ctlPref() {
   return {
     size: Math.max(0.8, Math.min(1.3, n(sv.ctlSize, 1))),
     opacity: Math.max(0.35, Math.min(1, n(sv.ctlOpacity, 1))),
-    floating: sv.ctlMode === 'floating',
-    fireMode: sv.fireMode === 'button' ? 'button' : 'aim'
+    floating: sv.ctlMode === 'floating'
   };
 }
 

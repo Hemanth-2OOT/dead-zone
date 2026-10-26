@@ -31,7 +31,7 @@ const WEAP = [
 // Weapons are no longer bought: each unlocks automatically once the account
 // reaches its rank. One new gun every rank or two, so the arsenal still opens
 // up over time without a shop to visit.
-const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,1,8,19,5,10,13,18];
+const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,3,8,19,5,10,13,18];
 
 /* ---- Weapon tier policy ------------------------------------------------
    One table decides what a tier is worth, so the armoury, the HUD and the

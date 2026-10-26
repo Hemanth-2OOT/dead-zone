@@ -98,7 +98,7 @@
   function ctlProbe(w, h) {
     var sw = W, sh = H;
     W = w; H = h;
-    var sa = saInsets(), res = { bad: [], fireGap: 0, centre: [] };
+    var sa = saInsets(), res = { bad: [], centre: [] };
     var boxes = [];
     for (var i = 0; i < BT.length; i++) {
       var b = BT[i];
@@ -112,12 +112,6 @@
     for (var a = 0; a < boxes.length; a++) for (var c = a + 1; c < boxes.length; c++) {
       var d = Math.hypot(boxes[a].x - boxes[c].x, boxes[a].y - boxes[c].y);
       if (d < boxes[a].r + boxes[c].r - 0.5) res.bad.push('hit overlap ' + boxes[a].id + '/' + boxes[c].id);
-    }
-    var fire = boxes.filter(function (z) { return z.id === 'fire'; })[0];
-    var rel = boxes.filter(function (z) { return z.id === 'reload'; })[0];
-    if (fire && rel) res.fireGap = Math.round(Math.hypot(fire.x - rel.x, fire.y - rel.y) - fire.r - rel.r);
-    if (fire) {
-      boxes.forEach(function (z) { if (z.id !== 'fire' && z.rad >= fire.rad) res.bad.push('FIRE not the largest button: ' + z.id); });
     }
     // The player is always drawn at the screen centre (14px body + margin), so the
     // standard for the pad is "never covers the player", not "never enters the
@@ -196,7 +190,7 @@
     /* ---------------- 1. SKINS SCREEN ---------------- */
     section('SKINS');
     var keys = Object.keys(SKINS);
-    try { tab(2); } catch (e) { ok(false, 'tab(2) threw', e.message); }
+    try { tab(3); } catch (e) { ok(false, 'tab(3) threw', e.message); }
     await sleep(150);
     ok(!errOverlay(), 'no runtime error overlay after opening Skins');
     var listEl = document.getElementById('skin-list');
@@ -244,7 +238,7 @@
     delete SKINS.__probe_missing; delete SKINS.__probe_bogus;
     var swErr = [];
     for (var r2 = 0; r2 < 6; r2++) {
-      try { tab(2); inspectSkin(keys[r2 % keys.length]); tab(0); tab(2); tab(0); } catch (e) { swErr.push(e.message); }
+      try { tab(3); inspectSkin(keys[r2 % keys.length]); tab(0); tab(3); tab(0); } catch (e) { swErr.push(e.message); }
     }
     ok(swErr.length === 0, 'tabs switched 6x Skins<->Play without error', swErr.slice(0, 2).join(' | '));
     ok(!errOverlay(), 'no overlay after repeated tab switching');
@@ -406,7 +400,7 @@
       var ctl = ctlProbe(w3, h3);
       ok(ctl.bad.length === 0, 'controls ' + w3 + 'x' + h3 + ': no overlap / out of bounds', ctl.bad.slice(0, 3).join(' | '));
       ok(ctl.centre.length === 0, 'controls ' + w3 + 'x' + h3 + ': pad clear of arena centre', ctl.centre.slice(0, 3).join(' | '));
-      log('   ' + w3 + 'x' + h3 + ' FIRE-RELOAD gap ' + ctl.fireGap + 'px');
+      log('   ' + w3 + 'x' + h3 + ' pad buttons ' + ctl.n);
     }
     S.pk = {}; PKS.slice(0, 14).forEach(function (p) { S.pk[p[0]] = 1 + (Math.random() * 3 | 0); });
     S.boons = {}; BOONS.slice(0, 10).forEach(function (b) { S.boons[b.id] = 1 + (Math.random() * 4 | 0); });
@@ -502,6 +496,122 @@
     var newErrs = ERRORS.slice(gErr);
     ok(newErrs.length === 0, 'no console errors during gameplay tests', newErrs.slice(0, 3).join(' | '));
     ok(ERRORS.length === 0, 'NO console/window errors during the whole pass', ERRORS.slice(0, 4).join(' | '));
+
+    /* ---------- shop + controls ---------- */
+    section('SHOP');
+
+    // A fresh profile at the default rank must not already own Dual Pistols.
+    SV.lvl = 1;
+    SV.own = WEAP.map(function (_, i) { return i === 0 ? 1 : 0; });
+    if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
+    ok(SV.own[0] === 1, 'the starter Pistol is owned at rank 1');
+    ok(SV.own[15] === 0, 'Dual Pistols is NOT owned at rank 1', 'own[15]=' + SV.own[15]);
+    var free = SV.own.filter(function (v) { return v; }).length;
+    ok(free === 1, 'exactly one weapon is owned on a fresh profile', free + ' owned');
+
+    SV.cr = 0;
+    tab(2);
+    var psh = document.getElementById('psh');
+    ok(!!psh && psh.classList.contains('on'), 'the SHOP tab opens its panel');
+    var list = document.getElementById('shop-list');
+    var cards = list ? Array.prototype.slice.call(list.children) : [];
+    ok(cards.length === WEAP.length, 'every weapon is listed', cards.length + ' cards / ' + WEAP.length + ' weapons');
+
+    // Read the tier badge and price straight out of the rendered cards, so this
+    // checks what the player sees rather than the comparator the renderer used.
+    var TIER_ORDER = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4 };
+    var rendered = cards.map(function (c) {
+      var badge = c.querySelector('span');
+      var tier = badge ? badge.textContent.trim() : '';
+      var buy = c.querySelector('button[data-buy]');
+      var eq = c.querySelector('button[data-eq]');
+      var nameEl = c.querySelector('b');
+      return {
+        tier: tier,
+        name: nameEl ? nameEl.textContent.trim() : '',
+        price: buy ? parseInt(buy.textContent.replace(/[^0-9]/g, ''), 10) : null,
+        owned: !!eq
+      };
+    });
+    var tierBad = [];
+    for (var ti = 1; ti < rendered.length; ti++) {
+      var a = TIER_ORDER[rendered[ti - 1].tier], b = TIER_ORDER[rendered[ti].tier];
+      if (a == null || b == null || b < a) tierBad.push(rendered[ti - 1].tier + ' then ' + rendered[ti].tier);
+    }
+    ok(tierBad.length === 0, 'the rendered list runs low tier to high tier', tierBad.slice(0, 3).join(' | ') || rendered.map(function (r) { return r.tier; }).join(' > '));
+    var priceBad = [];
+    for (var pi = 1; pi < rendered.length; pi++) {
+      var pa = rendered[pi - 1], pb = rendered[pi];
+      if (pa.tier !== pb.tier || pa.price == null || pb.price == null) continue;
+      if (pb.price < pa.price) priceBad.push(pa.name + ' ' + pa.price + ' then ' + pb.name + ' ' + pb.price);
+    }
+    ok(priceBad.length === 0, 'price rises within a tier in the rendered list', priceBad.slice(0, 3).join(' | '));
+    var expected = WEAP.map(function (w, i) { return { w: w, i: i }; }).sort(function (x, y) {
+      var tx = TIER_ORDER[x.w.tier], ty = TIER_ORDER[y.w.tier];
+      if (tx !== ty) return tx - ty;
+      if ((x.w.c || 0) !== (y.w.c || 0)) return (x.w.c || 0) - (y.w.c || 0);
+      return x.i - y.i;
+    }).map(function (e) { return e.w.n; });
+    ok(rendered.map(function (r) { return r.name; }).join('|') === expected.join('|'),
+      'the rendered order is tier-then-price', rendered.map(function (r) { return r.name; }).join(', '));
+
+    // Buying and equipping through the real DOM handlers.
+    SV.cr = 5000;
+    tab(2);
+    cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
+    var smgCard = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'SMG'; })[0];
+    var smgBuy = smgCard && smgCard.querySelector('button[data-buy]');
+    ok(!!smgBuy, 'an unowned weapon renders a BUY button', smgBuy ? smgBuy.textContent.trim() : 'none');
+    var crBefore = SV.cr;
+    if (smgBuy) smgBuy.click();
+    ok(SV.own[1] === 1, 'buying a weapon marks it owned', 'own[1]=' + SV.own[1]);
+    ok(SV.cr === crBefore - 300, 'buying a weapon spends its price', crBefore + ' -> ' + SV.cr);
+    cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
+    var smgCard2 = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'SMG'; })[0];
+    var smgEq = smgCard2 && smgCard2.querySelector('button[data-eq]');
+    ok(!!smgEq, 'a purchased weapon offers EQUIP', smgEq ? smgEq.textContent.trim() : 'none');
+    if (smgEq) smgEq.click();
+    ok(SV.start === 1, 'equipping sets the deployed weapon', 'SV.start=' + SV.start);
+
+    // Insufficient funds must not hand over the gun.
+    SV.cr = 0;
+    tab(2);
+    cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
+    var lockCard = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'Railgun'; })[0];
+    var lockBuy = lockCard && lockCard.querySelector('button[data-buy]');
+    ok(!!lockBuy && lockBuy.disabled, 'an unaffordable weapon is disabled');
+    if (lockBuy) lockBuy.click();
+    ok(!SV.own[14], 'clicking a disabled BUY does not grant the weapon', 'own[14]=' + SV.own[14]);
+
+    section('CONTROLS');
+    ok(BT.filter(function (b) { return b.fire; }).length === 0, 'no FIRE button remains on the pad');
+    ok(document.getElementById('firebtn') === null, 'the FIRE setting row is gone from Options');
+    ok(SV.fireMode === undefined, 'the retired fire-mode preference is not in the save', String(SV.fireMode));
+    var ctlBad = [];
+    for (var ci = 0; ci < BT.length; ci++) {
+      var bb = BT[ci];
+      if (!btActive(bb)) continue;
+      var pp = bb.p(), hr = btHit(bb);
+      if (hr <= 0 || !isFinite(pp[0]) || !isFinite(pp[1])) ctlBad.push(bb.id);
+    }
+    ok(ctlBad.length === 0, 'every remaining pad button has a real position and hit radius', ctlBad.join(', '));
+
+    // Aiming is the trigger now: hold the aim stick and the gun must fire with no
+    // FIRE button involved anywhere in the input path.
+    if (!S) { try { begin(); } catch (e) {} }
+    MUTE = 1;
+    P.reloading = false;
+    P.cd = 0;
+    P.fl = 0;
+    P.cur = 0;
+    P.maxAmmo = weaponStats(0).mag;
+    P.ammo = P.maxAmmo;
+    var ammoBefore = P.ammo;
+    J.r = { id: 991, ox: W * 0.72, oy: H * 0.62, x: W * 0.72 + 60, y: H * 0.62 };
+    for (var fr = 0; fr < 40; fr++) { try { update(1 / 60); } catch (e) { ok(false, 'update threw while aiming', e.message); break; } }
+    J.r = null;
+    if (typeof releaseAllInputs === 'function') releaseAllInputs();
+    ok(P.ammo < ammoBefore, 'holding the aim stick fires without a FIRE button', ammoBefore + ' -> ' + P.ammo + ' rounds');
 
     section('PERF / DRAW PATH');
     var gcount = 0, gp = CanvasRenderingContext2D.prototype;

@@ -328,8 +328,9 @@ function tab(i) {
   });
   document.querySelectorAll('.pp').forEach(p => p.classList.remove('on'));
 
-  // GUNS/armory was retired; panels shift up by one after EVENTS.
-  const pids = ['p0', 'pe', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
+  // Panel ids follow the nav order exactly: PLAY, EVENTS, SHOP, SKINS, HERO,
+  // SKILLS, STATS, RELICS, OPTS.
+  const pids = ['p0', 'pe', 'psh', 'psk', 'pc', 'ps', 'p2', 'pa', 'p3'];
   const target = document.getElementById(pids[i] || 'p0');
   if (target) {
     target.classList.add('on');
@@ -337,19 +338,20 @@ function tab(i) {
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
 
-  if (i !== 2 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
+  if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
     cancelAnimationFrame(TURNTABLE_RAF);
     TURNTABLE_RAF = null;
   }
 
   if (i === 0) { mapsUI(); updateZoneMeta(getCurMap()); drawZonePreview(getCurMap()); }
   else if (i === 1) renderEventsUI();
-  else if (i === 2) renderSkinsUI();
-  else if (i === 3) lobby2();
+  else if (i === 2) renderShop();
+  else if (i === 3) renderSkinsUI();
   else if (i === 4) lobby2();
   else if (i === 5) lobby2();
-  else if (i === 6) relics();
-  else if (i === 7) renderSettingsUI();
+  else if (i === 6) lobby2();
+  else if (i === 7) relics();
+  else if (i === 8) renderSettingsUI();
 }
 
 function renderNextGoal() {
@@ -940,6 +942,115 @@ function lobby2() {
   }
 }
 
+/* ---- Shop ---------------------------------------------------------------
+   The armory tab was retired when guns became rank rewards. It is back as a
+   shop: the ladder is ordered by tier and then by price, so progression reads
+   top-to-bottom, and rank unlocks still apply. A gun can be earned by playing
+   or bought early with credits, which is the only way to field a tier before
+   its rank arrives. */
+const SHOP_TIER_ORDER = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4 };
+const SHOP_TIER_COLS = { COMMON: '#94a3b8', UNCOMMON: '#4ade80', RARE: '#38bdf8', EPIC: '#c084fc', LEGENDARY: '#f59e0b' };
+let activeShopFilter = 'all';
+
+function shopEntries() {
+  return WEAP.map((w, i) => ({ w, i })).sort((a, b) => {
+    const ta = SHOP_TIER_ORDER[a.w.tier] != null ? SHOP_TIER_ORDER[a.w.tier] : 9;
+    const tb = SHOP_TIER_ORDER[b.w.tier] != null ? SHOP_TIER_ORDER[b.w.tier] : 9;
+    if (ta !== tb) return ta - tb;
+    if ((a.w.c || 0) !== (b.w.c || 0)) return (a.w.c || 0) - (b.w.c || 0);
+    return a.i - b.i;
+  });
+}
+
+function filterShop(f) {
+  activeShopFilter = f;
+  document.querySelectorAll('.sh-tab').forEach(b => {
+    b.classList.toggle('on', b.textContent.trim().toUpperCase() === f.toUpperCase());
+  });
+  renderShop();
+}
+
+function renderShop() {
+  const el = document.getElementById('shop-list'); if (!el) return;
+  if (typeof SV === 'undefined' || !SV) return;
+  if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
+
+  const crEl = document.getElementById('shop-cr');
+  if (crEl) crEl.textContent = (SV.cr || 0).toLocaleString();
+
+  el.onclick = e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled) return;
+    if (b.dataset.buy != null) buyWeapon(parseInt(b.dataset.buy, 10));
+    else if (b.dataset.eq != null) equipWeapon(parseInt(b.dataset.eq, 10));
+  };
+
+  const rows = shopEntries().filter(e => activeShopFilter === 'all' || e.w.tier === activeShopFilter);
+  if (!rows.length) {
+    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;opacity:.6">No weapons in this tier.</div>';
+    return;
+  }
+
+  el.innerHTML = rows.map(({ w, i }) => {
+    const st = weaponStats(i);
+    const owned = Boolean(SV.own && SV.own[i]);
+    const equipped = owned && SV.start === i;
+    const tCol = SHOP_TIER_COLS[w.tier] || '#94a3b8';
+    const rankReq = WEAP_RANK[i] || 0;
+    const cost = Math.max(0, w.c || 0);
+    const affordable = (SV.cr || 0) >= cost;
+    const status = equipped ? 'EQUIPPED' : owned ? 'OWNED' : 'LOCKED';
+    const action = owned
+      ? '<button data-eq="' + i + '"' + (equipped ? ' disabled' : '') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800;border-color:' + (equipped ? '#333' : '#8fae4a') + ';color:' + (equipped ? '#666' : '#8fae4a') + '">' + (equipped ? 'EQUIPPED' : 'EQUIP') + '</button>'
+      : '<button data-buy="' + i + '"' + (affordable ? '' : ' disabled') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800">BUY ' + cost.toLocaleString() + ' CR</button>';
+    const stats = [['DMG', Math.round(st.shot)], ['DPS', Math.round(st.dps)], ['MAG', st.mag], ['RELOAD', st.reload.toFixed(1) + 's']]
+      .map(r => '<div style="text-align:center"><div style="font-size:8.5px;letter-spacing:.5px;opacity:.6">' + r[0] + '</div><div style="font-size:12px;font-weight:800;color:#e8e2d6">' + r[1] + '</div></div>').join('');
+    const origin = rankReq > 0 ? 'RANK ' + rankReq + ' UNLOCK &bull; ' : 'STARTER WEAPON &bull; ';
+    const footer = owned ? (equipped ? 'YOUR DEPLOYED WEAPON' : 'IN YOUR ARSENAL') : cost.toLocaleString() + ' CREDITS';
+    const footerCol = owned ? '#8fae4a' : (affordable ? '#e0b83a' : '#c98a6a');
+    return '<div class="card" style="display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,' + tCol + '0f,rgba(20,24,18,.96));border-left:5px solid ' + tCol + '">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      +   '<div style="min-width:0">'
+      +     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +       '<span style="font-size:8.5px;font-weight:900;padding:1px 5px;border-radius:3px;background:' + tCol + '22;color:' + tCol + ';border:1px solid ' + tCol + '66">' + (w.tier || 'COMMON') + '</span>'
+      +       '<b style="font-size:14px;color:' + (equipped ? '#8fae4a' : '#f0ece1') + '">' + w.n + '</b>'
+      +     '</div>'
+      +     '<div style="font-size:10px;opacity:.72;color:#ccc;margin-top:3px">' + origin + ((w.p || 1) > 1 ? (w.p + ' PELLETS') : 'SINGLE SHOT') + '</div>'
+      +   '</div>'
+      +   '<span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.07);color:' + (owned ? '#8fae4a' : '#888') + ';white-space:nowrap">' + status + '</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(0,0,0,.32);border-radius:6px;padding:7px 8px">' + stats + '</div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      +   '<div style="font-size:11px;font-weight:700;color:' + footerCol + '">' + footer + '</div>'
+      +   action
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function buyWeapon(i) {
+  const w = WEAP[i]; if (!w) return;
+  if (SV.own && SV.own[i]) return;
+  const cost = Math.max(0, w.c || 0);
+  if ((SV.cr || 0) < cost) {
+    if (typeof announce === 'function') announce('NOT ENOUGH CREDITS', '#e07a5a', 'Need ' + cost.toLocaleString() + ' CR', 3);
+    return;
+  }
+  if (!transactMetaCredits(cost, 'weapon_' + i)) return;
+  SV.own[i] = 1;
+  sv();
+  if (typeof snd === 'function') snd(660, 0.12, 'triangle', 0.05, 1.4);
+  renderShop();
+}
+
+function equipWeapon(i) {
+  if (!(SV.own && SV.own[i])) return;
+  SV.start = i;
+  sv();
+  if (typeof snd === 'function') snd(520, 0.1, 'square', 0.04, 1.2);
+  renderShop();
+}
+
 function renderSettingsUI() {
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   set('qualbtn', `GRAPHICS QUALITY: ${QUALITY_SETTINGS.profile.toUpperCase()}`);
@@ -960,7 +1071,6 @@ function renderSettingsUI() {
   set('ctlsizebtn', `CONTROL SIZE: ${Math.round(c.size * 100)}%`);
   set('ctlopbtn', `CONTROL OPACITY: ${Math.round(c.opacity * 100)}%`);
   set('ctlbtn', `JOYSTICK: ${c.floating ? 'FLOATING' : 'FIXED'}`);
-  set('firebtn', `FIRE: ${c.fireMode === 'button' ? 'FIRE BUTTON' : 'AIM TO FIRE'}`);
 }
 
 function toggleQuality() {
@@ -1012,12 +1122,6 @@ function cycleCtlOpacity() {
 
 function cycleCtlMode() {
   SV.ctlMode = ctlPref().floating ? 'fixed' : 'floating';
-  sv();
-  renderSettingsUI();
-}
-
-function cycleFireMode() {
-  SV.fireMode = ctlPref().fireMode === 'button' ? 'aim' : 'button';
   sv();
   renderSettingsUI();
 }

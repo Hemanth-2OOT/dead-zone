@@ -21,7 +21,6 @@ let SV = {
   ctlSize: 1,
   ctlOpacity: 1,
   ctlMode: 'fixed',
-  fireMode: 'aim',
   shakeLvl: 2,
   fx: 'full',
   rm: null,
@@ -107,7 +106,6 @@ function sanitizeSV(s) {
   out.ctlSize = Math.max(0.8, Math.min(1.3, Number(out.ctlSize) || 1));
   out.ctlOpacity = Math.max(0.35, Math.min(1, Number(out.ctlOpacity) || 1));
   out.ctlMode = out.ctlMode === 'floating' ? 'floating' : 'fixed';
-  out.fireMode = out.fireMode === 'button' ? 'button' : 'aim';
   out.shakeLvl = Math.max(0, Math.min(2, Number(out.shakeLvl != null ? out.shakeLvl : 2) || 0));
   out.fx = out.fx === 'reduced' ? 'reduced' : 'full';
   out.rm = (out.rm == null) ? null : Boolean(out.rm);

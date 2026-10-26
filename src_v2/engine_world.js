@@ -20,16 +20,13 @@ let TCH = 0;
 // Touch ownership. Every active pointer id owns exactly one role, so lifting
 // the aiming finger can never cancel the movement stick (or the FIRE button),
 // and a second finger landing on an ability cannot steal the aim stick.
-const TOUCH_ROLE = new Map();   // pointer id -> 'move' | 'aim' | 'fire' | 'btn'
-let FIRE_HOLD = 0;              // pointer id holding the FIRE button, 0 = idle
-const fireHeld = () => FIRE_HOLD !== 0;
+const TOUCH_ROLE = new Map();   // pointer id -> 'move' | 'aim' | 'btn'
 
 // Called on pause, tab switch, window blur and app backgrounding. Without it a
 // finger that was down when the app lost focus never delivers a touchend, so the
 // stick stayed engaged and the player kept walking (and firing) on resume.
 function releaseAllInputs() {
   J.l = null; J.r = null;
-  FIRE_HOLD = 0;
   TOUCH_ROLE.clear();
   M.down = 0;
 }
@@ -106,7 +103,6 @@ function btnRad(b) {
 // pad pitch below is wider than the largest pair of hit radii.
 function btHit(b) {
   const u = padUnit();
-  if (b && b.fire) return 38 * u;
   if (b && b.pause) return pauseHit();
   return 31 * u;
 }
@@ -127,14 +123,14 @@ function jPos(k) {
 //
 //          colB      colA              row2   utility   | utility
 //           (o)       (o)              row1   skill 0   | skill 1
-//           (o)       (o)              rowY   RELOAD    | FIRE
+//           (o)       (o)              rowY             | RELOAD
 //                                                    (o)  aim stick
 //
-// FIRE takes the largest cell, one thumb-width from the resting thumb, and
-// RELOAD is its immediate neighbour so changing a magazine never needs a reach.
-// Slot 0 - the class's signature skill, DASH for Infantry - sits directly above
-// FIRE, and the longer-cooldown skills plus the grenade form the cluster above
-// them.
+// RELOAD holds the primary cell, one thumb-width from the resting thumb, because
+// it is the most-pressed button left on the pad now that the aim stick is the
+// trigger. Slot 0 - the class's signature skill, DASH for Infantry - sits
+// directly above it, and the longer-cooldown skills plus the grenade form the
+// cluster above them.
 //
 // Every coordinate derives from the aim stick's live position, which is itself
 // derived from the viewport and the safe-area insets, so the pad keeps both its
@@ -144,13 +140,12 @@ function jPos(k) {
 function padAnchor() {
   const bs = padUnit();
   const j = jPos('r');
-  const colA = j[0] - 96 * bs;      // FIRE column
-  const colB = colA - 80 * bs;      // RELOAD / grenade column
+  const colA = j[0] - 96 * bs;      // primary column, nearest the thumb
+  const colB = colA - 80 * bs;      // ability column
   const rowY = j[1] - 8 * bs;       // primary row, at stick height
   return { bs, colA, colB, rowY, row1: rowY - 80 * bs, row2: rowY - 156 * bs };
 }
-function fireBtnPos() { const a = padAnchor(); return [a.colA, a.rowY]; }
-function reloadBtnPos() { const a = padAnchor(); return [a.colB, a.rowY]; }
+function reloadBtnPos() { const a = padAnchor(); return [a.colA, a.rowY]; }
 
 // Ability slots, nearest-FIRE first. Slot 0 is the class's signature skill; the
 // remaining cells take the rest of the kit plus the always-available grenade.
@@ -166,8 +161,8 @@ function abilitySlots() {
 function clusterPos(i) {
   const a = padAnchor();
   const cells = [
-    [a.colA, a.row1],   // 0: signature skill, directly above FIRE
-    [a.colB, a.row1],   // 1: second skill, above RELOAD
+    [a.colA, a.row1],   // 0: signature skill, directly above RELOAD
+    [a.colB, a.row1],   // 1: second skill
     [a.colA, a.row2],   // 2
     [a.colB, a.row2]    // 3
   ];
@@ -301,9 +296,8 @@ function btFlash(b) {
 // Combat buttons. Sizes, hit radii and positions all come from the pad helpers
 // above; nothing here carries a pixel coordinate.
 const BT = [
-  // Held, not tapped: firing continues for as long as the button is down, and the
-  // weapon's own cadence, ammo and reloads still govern the rate.
-  { id: 'fire', n: 'FIRE', fire: 1, p: () => fireBtnPos(), f() {} },
+  // There is no FIRE entry: aiming with the right stick fires, the mouse fires on
+  // desktop, and the weapon's own cadence, ammo and reloads still govern the rate.
   // One entry per ability cell. The skill key is read live, so changing class
   // re-labels and re-icons the same four cells instead of rebuilding the pad.
   {
@@ -337,7 +331,7 @@ const BT = [
   // Pause lives in the top HUD's own right-hand gutter, vertically centred on the
   // cash/horde plate, so it neither covers the readout nor the pad below.
   { id: 'pause', n: 'II', ar: 1, pause: 1, p: () => pausePos(), f: () => pause() },
-  // Reload is the primary row's other half, one thumb-width from FIRE.
+  // Reload is the primary row's only button, one thumb-width from the stick.
   { id: 'reload', n: 'RELOAD', ar: 1, p: () => reloadBtnPos(), f: () => { if (run) startReload(); } }
 ];
 
@@ -1652,16 +1646,16 @@ function update(dt) {
   // Dual virtual sticks & keyboard inputs
   let mx = (K.d || K.arrowright ? 1 : 0) - (K.a || K.arrowleft ? 1 : 0);
   let my = (K.s || K.arrowdown ? 1 : 0) - (K.w || K.arrowup ? 1 : 0);
-  let firing = M.down || fireHeld();
+  let firing = M.down;
 
   const L = stick(J.l);
   if (L[2]) { mx = L[0]; my = L[1]; }
   const R = stick(J.r);
   if (R[2]) {
     P.a = Math.atan2(R[1], R[0]);
-    // Twin-stick default: aiming also fires. Under the FIRE-button preference
-    // the aim stick only steers and the button (or the mouse) drives the trigger.
-    if (ctlPref().fireMode === 'aim') firing = 1;
+    // Twin-stick: aiming also fires. The separate FIRE button was removed, so the
+    // aim stick is the trigger on touch and the mouse is the trigger on desktop.
+    firing = 1;
   }
   else if (!TCH && M.moved) { P.a = Math.atan2(M.y - (P.y - CY), M.x - (P.x - CX)); }
 
@@ -2895,16 +2889,15 @@ function touchStart(t) {
   // Only touchstart is gated: cancels and releases must still be processed or a
   // finger that was already down would stay owned by a dead role.
   if (S && S.gp) return;
-  // Action buttons are claimed before the sticks, so an ability or FIRE press
-  // near the aim stick cannot also start an aim drag.
+  // Action buttons are claimed before the sticks, so an ability press near the
+  // aim stick cannot also start an aim drag.
   if (run) {
     for (const b of BT) {
       if (!btActive(b)) continue;
       const p = b.p();
       const hr = btHit(b);
       if (Math.hypot(t.clientX - p[0], t.clientY - p[1]) >= hr) continue;
-      if (b.fire) { FIRE_HOLD = t.identifier; TOUCH_ROLE.set(t.identifier, 'fire'); }
-      else { b.f(); TOUCH_ROLE.set(t.identifier, 'btn'); }
+      b.f(); TOUCH_ROLE.set(t.identifier, 'btn');
       btPress(b, p[0], p[1]);
       return;
     }
@@ -2935,8 +2928,6 @@ function touchEnd(id) {
   TOUCH_ROLE.delete(id);
   if (role === 'l' || role === 'r') {
     if (J[role] && J[role].id === id) J[role] = null;
-  } else if (role === 'fire') {
-    if (FIRE_HOLD === id) FIRE_HOLD = 0;
   }
 }
 

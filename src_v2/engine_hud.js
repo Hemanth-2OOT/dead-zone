@@ -789,29 +789,10 @@ function drawControls() {
     const bx = pos[0], by = pos[1];
     const r = btnRad(b);
 
-    if (b.fire) {
-      const held = fireHeld();
-      const dry = reloading || noAmmo;
-      // Held breathes gently instead of strobing, so continuous fire stays calm
-      // to look at while still being obviously "down".
-      const pulse = held ? 0.55 + 0.45 * Math.sin(perfNow() / 130) : 0;
-      X.save();
-      X.globalAlpha = ctlAlpha;
-      ctlDisc(bx, by, r,
-        dry ? 'rgba(150,104,80,0.62)' : held ? '#ffd7c2' : '#ff7a4a',
-        {
-          fill: held ? 'rgba(168,52,30,0.90)' : dry ? 'rgba(34,24,19,0.84)' : 'rgba(96,30,18,0.86)',
-          glow: dry ? null : held ? 'rgba(255,140,96,0.85)' : 'rgba(255,122,74,0.5)',
-          glowA: held ? 0.35 + 0.3 * pulse : 0.35,
-          ringW: held ? 3.2 : 2.4
-        });
-      X.fillStyle = dry ? 'rgba(214,186,170,0.6)' : '#fff3ea';
-      X.font = '900 ' + Math.round(15 * padUnit()) + 'px Impact, Arial Black, sans-serif';
-      X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText('FIRE', bx, by);
-      X.restore();
-      continue;
-    }
+    // The dedicated FIRE button was removed: firing is driven by the aim
+    // stick and the tap/hold fire modes, so a separate button only duplicated
+    // the same action and crowded the pad.
+
 
     if (b.id === 'pause') {
       X.save(); X.globalAlpha = ctlAlpha;
