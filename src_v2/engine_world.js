@@ -418,9 +418,9 @@ function spawn(t) {
   // stacks, skills, class bonuses) while health used to grow linearly, so the
   // horde turned into paper past the early waves. The curve now bends upward
   // in two stages so late waves stay a threat without inflating wave 1-5.
-  let waveHpScale = 1 + S.wave * 0.07;
-  if (S.wave > 12) waveHpScale += Math.pow(S.wave - 12, 1.2) * 0.055;
-  if (S.wave > 22) waveHpScale += Math.pow(S.wave - 22, 1.35) * 0.11;
+  let waveHpScale = 1 + S.wave * 0.085;
+  if (S.wave > 12) waveHpScale += Math.pow(S.wave - 12, 1.2) * 0.07;
+  if (S.wave > 22) waveHpScale += Math.pow(S.wave - 22, 1.35) * 0.14;
 
   const zh = (MP[curM] && MP[curM].zh) ? MP[curM].zh : 1;
   const sc = waveHpScale * zh * (S.zc || 1) * (1 + 0.07 * (S.ascTier || 0));
@@ -1059,14 +1059,35 @@ function resume() {
   run = 1;
 }
 
-function quit() {
-  const p = document.getElementById('pause');
-  if (p) p.classList.remove('on');
-  saveBest();
-  if (typeof clearEventContext === 'function') clearEventContext();
+// Single teardown for leaving a run (ABORT RUN and BACK TO LOBBY both use it).
+// Leaving a run has to stop the world, not just hide an overlay: the previous
+// ABORT only removed the pause screen, so the between-wave beat stayed armed
+// (pendingNextWave) and the boon draft stayed on screen. The lobby then showed
+// a live TACTICAL BOON DRAFT, and picking it unblocked the beat and started the
+// next wave behind the lobby - "abort leaves the game running in the lobby".
+function returnToLobby() {
+  run = 0;
+  pendingNextWave = 0;
+  WAVE_CLEAR_T = 0;
+  ['pause', 'perk', 'over', 'gunpick', 'boondraft'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('on');
+  });
+  // Drop the world so loop() stops drawing a frozen arena under the lobby
+  // (and so nothing can tick against a half-dead run state). Done before
+  // renderBoonBar so the hidden bar is emptied rather than re-populated.
+  S = null;
+  if (typeof renderBoonBar === 'function') renderBoonBar();
+  if (typeof clearFeelFX === 'function') clearFeelFX();
   const s = document.getElementById('start');
   if (s) s.classList.add('on');
   if (typeof lobby === 'function') lobby();
+}
+
+function quit() {
+  saveBest();
+  if (typeof clearEventContext === 'function') clearEventContext();
+  returnToLobby();
 }
 
 function spawnChest(n = 1) {
@@ -1093,6 +1114,10 @@ function openChest(c) {
 // Boon first, then perks, then release the run.
 function openNextDraft() {
   if (!S || !P || P.hp <= 0) return;
+  // The lobby is not a gameplay state. If a stale draft somehow resolves while
+  // #start is up, do not hand the screen back to the arena underneath it.
+  const lob = document.getElementById('start');
+  if (lob && lob.classList.contains('on')) return;
   // Never stack a boon draft on top of an open perk draft. A level-up during a
   // wave raises the perk modal (S.po = 1); the wave can then clear and call
   // endWave -> openNextDraft, which used to open the boon draft underneath the
@@ -1849,7 +1874,9 @@ function closeGunPicker() {
   const el = document.getElementById('gunpick');
   if (el) el.classList.remove('on');
   if (S) S.gp = 0;
-  if (P && P.hp > 0 && S && !S.po && !S.bd && !pendingNextWave) run = 1;
+  const lob = document.getElementById('start');
+  const inLobby = !!(lob && lob.classList.contains('on'));
+  if (!inLobby && P && P.hp > 0 && S && !S.po && !S.bd && !pendingNextWave) run = 1;
 }
 
 function pickWeapon(i) {

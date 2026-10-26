@@ -55,22 +55,25 @@ addEventListener('mouseup', () => { M.down = 0; });
 
 const lobBtn = document.getElementById('lob');
 if (lobBtn) {
+  // Credits are already banked by the death path (saveBest), so this only has
+  // to leave the run; returnToLobby() also disarms the between-wave beat and
+  // clears any lingering draft overlay.
   lobBtn.onclick = () => {
-    const over = document.getElementById('over');
-    if (over) over.classList.remove('on');
     if (typeof clearEventContext === 'function') clearEventContext();
-    const start = document.getElementById('start');
-    if (start) start.classList.add('on');
-    lobby();
+    if (typeof returnToLobby === 'function') returnToLobby();
+    else { const o = document.getElementById('over'); if (o) o.classList.remove('on'); }
   };
 }
 
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
+const GAME_VERSION = '2.11.0';
+
 ld();
 init();
 lobby();
+{ const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION; }
 initGameAssets();
 
 const resBtn = document.getElementById('resume');

@@ -158,63 +158,6 @@ button.eq {
   margin: 0 !important;
 }
 
-#top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: max(6px, env(safe-area-inset-top)) 14px 6px;
-  background: rgba(12, 15, 9, 0.85);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(58, 65, 40, 0.5);
-  flex: 0 0 auto;
-}
-#lv {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-#lvn {
-  background: radial-gradient(circle at 32% 26%, #ffb08a, var(--acc) 62%, #8e3116);
-  color: #100d08;
-  border: 1.5px solid rgba(255, 190, 150, 0.5);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-  font-weight: 900;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 8px rgba(200, 80, 45, 0.4), inset 0 -3px 6px rgba(0, 0, 0, 0.35);
-}
-.bar {
-  width: clamp(90px, 24vw, 140px);
-  height: 7px;
-  background: #23281a;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.bar i {
-  display: block;
-  height: 100%;
-  background: var(--ok);
-  width: 0;
-  transition: width 0.25s ease-out;
-}
-#crd {
-  background: rgba(0, 0, 0, 0.55);
-  border: 1.5px solid var(--gold);
-  border-radius: 16px;
-  padding: 4px 12px;
-  font-weight: 800;
-  font-size: 12px;
-  color: var(--gold);
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-  transition: transform 0.15s ease-out;
-}
-
 #pn {
   flex: 1;
   width: 100%;
@@ -225,60 +168,6 @@ button.eq {
   overflow: hidden;
   padding: 0;
 }
-.pp {
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 480px;
-  gap: 8px;
-  margin: 0;
-  padding: 8px 12px 16px;
-  overflow-y: auto;
-  touch-action: pan-y;
-  height: 100%;
-}
-.pp.on {
-  display: flex;
-}
-
-#p0.pp.on {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
-  max-width: 1100px !important;
-  display: flex;
-  flex-direction: row !important;
-  gap: 14px !important;
-  padding: 8px 14px 6px !important;
-  box-sizing: border-box;
-  align-items: stretch !important;
-  justify-content: space-between !important;
-  overflow: hidden;
-}
-
-.logo-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-}
-.logo {
-  font: 900 clamp(24px, 5.5vw, 34px) Impact, "Arial Black", sans-serif;
-  letter-spacing: 1.5px;
-  animation: fl 3s infinite;
-  text-shadow: 0 0 20px rgba(200, 80, 45, 0.7);
-  line-height: 1;
-}
-.tagline {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #ff8566;
-  opacity: 0.85;
-}
-
 .rewards-box {
   flex: 1;
   min-height: 0;
@@ -373,54 +262,6 @@ button.eq {
   min-height: 0;
 }
 
-.l-left {
-  flex: 0 0 35% !important;
-  width: 35% !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-  overflow: hidden !important;
-  justify-content: flex-start !important;
-}
-
-.l-right {
-  flex: 1 1 65% !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-  overflow-y: auto !important;
-  touch-action: pan-y !important;
-  background: rgba(18, 22, 14, 0.92) !important;
-  border: 1.5px solid rgba(58, 65, 40, 0.6) !important;
-  border-radius: 14px !important;
-  padding: 8px 12px !important;
-  box-sizing: border-box;
-}
-
-.map-box {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 6px;
-}
-
-#zone-preview {
-  width: 100%;
-  height: clamp(130px, 32vh, 190px);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #090c07;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-  flex-shrink: 0;
-  transition: opacity 0.2s ease-out;
-}
-
 #maps {
   display: grid !important;
   grid-template-columns: repeat(4, 1fr) !important;
@@ -441,55 +282,6 @@ button.eq {
 }
 #maps button:active {
   transform: scale(0.95);
-}
-
-#nav {
-  display: flex;
-  width: 100%;
-  background: rgba(10, 12, 7, 0.96);
-  backdrop-filter: blur(8px);
-  border-top: 1.5px solid #353b26;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  z-index: 30;
-  flex: 0 0 auto;
-}
-#nav::-webkit-scrollbar { display: none; }
-#nav button {
-  flex: 1 0 auto;
-  min-width: 48px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  opacity: 0.55;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  padding: 8px 2px 6px;
-  min-height: 44px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  text-transform: uppercase;
-  transition: opacity 0.15s, color 0.15s;
-}
-#nav button.on {
-  opacity: 1 !important;
-  color: #ffd36b !important;
-  border-top: 3px solid #ff5a3a !important;
-  background: linear-gradient(180deg, rgba(255, 90, 58, 0.28) 0%, rgba(255, 90, 58, 0.04) 100%) !important;
-  box-shadow: inset 0 2px 8px rgba(255, 90, 58, 0.35) !important;
-}
-.nav-ic {
-  width: 18px;
-  height: 18px;
-  display: block;
-  margin: 0 auto 2px;
-  fill: currentColor;
 }
 
 @keyframes pl { 50% { transform: scale(1.04); } }
@@ -635,26 +427,6 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .stg { animation: stgIn 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 28ms); }
 @keyframes stgIn { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 
-/* Primary CTA: big thumb-friendly DEPLOY with attention pulse and shine sweep */
-#play.go {
-  min-height: 52px !important;
-  font-size: 20px !important;
-  letter-spacing: 3px;
-  position: relative;
-  overflow: hidden;
-  animation: deployPulse 2.2s ease-in-out infinite;
-}
-#play.go::after {
-  content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
-  transform: skewX(-18deg); animation: deployShine 3.6s ease-in-out infinite;
-}
-@keyframes deployPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 58, 0.5), 0 4px 14px rgba(0, 0, 0, 0.5); }
-  50% { box-shadow: 0 0 0 10px rgba(255, 90, 58, 0), 0 4px 20px rgba(255, 90, 58, 0.35); }
-}
-@keyframes deployShine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
-
 /* Next goal strip (goal-gradient hook) */
 .next-goal { width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 10px; padding: 7px 10px; flex-shrink: 0; }
 .ng-row { display: flex; align-items: baseline; gap: 8px; font-size: 11px; letter-spacing: 0.6px; }
@@ -693,16 +465,6 @@ button:active:not(:disabled) { transform: scale(0.96); }
 #maps button.prev { border-color: #8fae4a !important; }
 #maps button.on { border-color: #ffd36b !important; box-shadow: 0 0 0 1px #ffd36b66, 0 4px 14px rgba(255, 211, 107, 0.2); transform: translateY(-2px); }
 #maps button.locked { opacity: 0.62; filter: saturate(0.5); }
-
-/* Bigger bottom-nav targets */
-#nav button { min-height: 54px !important; font-size: 10px !important; min-width: 56px !important; }
-#nav button .nav-ic { width: 22px; height: 22px; }
-#nav button.on .nav-ic { transform: translateY(-1px) scale(1.12); transition: transform 0.18s; }
-
-/* All lobby columns must scroll with a thumb */
-.l-left { overflow-y: auto !important; overflow-x: hidden !important; touch-action: pan-y; scrollbar-width: none; }
-.l-left::-webkit-scrollbar { display: none; }
-.ev-tab, .sk-tab { min-height: 36px !important; }
 
 /* Portrait / narrow phones: single scrolling column */
 /* Portrait / narrow windows stack the hub into one column. This used to also
@@ -748,37 +510,6 @@ button:active:not(:disabled) { transform: scale(0.96); }
     flex: 0 0 auto !important;
     white-space: nowrap !important;
   }
-}
-
-/* Short landscape phones: the app is landscape-locked, so this IS the real
-   mobile layout. The arena is wide but only ~390px tall, which used to squash
-   the two lobby columns: the rewards panel collapsed to ~80px and the sector
-   picker to ~12px, and because #p0.pp.on has overflow:hidden there was no way
-   to scroll to them. The columns now scroll independently instead of
-   compressing their children to nothing. */
-@media (max-height: 460px) and (orientation: landscape) {
-  .logo { font-size: 26px !important; }
-  .tagline { font-size: 8px !important; }
-  #play.go { min-height: 46px !important; font-size: 17px !important; }
-  #nav button { min-height: 46px !important; }
-  .next-goal { padding: 5px 8px; }
-
-  /* Never let a lobby block shrink below its content height. */
-  .l-left > *, .l-right > *, .map-box > * { flex-shrink: 0 !important; }
-  .l-left, .l-right {
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-  .rewards-box { flex: 0 0 auto !important; min-height: 200px; }
-  .rviews { min-height: 150px; }
-  #zone-preview {
-    height: auto !important;
-    max-height: none !important;
-    min-height: 132px !important;
-    flex: 1 1 auto !important;
-  }
-  #maps { min-height: 74px; }
 }
 
 /* ---- Hub windows (maps / missions / records) ------------------------- */
@@ -840,49 +571,9 @@ button:active:not(:disabled) { transform: scale(0.96); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-#crd {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(180deg, rgba(224, 184, 58, 0.16), rgba(224, 184, 58, 0.05));
-  border: 1px solid rgba(224, 184, 58, 0.45);
-  color: #ffd36b;
-  font-weight: 900;
-  letter-spacing: 0.6px;
-}
-
 #best-badge { transition: border-color 0.15s, background 0.15s, transform 0.12s; }
 #best-badge:hover { border-color: rgba(224, 184, 58, 0.7); background: rgba(224, 184, 58, 0.12); }
 #best-badge:active { transform: scale(0.97); }
-
-/* Primary call to action: a slow throb plus a one-shot sheen so the eye lands
-   on DEPLOY first, without turning the whole hub into a light show. */
-#play {
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 0 rgba(143, 174, 74, 0);
-  animation: deployThrob 3.4s ease-in-out infinite;
-}
-#play::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
-  transform: skewX(-18deg);
-  animation: deploySheen 4.2s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes deployThrob {
-  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
-  50% { box-shadow: 0 0 16px rgba(143, 174, 74, 0.35); }
-}
-@keyframes deploySheen {
-  0%, 62%, 100% { left: -60%; }
-  80% { left: 130%; }
-}
 
 .hub-btn { transition: background 0.15s, border-color 0.15s, transform 0.12s, box-shadow 0.15s; }
 .hub-btn:hover { box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.06); }
@@ -890,27 +581,6 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 /* Sector card: a coloured spine on the left, so the hub reads as
    "current sector" at a glance instead of another grey box. */
-#hub-sector {
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.15s;
-}
-#hub-sector::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, #8fae4a, #ffd36b);
-}
-#hub-sector:hover { border-color: rgba(143, 174, 74, 0.45); }
-#zone-threat-badge { animation: threatPulse 2.6s ease-in-out infinite; }
-@keyframes threatPulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
-  50% { box-shadow: 0 0 8px rgba(143, 174, 74, 0.5); }
-}
-
 #nav button { color: #b9b4a4; }
 #nav button:active { background: rgba(255, 255, 255, 0.05); }
 
@@ -1031,105 +701,11 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .gp-foot { padding: 8px 14px 12px; flex-shrink: 0; }
 .gp-foot .go { width: 100%; min-height: 42px; }
 
-/* ---- Short landscape phones: fit the whole PLAY hub, no scrolling ---- */
-/* The game is landscape-locked, so this is the layout that matters. Every
-   block in the hub is sized so the sector card is on screen without a scroll;
-   only genuinely long lists (events, skins, skills, records) still scroll. */
-@media (max-height: 520px) and (orientation: landscape) {
-  #top { padding: 3px 10px !important; }
-  #lv { gap: 7px; }
-  #lvn { width: 26px !important; height: 26px !important; font-size: 12px !important; }
-  .bar { width: clamp(70px, 18vw, 110px) !important; height: 6px !important; }
-  #crd { padding: 2px 9px !important; font-size: 10.5px !important; }
-
-  #p0.pp.on { gap: 10px !important; padding: 4px 12px 4px !important; }
-  .l-left { gap: 4px !important; }
-  .logo-wrap { flex-direction: row !important; align-items: baseline !important; gap: 8px; flex-wrap: wrap; }
-  .logo { font-size: 21px !important; }
-  .tagline { font-size: 7.5px !important; letter-spacing: 0.4px !important; }
-  #best-badge { padding: 2px 7px !important; font-size: 9.5px !important; }
-  #play.go { min-height: 38px !important; font-size: 15px !important; }
-  #daily { min-height: 38px !important; font-size: 9px !important; padding: 3px 8px !important; }
-  .next-goal { padding: 4px 8px !important; }
-  .ng-row { font-size: 9.5px !important; }
-  .ng-lbl { font-size: 8.5px !important; }
-  .ng-val { font-size: 9px !important; }
-  .ng-bar { height: 5px !important; margin-top: 3px !important; }
-  .ng-hint { font-size: 8px !important; margin-top: 2px !important; }
-  /* Keep NEXT GOAL on one line: at 640px wide the goal name used to wrap and
-     push the sector card below the fold. */
-  #next-goal { min-width: 0 !important; }
-  .ng-row { flex-wrap: nowrap !important; min-width: 0; }
-  .ng-row > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
-  .ng-lbl, .ng-val { flex: 0 0 auto; }
-  #hub-sector { padding: 5px 9px !important; gap: 2px !important; }
-  #zone-name { font-size: 11.5px !important; }
-  #mapd { font-size: 9px !important; line-height: 1.2 !important; }
-  /* Enemy tags live in the sector window; the hub keeps threat, level,
-     bounty and ascension instead of repeating them here. */
-  #zone-enemy-icons { display: none !important; }
-  /* Let the sector preview fill the map column instead of a fixed strip. */
-  #zone-preview { height: auto !important; max-height: none !important; min-height: 140px !important; flex: 1 1 auto !important; }
-  #nav button { min-height: 44px !important; font-size: 9px !important; min-width: 48px !important; }
-  #nav button .nav-ic { width: 18px !important; height: 18px !important; }
-
-  .hero-band { padding: 8px 10px; gap: 10px; }
-  #hero-preview { width: 132px; height: 109px; }
-  .hs-title b { font-size: 14px; }
-}
-
 /* Portrait phones: the band stacks above the cards. */
 @media (orientation: portrait) {
   .hero-band { flex-direction: column; align-items: stretch; }
   #hero-preview { width: 100%; height: auto; aspect-ratio: 252 / 208; }
   .gp-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-}
-
-/* Very small landscape phones (640x360 and under): drop the NEXT GOAL flavour
-   line and tighten the sector card so the hub still fits without scrolling. */
-@media (max-height: 400px) and (max-width: 860px) and (orientation: landscape) {
-  .ng-hint { display: none !important; }
-  /* Tighten the stack: at 360px tall the sector card used to clip by ~20px. */
-  .l-left { gap: 3px !important; }
-  #best-badge { margin-top: 0 !important; }
-  #hub-sector { padding: 3px 8px !important; gap: 1px !important; }
-  #nav button { min-height: 42px !important; }
-}
-
-/* Narrow landscape phones (<= 700px wide, <= 420px tall — e.g. 640x360).
-   The hub's left column is a fixed-width sidebar, so at this width the sector
-   description and the stat row wrapped onto extra lines and pushed the sector
-   card past the bottom of a column that only has ~243px. Bound both rows and
-   tighten the stack so the whole hub — logo, deploy, next goal, sector card —
-   stays on one screen without scrolling. */
-@media (max-width: 700px) and (max-height: 420px) and (orientation: landscape) {
-  .logo { font-size: 18px !important; }
-  #best-badge { font-size: 9px !important; padding: 2px 6px !important; }
-  #play.go { min-height: 34px !important; font-size: 14px !important; }
-  #daily, .hub-btn { min-height: 34px !important; }
-  .hub-btn { font-size: 10px !important; }
-  .next-goal { padding: 3px 7px !important; }
-  #hub-sector { padding: 3px 8px !important; gap: 1px !important; }
-  #mapd {
-    font-size: 8.5px !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  #zone-stats {
-    flex-wrap: nowrap !important;
-    gap: 5px !important;
-    font-size: 8px !important;
-  }
-  #zone-stats > span {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #zone-stats > span:empty { display: none !important; }
-  #zone-rec-lvl, #zone-bounty-wrap { flex: 0 0 auto !important; }
 }
 
 /* Map window on short landscape phones. The stacked layout put the ~265px
@@ -1298,4 +874,500 @@ button:active:not(:disabled) { transform: scale(0.96); }
   .dp-sub { margin: 4px 0 9px; }
   .ld-tip, .dp-tip { margin-top: 9px; }
   .dp-skip { margin-top: 10px; }
+}
+
+/* ===================================================================== */
+/* v2.11.0 - MOBILE LANDSCAPE LOBBY                                       */
+/* The game is landscape-only, so this is the single source of truth for  */
+/* the status bar, the PLAY hub and the bottom nav. The eight overlapping */
+/* landscape media queries that used to fight over these elements are     */
+/* gone: there is one layout, tuned for 800x360 through 960x440, with     */
+/* safe-area insets for notches and system bars.                          */
+/* ===================================================================== */
+
+/* ---- essential tab plumbing (kept here now the old block is gone) ---- */
+/* Non-hub tabs (events, skins, hero, skills, stats, relics, options) are
+   genuinely long lists, so they scroll inside their own panel. The PLAY hub
+   overrides this and never scrolls - its columns handle their own overflow. */
+.pp {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: min(900px, 100%);
+  margin: 0 auto;
+  padding: 10px 12px 12px;
+  box-sizing: border-box;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.pp.on { display: flex; }
+
+/* ---- lobby design tokens (scoped to the lobby; arena tokens untouched) */
+#start {
+  --z-surface: #131810;
+  --z-surface-2: #1a2114;
+  --z-line: rgba(96, 110, 64, 0.34);
+  --z-line-soft: rgba(255, 255, 255, 0.07);
+  --z-ink: #efe9dc;
+  --z-ink-2: #a3ab90;
+  --z-acc: #dd4f28;
+  --z-gold: #dcb44a;
+  --z-r: 10px;
+  --z-r-sm: 6px;
+  --z-gap: 8px;
+  --z-sb: 34px;
+  --z-nav: 50px;
+}
+
+/* ---- status bar: one compact row, minimal vertical space ------------- */
+#top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--z-sb);
+  padding: 3px max(10px, env(safe-area-inset-right)) 3px max(10px, env(safe-area-inset-left));
+  background: rgba(9, 12, 7, 0.94);
+  border-bottom: 1px solid var(--z-line);
+}
+#lv { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+#lvn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--z-surface-2), #0e120a);
+  border: 1.5px solid var(--z-line);
+  color: var(--z-gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+.tb-k {
+  flex: 0 0 auto;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--z-ink-2);
+}
+.tb-xp { flex: 0 0 auto; font-size: 9.5px; font-weight: 800; color: #a8c45f; white-space: nowrap; }
+.bar {
+  flex: 0 1 clamp(60px, 15vw, 140px);
+  width: clamp(60px, 15vw, 140px);
+  height: 6px;
+  border-radius: 3px;
+  background: #1d2415;
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #93b34e, var(--z-gold));
+  transition: width 0.35s ease-out;
+}
+#crd {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--z-r-sm);
+  background: rgba(220, 180, 74, 0.08);
+  border: 1px solid rgba(220, 180, 74, 0.32);
+  color: var(--z-gold);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+#crd b { font-weight: 900; }
+
+/* ---- PLAY hub: balanced two columns --------------------------------- */
+#p0.pp.on {
+  display: grid !important;
+  grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
+  align-items: stretch;
+  gap: var(--z-gap);
+  width: 100%;
+  max-width: none !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.l-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  width: auto !important;
+  height: auto !important;
+  flex: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.l-left::-webkit-scrollbar { display: none; }
+/* The zone card is the only flexible row; everything else keeps its natural
+   height so a short viewport can never squeeze a label or clip its own text. */
+.l-left > *:not(#hub-sector) { flex-shrink: 0; }
+.l-right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  width: auto !important;
+  height: auto !important;
+  flex: none !important;
+  padding: 7px 8px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, var(--z-surface), #0c1008);
+  border: 1px solid var(--z-line);
+  border-radius: var(--z-r);
+  overflow: hidden;
+}
+
+/* ---- identity ------------------------------------------------------- */
+.logo-wrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; flex: 0 0 auto; }
+.logo {
+  margin: 0;
+  font-size: clamp(17px, 3.4vw, 24px);
+  line-height: 1;
+  letter-spacing: 1.2px;
+  color: var(--z-ink);
+  text-shadow: 0 0 18px rgba(221, 79, 40, 0.45);
+  animation: fl 3.4s infinite;
+}
+.tagline { font-size: 8px; font-weight: 800; line-height: 1; letter-spacing: 0.8px; color: #ff9a76; opacity: 0.75; }
+#best-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border-radius: var(--z-r-sm);
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--z-line);
+  color: #cbc5b6;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-align: left;
+  cursor: pointer;
+}
+#best-badge svg { width: 13px; height: 13px; flex: 0 0 auto; }
+#best-badge:hover { border-color: rgba(220, 180, 74, 0.6); background: rgba(220, 180, 74, 0.08); }
+
+/* ---- primary CTA + compact secondary actions ------------------------ */
+.act-box { display: flex; width: 100%; flex: 0 0 auto; }
+#play.go {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 100%;
+  width: 100%;
+  min-height: 46px !important;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--z-r);
+  color: #fff;
+  font-size: 19px !important;
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #e2592c, #c53f1c);
+  animation: deployPulse 2.6s ease-in-out infinite;
+}
+#play.go::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.26), transparent);
+  transform: skewX(-18deg);
+  animation: deployShine 4.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes deployPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(221, 79, 40, 0), 0 3px 14px rgba(0, 0, 0, 0.5); }
+  50%      { box-shadow: 0 0 0 7px rgba(221, 79, 40, 0), 0 3px 20px rgba(221, 79, 40, 0.42); }
+}
+@keyframes deployShine { 0%, 58%, 100% { left: -60%; } 80% { left: 130%; } }
+
+.lb-sub { display: flex; align-items: stretch; gap: 6px; width: 100%; flex: 0 0 auto; }
+.lb-sub .hub-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--z-r-sm);
+  border: 1px solid var(--z-line);
+  background: rgba(19, 24, 16, 0.9);
+  color: #b9c0a4;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.lb-sub .hub-btn svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.lb-sub .hub-btn:hover { border-color: rgba(147, 179, 78, 0.6); color: #cfd8b4; }
+#daily {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 4px 9px;
+  border-radius: var(--z-r-sm);
+  border: 1px solid rgba(220, 180, 74, 0.4);
+  background: rgba(220, 180, 74, 0.1);
+  color: var(--z-gold);
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ---- next goal ------------------------------------------------------ */
+.next-goal {
+  width: 100%;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--z-line);
+  border-radius: var(--z-r-sm);
+}
+.next-goal .ng-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex-wrap: nowrap; font-size: 10px; letter-spacing: 0.4px; }
+.next-goal .ng-row > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+.next-goal .ng-lbl { flex: 0 0 auto; font-size: 8.5px; font-weight: 900; letter-spacing: 0.7px; color: var(--z-ink-2); }
+.next-goal .ng-val { flex: 0 0 auto; margin-left: auto; font-size: 9px; font-weight: 800; color: var(--z-ink-2); }
+.next-goal .ng-bar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); margin-top: 4px; overflow: hidden; }
+.next-goal .ng-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.next-goal .ng-hint { margin-top: 3px; font-size: 8px; font-weight: 900; letter-spacing: 1px; color: #ff9a4a; animation: ngBlink 1.3s ease-in-out infinite; }
+
+/* ---- mission card: zone, level, record, threat, bounty in one block -- */
+#hub-sector {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 52px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 3px;
+  padding: 7px 10px 7px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--z-line);
+  border-radius: var(--z-r);
+  overflow: hidden;
+}
+/* Card rows never compress - each is a single line of text. */
+#hub-sector > * { flex-shrink: 0; }
+#hub-sector::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #93b34e, var(--z-gold));
+}
+.lz-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#zone-name {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: var(--z-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#zone-threat-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(147, 179, 78, 0.4);
+  background: rgba(147, 179, 78, 0.15);
+  color: #a8c45f;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  animation: threatPulse 2.6s ease-in-out infinite;
+}
+@keyframes threatPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(143, 174, 74, 0); }
+  50%      { box-shadow: 0 0 8px rgba(143, 174, 74, 0.5); }
+}
+#mapd {
+  font-size: 9.5px;
+  line-height: 1.25;
+  color: var(--z-ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#zone-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--z-ink-2);
+}
+#zone-stats > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#zone-stats > span:empty { display: none; }
+#zone-rec-lvl { color: var(--z-gold); font-weight: 900; }
+#zone-best-wave { color: #a8c45f; font-weight: 900; }
+#zone-bounty { color: var(--z-gold); font-weight: 900; }
+#zone-haz-tag { color: #ff6a45; font-weight: 900; }
+#zone-asc-tag { color: #c084fc; font-weight: 900; }
+#zone-enemy-icons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ---- tactical map column -------------------------------------------- */
+.map-box { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; width: 100%; }
+.mb-head, .mb-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 0 0 auto; }
+.mb-k {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--z-ink-2);
+  opacity: 0.85;
+}
+.mb-canvas { flex: 1 1 auto; min-height: 0; display: flex; }
+#zone-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--z-line-soft);
+  border-radius: var(--z-r-sm);
+  background: #070a05;
+}
+.mb-change {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: var(--z-r-sm);
+  border: 1px solid var(--z-line);
+  background: rgba(19, 24, 16, 0.9);
+  color: #b9c0a4;
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.mb-change:hover { border-color: rgba(147, 179, 78, 0.6); color: #cfd8b4; }
+
+/* ---- bottom navigation: one compact row, all 8 destinations --------- */
+#nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  height: calc(var(--z-nav) + env(safe-area-inset-bottom));
+  padding: 0 max(2px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(2px, env(safe-area-inset-left));
+  background: rgba(8, 11, 6, 0.97);
+  border-top: 1px solid var(--z-line);
+  overflow: hidden;
+}
+#nav button {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 1px 4px;
+  border: 0 !important;
+  border-radius: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 9px !important;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #8a8d75;
+  opacity: 1;
+  cursor: pointer;
+}
+#nav button .nav-ic { width: 19px !important; height: 19px !important; display: block; margin: 0; }
+#nav button.on {
+  color: #ffc663 !important;
+  background: linear-gradient(180deg, rgba(221, 79, 40, 0.22), rgba(221, 79, 40, 0.02)) !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+#nav button.on::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--z-acc);
+  box-shadow: 0 0 8px rgba(221, 79, 40, 0.75);
+}
+#nav button.on .nav-ic { transform: translateY(-1px) scale(1.08); transition: transform 0.18s; }
+
+@media (max-height: 375px) and (orientation: landscape) {
+  #zone-enemy-icons { display: none; }
+}
+/* ---- short screens: trim chrome, never content ---------------------- */
+@media (max-height: 420px) and (orientation: landscape) {
+  #start { --z-sb: 30px; --z-nav: 46px; --z-gap: 7px; }
+  .l-left { gap: 5px; }
+  #p0.pp.on { padding: 6px max(9px, env(safe-area-inset-right)) 6px max(9px, env(safe-area-inset-left)); }
+  .logo { font-size: 18px; }
+  .tagline { display: none; }
+  #best-badge { padding: 3px 7px; font-size: 9px; min-height: 28px; }
+  #play.go { min-height: 46px !important; font-size: 17px !important; }
+  .lb-sub .hub-btn { min-height: 29px; font-size: 9px; }
+  #daily { min-height: 29px; font-size: 8.5px; }
+  .next-goal { padding: 4px 8px; }
+  #hub-sector { padding: 5px 9px 5px 11px; gap: 2px; }
+  #zone-name { font-size: 11px; }
+  #mapd { -webkit-line-clamp: 1; font-size: 9px; }
+  #zone-stats { gap: 2px 10px; font-size: 8.5px; }
+  #zone-enemy-icons { gap: 4px; }
+  .sec-enemy-tag { font-size: 8px !important; padding: 1px 4px !important; }
+  #nav button { padding: 4px 1px 3px; font-size: 8.5px !important; }
+  #nav button .nav-ic { width: 17px !important; height: 17px !important; }
 }

@@ -183,7 +183,10 @@ function updateZoneMeta(mIndex) {
   }
 
   const mapd = document.getElementById('mapd');
-  if (mapd) mapd.textContent = mapDef.desc || mapDef.d || '';
+  if (mapd) {
+    const mpDef = (typeof MP !== 'undefined' && MP[mIndex]) ? MP[mIndex] : null;
+    mapd.textContent = mapDef.desc || mapDef.d || (mpDef && (mpDef.d || mpDef.desc)) || 'Ruined city streets and buildings.';
+  }
 
   const badge = document.getElementById('zone-rec-lvl') || document.getElementById('rec-badge');
   if (badge) {

@@ -64,77 +64,76 @@
 </div>
 
 <div class="ov on" id="start">
+  <!-- STATUS BAR: one compact horizontal row - rank, XP progress, credits. -->
   <div id="top">
     <div id="lv">
       <b id="lvn">1</b>
-      <div style="display:flex;flex-direction:column;gap:1px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-          <span style="font-size:9.5px;opacity:.75;letter-spacing:.8px;font-weight:800">ACCOUNT RANK</span>
-          <span id="xptxt" style="font-size:9.5px;font-weight:800;color:#8fae4a">0 / 100 XP</span>
-        </div>
-        <div class="bar"><i id="xpf"></i></div>
-      </div>
+      <span class="tb-k">RANK</span>
+      <div class="bar"><i id="xpf"></i></div>
+      <span id="xptxt" class="tb-xp">0 / 100 XP</span>
     </div>
-    <div id="crd">CREDITS <span id="cr">0</span></div>
+    <div id="crd"><span class="tb-k">CREDITS</span><b id="cr">0</b></div>
   </div>
 
   <div id="pn">
-    <!-- TAB 0: PLAY HUB -->
+    <!-- TAB 0: PLAY HUB. Landscape: balanced two columns - identity, record,
+         sector and the primary actions on the left; tactical map on the right. -->
     <div class="pp on" id="p0">
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.10.0</div>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v2.11.0</span>
         </div>
 
-        <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0b83a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+        <button type="button" id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#dcb44a" stroke-width="2.2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7"/><path d="M14 14.66V17c0 .55.45 1 1 1h2"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
           <span id="best">SURVIVAL RECORD: WAVE 0</span>
+        </button>
+
+        <div class="act-box">
+          <button class="go" id="play">DEPLOY</button>
         </div>
 
-        <div class="act-box" style="display:flex;gap:6px;align-items:center;width:100%;margin-top:2px">
-          <button class="go" id="play" style="flex:1;min-height:40px;font-size:15px;padding:6px 14px">DEPLOY</button>
-          <button id="daily" style="min-height:40px;font-size:9.5px;padding:4px 10px;font-weight:800;border-color:#e0b83a;color:#e0b83a;background:rgba(224,184,58,.12);white-space:nowrap">DAILY +200</button>
+        <!-- Secondary actions live beside the primary CTA as compact chips. -->
+        <div class="lb-sub">
+          <button class="hub-btn" onclick="openMapModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z"/><path d="M9 4v16M15 6v16"/></svg>
+            MAPS
+          </button>
+          <button class="hub-btn" onclick="openMissionsModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+            MISSIONS
+          </button>
+          <button id="daily">DAILY +200</button>
         </div>
 
         <div id="next-goal" class="next-goal"></div>
 
-        <!-- Hub navigation. Each of these opens its own window so the hub stays
-             a hub instead of a wall of tabs and lists. -->
-        <div style="display:flex;gap:8px;width:100%;margin-top:4px">
-          <button class="hub-btn" onclick="openMapModal()" style="flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.6px;border:1.5px solid rgba(143,174,74,.55);background:rgba(143,174,74,.12);color:#c9e08a;border-radius:8px;cursor:pointer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z"/><path d="M9 4v16M15 6v16"/></svg>
-            MAPS
-          </button>
-          <button class="hub-btn" onclick="openMissionsModal()" style="flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.6px;border:1.5px solid rgba(224,184,58,.55);background:rgba(224,184,58,.12);color:#ffd36b;border-radius:8px;cursor:pointer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
-            MISSIONS
-          </button>
-        </div>
-
-        <div id="hub-sector" style="width:100%;margin-top:4px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <b id="zone-name" style="font-size:13px;letter-spacing:1px;color:#ffd36b">ZONE: DOWNTOWN</b>
-            <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
+        <!-- Mission card: zone, recommended level, sector record, threat, bounty. -->
+        <div id="hub-sector">
+          <div class="lz-top">
+            <b id="zone-name">ZONE: DOWNTOWN</b>
+            <span id="zone-threat-badge">THREAT I</span>
           </div>
-          <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
-          <div id="zone-stats" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
-            <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
-            <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
-            <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
-            <span id="zone-haz-tag" style="font-weight:800;color:#ff5a3a"></span>
-            <span id="zone-asc-tag" style="font-weight:800;color:#c084fc"></span>
+          <div id="mapd">Ruined city streets and buildings.</div>
+          <div id="zone-stats">
+            <span id="zone-rec-lvl">REC. LEVEL: 1</span>
+            <span id="zone-best-wave">SECTOR BEST: W0</span>
+            <span id="zone-bounty-wrap">BOUNTY: <b id="zone-bounty">1.0x</b></span>
+            <span id="zone-haz-tag"></span>
+            <span id="zone-asc-tag"></span>
           </div>
-          <div id="zone-enemy-icons" style="display:flex;gap:6px;align-items:center;padding-top:2px;border-top:1px solid rgba(255,255,255,.06)"></div>
+          <div id="zone-enemy-icons"></div>
         </div>
       </div>
 
       <div class="l-right">
         <div class="map-box" id="hub-map">
-          <canvas id="zone-preview" width="460" height="240"></canvas>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-            <span style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.6;text-transform:uppercase">CURRENT SECTOR</span>
-            <button onclick="openMapModal()" style="min-height:30px;font-size:9.5px;font-weight:800;padding:3px 10px;border:1px solid rgba(143,174,74,.5);background:rgba(143,174,74,.12);color:#c9e08a;border-radius:6px;cursor:pointer">CHANGE MAP</button>
+          <div class="mb-head"><span class="mb-k">Current Sector</span></div>
+          <div class="mb-canvas"><canvas id="zone-preview" width="460" height="240"></canvas></div>
+          <div class="mb-foot">
+            <span class="mb-k">Live Tactical Overview</span>
+            <button class="mb-change" onclick="openMapModal()">CHANGE MAP</button>
           </div>
         </div>
       </div>
