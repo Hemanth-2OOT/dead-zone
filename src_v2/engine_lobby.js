@@ -404,7 +404,10 @@ function lobby() {
 function openTacticalRecords() {
   const modal = document.getElementById('run-details-modal');
   if (!modal) return;
-  const body = document.getElementById('run-details-body');
+  // The markup names this node #run-details-content. It was looked up as
+  // #run-details-body, so the guard below never filled it and the COMBAT
+  // DOSSIER opened completely empty.
+  const body = document.getElementById('run-details-content');
   if (body) {
     body.innerHTML = `
       <div style="background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between">
@@ -413,7 +416,7 @@ function openTacticalRecords() {
       </div>
       <div style="background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between">
         <span style="opacity:0.8">Lifetime Confirmed Kills:</span>
-        <b style="color:#ff5a3a">${SV.kills || 0}</b>
+        <b style="color:#ff5a3a">${(SV.lt && SV.lt.kills) || 0}</b>
       </div>
       <div style="background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between">
         <span style="opacity:0.8">Survivor Security Level:</span>
@@ -972,27 +975,133 @@ function autoSave() {
   }
 }
 
+// Rotating one-liners for both loading screens. Cosmetic — they exist so the
+// bars have something to say while real work runs behind them.
+const LOAD_TIPS = [
+  'TIP: dash THROUGH a horde, not around it.',
+  'TIP: boons reset every deploy, perks last the whole run.',
+  'TIP: each sector has its own enemy roster - read the map card.',
+  'TIP: reload behind cover. Reloading in the open is how runs end.',
+  'TIP: bosses telegraph before they charge. Watch the floor.',
+  'TIP: the even-wave supply beacon never drops SHOCKWAVE.'
+];
+
+// Boot loader. The previous version jumped 25% -> 65% -> 100% on fixed timers
+// with no work behind any of it, so it flickered past on a fast device and told
+// the player nothing. Now each step is real first-run work and the bar advances
+// as it lands, with a floor on how long the screen stays up.
 function initGameAssets() {
   const ls = document.getElementById('load-screen');
+  if (!ls) return;
   const lp = document.getElementById('load-progress');
   const lst = document.getElementById('load-status');
-  if (!ls) return;
-  if (lst) lst.textContent = 'CACHING PROCEDURAL OPERATIONAL ASSETS...';
-  if (lp) lp.style.width = '65%';
-  setTimeout(() => {
-    try {
+  const ltip = document.getElementById('load-tip');
+
+  const STEPS = [
+    { label: 'BOOTING TACTICAL KERNEL...' },
+    { label: 'DECRYPTING SURVIVOR RECORD...' },
+    { label: 'CACHING STAT GLYPHS...', run: () => {
       ['hp', 'dmg', 'rof', 'crit', 'spd', 'ar', 'kills', 'cr', 'lvl'].forEach(k => {
         if (typeof getStatIcon === 'function') getStatIcon(k);
       });
+    } },
+    { label: 'CACHING SKILL & PERK GLYPHS...', run: () => {
       ['dash', 'turret', 'repair', 'cloak', 'ward', 'nova', 'rage', 'bolt', 'frost', 'meteor', 'gren'].forEach(k => {
         if (typeof getSkillIcon === 'function') getSkillIcon(k);
       });
-    } catch (e) {}
-    if (lst) lst.textContent = 'SYSTEMS OPERATIONAL • READY FOR DEPLOYMENT';
-    if (lp) lp.style.width = '100%';
-    setTimeout(() => {
-      ls.style.opacity = '0';
-      setTimeout(() => { try { ls.remove(); } catch (e) {} }, 350);
-    }, 120);
-  }, 100);
+      if (typeof getPerkIcon === 'function' && typeof PKS !== 'undefined') {
+        PKS.forEach(p => getPerkIcon(p[0], p[4]));
+      }
+    } },
+    { label: 'RENDERING SECTOR PREVIEW...', run: () => {
+      if (typeof drawZonePreview === 'function') {
+        drawZonePreview(typeof curPreviewZone !== 'undefined' ? curPreviewZone : 0);
+      }
+    } }
+  ];
+
+  let i = 0;
+  const t0 = performance.now();
+  const MIN_VISIBLE = 900;
+  const advance = () => {
+    if (i >= STEPS.length) {
+      if (lp) lp.style.width = '100%';
+      if (lst) lst.textContent = 'SYSTEMS OPERATIONAL \u2022 READY FOR DEPLOYMENT';
+      if (ltip) ltip.textContent = '';
+      const wait = Math.max(0, MIN_VISIBLE - (performance.now() - t0));
+      setTimeout(() => {
+        ls.classList.add('gone');
+        setTimeout(() => { try { ls.remove(); } catch (e) {} }, 420);
+      }, wait + 200);
+      return;
+    }
+    const step = STEPS[i];
+    if (lst) lst.textContent = step.label;
+    if (ltip) ltip.textContent = LOAD_TIPS[i % LOAD_TIPS.length];
+    if (lp) lp.style.width = Math.round(((i + 1) / (STEPS.length + 1)) * 100) + '%';
+    // Yield a frame so the label paints before the synchronous work runs.
+    requestAnimationFrame(() => {
+      try { if (step.run) step.run(); } catch (e) {}
+      i++;
+      setTimeout(advance, 90);
+    });
+  };
+  advance();
+}
+
+// Run-start transition. begin() used to hide the lobby and call startWave() on
+// the same tick, so the first frame of a wave landed during a layout/paint
+// hitch. This names the sector, holds the world still, and runs the init work
+// while the screen is up. Tapping skips; a 3s guard means a stall can never
+// strand the player on the transition.
+const DEPLOY_STATUS = [
+  'ESTABLISHING DROP CORRIDOR...',
+  'SYNCING SQUAD TELEMETRY...',
+  'ARMING LOADOUT...',
+  'HOSTILES INBOUND'
+];
+let deployScreenActive = 0;
+function showDeployScreen(title, sub, kicker, onReady) {
+  const el = document.getElementById('deploy-screen');
+  if (!el) { onReady(); return; }
+  if (deployScreenActive) return;
+  deployScreenActive = 1;
+
+  const tEl = document.getElementById('dp-title');
+  const sEl = document.getElementById('dp-sub');
+  const kEl = document.getElementById('dp-kicker');
+  const bEl = document.getElementById('dp-bar');
+  const stEl = document.getElementById('dp-status');
+  const tipEl = document.getElementById('dp-tip');
+  if (tEl) tEl.textContent = title || 'SECTOR';
+  if (sEl) sEl.textContent = sub || '';
+  if (kEl) kEl.textContent = kicker || 'DEPLOYING';
+  if (tipEl) tipEl.textContent = LOAD_TIPS[(Math.random() * LOAD_TIPS.length) | 0];
+  if (bEl) bEl.style.width = '0%';
+  el.classList.remove('gone');
+  el.classList.add('on');
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(guard);
+    try { onReady(); } catch (e) { if (typeof console !== 'undefined') console.error(e); }
+    el.classList.add('gone');
+    setTimeout(() => { el.classList.remove('on'); deployScreenActive = 0; }, 420);
+  };
+  el.onclick = finish;
+  const guard = setTimeout(finish, 3000);
+
+  const t0 = performance.now();
+  const DURATION = 820;
+  const tick = () => {
+    if (done) return;
+    const k = Math.min(1, (performance.now() - t0) / DURATION);
+    if (bEl) bEl.style.width = Math.round(k * 100) + '%';
+    if (stEl) stEl.textContent = DEPLOY_STATUS[Math.min(DEPLOY_STATUS.length - 1, Math.floor(k * DEPLOY_STATUS.length))];
+    if (k >= 1) { finish(); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }

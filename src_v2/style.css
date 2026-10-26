@@ -1176,3 +1176,126 @@ button:active:not(:disabled) { transform: scale(0.96); }
     font-size: 12px !important;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* LOADING SCREENS                                                     */
+/* Boot loader (#load-screen) and run-start transition (#deploy-screen).*/
+/* ------------------------------------------------------------------ */
+#load-screen, #deploy-screen {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 38%, #141a10 0%, #080b06 70%, #040603 100%);
+  transition: opacity .4s ease-out;
+}
+/* Boot loader never eats input: if removal ever fails the player can still play. */
+#load-screen { pointer-events: none; }
+#deploy-screen { pointer-events: none; opacity: 0; }
+#deploy-screen.on { pointer-events: auto; opacity: 1; }
+#load-screen.gone, #deploy-screen.gone { opacity: 0 !important; }
+
+.ld-scan, .dp-scan {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.3) 2px 4px);
+  pointer-events: none;
+}
+.ld-scan::after, .dp-scan::after {
+  content: '';
+  position: absolute; left: 0; width: 100%; height: 28%;
+  background: linear-gradient(180deg, rgba(143,174,74,0), rgba(143,174,74,.07), rgba(143,174,74,0));
+  animation: dz-sweep 3.4s linear infinite;
+}
+@keyframes dz-sweep { from { top: -30%; } to { top: 105%; } }
+
+.ld-inner, .dp-inner {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  width: 100%; max-width: 420px;
+  padding: 0 22px;
+}
+
+.ld-emblem { position: relative; width: 58px; height: 58px; margin-bottom: 16px; }
+.ld-emblem i {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  border: 2px solid rgba(143,174,74,.26);
+  border-top-color: #8fae4a;
+  border-radius: 50%;
+  animation: dz-spin 1.1s linear infinite;
+}
+.ld-emblem i:nth-child(2) {
+  top: 9px; left: 9px; width: calc(100% - 18px); height: calc(100% - 18px);
+  border-color: rgba(224,184,58,.2);
+  border-bottom-color: #e0b83a;
+  animation: dz-spin 1.7s linear infinite reverse;
+}
+.ld-emblem b {
+  position: absolute; top: 21px; left: 21px; width: 16px; height: 16px;
+  background: #8fae4a; border-radius: 2px;
+  animation: dz-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dz-pulse { 0%,100% { opacity: .3; transform: scale(.75); } 50% { opacity: 1; transform: scale(1); } }
+
+.ld-title {
+  font-size: 27px; font-weight: 900; letter-spacing: 5px; color: #f0ece1;
+  text-shadow: 0 0 18px rgba(143,174,74,.35);
+}
+.ld-sub {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 3.4px;
+  color: #8fae4a; opacity: .8; margin: 5px 0 20px;
+}
+.ld-status, .dp-status {
+  font-size: 10px; font-weight: 800; letter-spacing: 1.4px;
+  color: #8fae4a; min-height: 14px;
+}
+.ld-track, .dp-track {
+  width: 100%; max-width: 260px; height: 5px; margin-top: 12px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(143,174,74,.25);
+  border-radius: 3px; overflow: hidden;
+}
+.ld-fill, .dp-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #6f8f3a, #8fae4a 55%, #c9e08a);
+  box-shadow: 0 0 10px rgba(143,174,74,.5);
+  transition: width .28s ease-out;
+}
+.ld-tip, .dp-tip {
+  font-size: 9.5px; letter-spacing: .7px; color: #8892a0;
+  margin-top: 16px; min-height: 12px;
+}
+
+.dp-kicker {
+  font-size: 9px; font-weight: 900; letter-spacing: 4px;
+  color: #e0b83a; opacity: .85; margin-bottom: 6px;
+}
+.dp-title {
+  font-size: 30px; font-weight: 900; letter-spacing: 3px; line-height: 1.05;
+  color: #ffd36b; text-shadow: 0 0 22px rgba(224,184,58,.35);
+}
+.dp-sub {
+  font-size: 10px; font-weight: 900; letter-spacing: 2.6px;
+  color: #d5d0c2; opacity: .75; margin: 7px 0 18px;
+}
+.dp-skip {
+  font-size: 8px; font-weight: 800; letter-spacing: 2.4px;
+  color: #6b7466; margin-top: 20px;
+  animation: dz-blink 1.5s steps(2, start) infinite;
+}
+@keyframes dz-blink { 0%,60% { opacity: .85; } 61%,100% { opacity: .25; } }
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .ld-emblem { width: 40px; height: 40px; margin-bottom: 9px; }
+  .ld-emblem i:nth-child(2) { top: 7px; left: 7px; width: calc(100% - 14px); height: calc(100% - 14px); }
+  .ld-emblem b { top: 14px; left: 14px; width: 12px; height: 12px; }
+  .ld-title { font-size: 20px; letter-spacing: 3px; }
+  .ld-sub { margin: 3px 0 10px; font-size: 7.5px; }
+  .dp-title { font-size: 22px; }
+  .dp-sub { margin: 4px 0 9px; }
+  .ld-tip, .dp-tip { margin-top: 9px; }
+  .dp-skip { margin-top: 10px; }
+}

@@ -236,3 +236,52 @@ and not an extra block in `engine_world.js`).
   (`1 + w*0.07`, then `w>12` at 1.2/0.055 and `w>22` at 1.35/0.11), including the 3
   reinforcement/splitter HP sites. Player damage compounds multiplicatively while enemy health grew
   linearly, which is why late waves felt free.
+
+## v2.10.0 notes (shipped)
+
+Signing hardening, loading screens, and the final bug audit.
+
+### Release signing
+`android/app/release.keystore` is no longer tracked (`git rm --cached`, entries added to
+`.gitignore`). Credentials come from `android/app/keystore.properties` (local, gitignored) or
+`RELEASE_*` env vars fed from repo secrets in CI. `build.gradle` falls back to the debug key when
+neither is present so local builds still work. `release.yml` now REFUSES to publish if
+`RELEASE_KEYSTORE_BASE64` is unset, and `apksigner verify --print-certs` must pass before the
+release step runs. `keystore.properties.example` documents the format.
+WARNING: the old keystore and its passwords are still in the public git history. Treat that key as
+compromised; rotating it breaks in-place updates for existing installs.
+
+### Loading screens
+`#load-screen` is a staged boot loader driven by `initGameAssets()` (real first-run work: stat
+glyphs, skill/perk glyphs, sector preview). `#deploy-screen` (`showDeployScreen`) is an 820ms
+transition used by BOTH run-start paths: `begin()` in engine_world.js and `beginEvent()` in
+engine_events_missions.js. During the transition `run` is held at 0 so the world cannot tick;
+`onReady` sets it back and calls `startWave()`. Both screens keep `pointer-events: none` (the
+deploy screen until `.on`) so a failed removal can never trap the player.
+
+### Bugs found by the audit and fixed
+1. **All three Special Operations were dead.** `beginEvent()` reset overlays with
+   `['start','over','shopov','pause','perk'].forEach(i=>$(i).classList.remove('on'))`. The shop
+   overlay had been deleted from the markup, so the lookup returned null and the unguarded
+   `.classList` threw *before* the event context was set. Tapping DEPLOY OPERATION closed the
+   briefing and then did nothing. Now guarded.
+2. **COMBAT DOSSIER opened empty.** `openTacticalRecords()` filled `#run-details-body`, but the
+   markup calls the node `#run-details-content`, so the guarded block never ran.
+3. **Lifetime kills always showed 0.** The dossier read `SV.kills`, which nothing ever writes;
+   `settleRun()` maintains `SV.lt.kills`.
+
+### Build-time guard (new)
+`build.js` step 3b audits element ids: every id reached by `getElementById('x')` / `$('x')` /
+`['a','b'].forEach(i=>$(i)...)` must exist in the markup or be created at runtime. It skips
+runtime-assigned ids (`el.id = 'x'`), JS-template ids, `||` legacy fallbacks and lookups that are
+immediately null-guarded. This is the bug class that killed the Special Operations. Warn-only.
+
+### Audit coverage (this release)
+- Static: duplicate ids (none), undefined ids (found the 3 bugs above).
+- Runtime pass 1: 70 steps over lobby tabs, all 7 sector previews, map/missions modals, waves 1-19,
+  nuke, every powerup, every enemy type, all skills, gun picker, every perk, pause/quit. 0 errors.
+- Runtime pass 2: 44 steps over boss waves 20/25, waves 50/100, perk draft, boon-under-perk guard,
+  all 3 events, persistence roundtrip, dossier, death, redeploy, back-to-lobby. 0 errors.
+- Soak: 42s at 640x360, 13 waves cleared through the real wave-clear branch, 17 drafts resolved,
+  **0 boon/perk stack violations**, 0 errors.
+- Layout: 640x360 lobby and map modal fit with no overflow; all 7 sector tiles inside the scroll box.

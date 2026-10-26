@@ -90,44 +90,61 @@ function openEventBriefing(k) {
 
 function beginEvent(eventId) {
   const ev = EVENTS[eventId]; if(!ev) return;
-  ['start','over','shopov','pause','perk'].forEach(i=>$(i).classList.remove('on'));
+  // The shop overlay was deleted from the markup, but its id was left in this
+  // reset list. The lookup returned null and the unguarded .classList threw
+  // before the event context was set, so tapping DEPLOY OPERATION closed the
+  // briefing and then did nothing at all. Guard every entry.
+  ['start', 'over', 'pause', 'perk'].forEach(i => {
+    const el = document.getElementById(i);
+    if (el) el.classList.remove('on');
+  });
   
-  // Set Dedicated Event Run Context FIRST so init() uses ev.map via getCurMap()
-  S = S || {};
-  S.isEvent = true;
-  S.evId = eventId;
-  S.evDef = ev;
-  S.evElites = 0;
-  S.evTargetWave = ev.targetWave || 5;
-  S.evWon = false;
+  run = 0;
 
-  init();
-  applySV();
+  const startRun = () => {
+    // Set Dedicated Event Run Context FIRST so init() uses ev.map via getCurMap()
+    S = S || {};
+    S.isEvent = true;
+    S.evId = eventId;
+    S.evDef = ev;
+    S.evElites = 0;
+    S.evTargetWave = ev.targetWave || 5;
+    S.evWon = false;
+
+    init();
+    applySV();
   
-  // Re-confirm event run context on the newly initialized S
-  S.isEvent = true;
-  S.evId = eventId;
-  S.evDef = ev;
-  S.evElites = 0;
-  S.evTargetWave = ev.targetWave || 5;
-  S.evWon = false;
+    // Re-confirm event run context on the newly initialized S
+    S.isEvent = true;
+    S.evId = eventId;
+    S.evDef = ev;
+    S.evElites = 0;
+    S.evTargetWave = ev.targetWave || 5;
+    S.evWon = false;
   
-  // Apply heavy weapon restriction if requested
-  if (ev.heavyOnly) {
-    const heavyIndices = [4, 9, 12, 14, 17]; // Minigun, Rocket, GL-40, Railgun, Arc Shotgun
-    const ownedHeavy = heavyIndices.find(i => P.w[i] || SV.own[i]);
-    P.w.fill(0);
-    if (ownedHeavy != null) {
-      P.w[ownedHeavy] = 1;
-      P.cur = ownedHeavy;
-    } else {
-      // Safe, explicit fallback: issue GL-40 heavy ordnance
-      P.w[12] = 1;
-      P.cur = 12;
+    // Apply heavy weapon restriction if requested
+    if (ev.heavyOnly) {
+      const heavyIndices = [4, 9, 12, 14, 17]; // Minigun, Rocket, GL-40, Railgun, Arc Shotgun
+      const ownedHeavy = heavyIndices.find(i => P.w[i] || SV.own[i]);
+      P.w.fill(0);
+      if (ownedHeavy != null) {
+        P.w[ownedHeavy] = 1;
+        P.cur = ownedHeavy;
+      } else {
+        // Safe, explicit fallback: issue GL-40 heavy ordnance
+        P.w[12] = 1;
+        P.cur = 12;
+      }
     }
-  }
   
-  startWave();
+    startWave();
+  };
+
+  if (typeof showDeployScreen === 'function') {
+    showDeployScreen(String(ev.title || 'OPERATION').toUpperCase(), 'SPECIAL OPERATION', 'OPERATION', startRun);
+  } else {
+    startRun();
+  }
 }
 
 function trackEventKill(z) {

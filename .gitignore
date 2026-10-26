@@ -16,3 +16,7 @@ android/captures/
 *.zip
 # scratch verification harnesses (regenerated from www/index.html by the generators in /tmp)
 www/_*.html
+
+# Release signing material — never commit
+android/app/release.keystore
+android/app/keystore.properties

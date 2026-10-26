@@ -1184,15 +1184,159 @@ button:active:not(:disabled) { transform: scale(0.96); }
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* LOADING SCREENS                                                     */
+/* Boot loader (#load-screen) and run-start transition (#deploy-screen).*/
+/* ------------------------------------------------------------------ */
+#load-screen, #deploy-screen {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 38%, #141a10 0%, #080b06 70%, #040603 100%);
+  transition: opacity .4s ease-out;
+}
+/* Boot loader never eats input: if removal ever fails the player can still play. */
+#load-screen { pointer-events: none; }
+#deploy-screen { pointer-events: none; opacity: 0; }
+#deploy-screen.on { pointer-events: auto; opacity: 1; }
+#load-screen.gone, #deploy-screen.gone { opacity: 0 !important; }
+
+.ld-scan, .dp-scan {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.3) 2px 4px);
+  pointer-events: none;
+}
+.ld-scan::after, .dp-scan::after {
+  content: '';
+  position: absolute; left: 0; width: 100%; height: 28%;
+  background: linear-gradient(180deg, rgba(143,174,74,0), rgba(143,174,74,.07), rgba(143,174,74,0));
+  animation: dz-sweep 3.4s linear infinite;
+}
+@keyframes dz-sweep { from { top: -30%; } to { top: 105%; } }
+
+.ld-inner, .dp-inner {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  width: 100%; max-width: 420px;
+  padding: 0 22px;
+}
+
+.ld-emblem { position: relative; width: 58px; height: 58px; margin-bottom: 16px; }
+.ld-emblem i {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  border: 2px solid rgba(143,174,74,.26);
+  border-top-color: #8fae4a;
+  border-radius: 50%;
+  animation: dz-spin 1.1s linear infinite;
+}
+.ld-emblem i:nth-child(2) {
+  top: 9px; left: 9px; width: calc(100% - 18px); height: calc(100% - 18px);
+  border-color: rgba(224,184,58,.2);
+  border-bottom-color: #e0b83a;
+  animation: dz-spin 1.7s linear infinite reverse;
+}
+.ld-emblem b {
+  position: absolute; top: 21px; left: 21px; width: 16px; height: 16px;
+  background: #8fae4a; border-radius: 2px;
+  animation: dz-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dz-pulse { 0%,100% { opacity: .3; transform: scale(.75); } 50% { opacity: 1; transform: scale(1); } }
+
+.ld-title {
+  font-size: 27px; font-weight: 900; letter-spacing: 5px; color: #f0ece1;
+  text-shadow: 0 0 18px rgba(143,174,74,.35);
+}
+.ld-sub {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 3.4px;
+  color: #8fae4a; opacity: .8; margin: 5px 0 20px;
+}
+.ld-status, .dp-status {
+  font-size: 10px; font-weight: 800; letter-spacing: 1.4px;
+  color: #8fae4a; min-height: 14px;
+}
+.ld-track, .dp-track {
+  width: 100%; max-width: 260px; height: 5px; margin-top: 12px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(143,174,74,.25);
+  border-radius: 3px; overflow: hidden;
+}
+.ld-fill, .dp-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #6f8f3a, #8fae4a 55%, #c9e08a);
+  box-shadow: 0 0 10px rgba(143,174,74,.5);
+  transition: width .28s ease-out;
+}
+.ld-tip, .dp-tip {
+  font-size: 9.5px; letter-spacing: .7px; color: #8892a0;
+  margin-top: 16px; min-height: 12px;
+}
+
+.dp-kicker {
+  font-size: 9px; font-weight: 900; letter-spacing: 4px;
+  color: #e0b83a; opacity: .85; margin-bottom: 6px;
+}
+.dp-title {
+  font-size: 30px; font-weight: 900; letter-spacing: 3px; line-height: 1.05;
+  color: #ffd36b; text-shadow: 0 0 22px rgba(224,184,58,.35);
+}
+.dp-sub {
+  font-size: 10px; font-weight: 900; letter-spacing: 2.6px;
+  color: #d5d0c2; opacity: .75; margin: 7px 0 18px;
+}
+.dp-skip {
+  font-size: 8px; font-weight: 800; letter-spacing: 2.4px;
+  color: #6b7466; margin-top: 20px;
+  animation: dz-blink 1.5s steps(2, start) infinite;
+}
+@keyframes dz-blink { 0%,60% { opacity: .85; } 61%,100% { opacity: .25; } }
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .ld-emblem { width: 40px; height: 40px; margin-bottom: 9px; }
+  .ld-emblem i:nth-child(2) { top: 7px; left: 7px; width: calc(100% - 14px); height: calc(100% - 14px); }
+  .ld-emblem b { top: 14px; left: 14px; width: 12px; height: 12px; }
+  .ld-title { font-size: 20px; letter-spacing: 3px; }
+  .ld-sub { margin: 3px 0 10px; font-size: 7.5px; }
+  .dp-title { font-size: 22px; }
+  .dp-sub { margin: 4px 0 9px; }
+  .ld-tip, .dp-tip { margin-top: 9px; }
+  .dp-skip { margin-top: 10px; }
+}
+
 </style>
 </head>
 <body>
-<div id="load-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0d07;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .35s;pointer-events:none">
-  <div style="width:48px;height:48px;border:3px solid rgba(143,174,74,.2);border-top-color:#8fae4a;border-radius:50%;animation:dz-spin 1s linear infinite;margin-bottom:14px"></div>
-  <div style="font-size:20px;font-weight:900;letter-spacing:2px;color:#f0ece1;margin-bottom:4px">DEAD ZONE</div>
-  <div id="load-status" style="font-size:11px;opacity:.75;letter-spacing:1px;color:#8fae4a">INITIALIZING TACTICAL PROTOCOLS...</div>
-  <div style="width:160px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:12px;overflow:hidden">
-    <div id="load-progress" style="width:25%;height:100%;background:#8fae4a;transition:width .2s"></div>
+<!-- BOOT LOADER. Driven by initGameAssets() in engine_lobby.js, which advances
+     the bar as each piece of real first-run work lands. pointer-events stays off
+     so that failing to remove this can never trap the player on a dead screen. -->
+<div id="load-screen">
+  <div class="ld-scan" aria-hidden="true"></div>
+  <div class="ld-inner">
+    <div class="ld-emblem" aria-hidden="true"><i></i><i></i><b></b></div>
+    <div class="ld-title">DEAD ZONE</div>
+    <div class="ld-sub">OUTBREAK PROTOCOL</div>
+    <div id="load-status" class="ld-status">BOOTING TACTICAL KERNEL...</div>
+    <div class="ld-track"><div id="load-progress" class="ld-fill"></div></div>
+    <div id="load-tip" class="ld-tip"></div>
+  </div>
+</div>
+
+<!-- DEPLOY TRANSITION. Shown by showDeployScreen() while a run initialises, so
+     the first frame of a wave is never visible as a hitch. Tap to skip. -->
+<div id="deploy-screen">
+  <div class="dp-scan" aria-hidden="true"></div>
+  <div class="dp-inner">
+    <div id="dp-kicker" class="dp-kicker">DEPLOYING</div>
+    <div id="dp-title" class="dp-title">DOWNTOWN</div>
+    <div id="dp-sub" class="dp-sub">THREAT I</div>
+    <div class="dp-track"><div id="dp-bar" class="dp-fill"></div></div>
+    <div id="dp-status" class="dp-status">ESTABLISHING DROP CORRIDOR...</div>
+    <div id="dp-tip" class="dp-tip"></div>
+    <div class="dp-skip">TAP TO SKIP</div>
   </div>
 </div>
 
@@ -1252,7 +1396,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.1</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.10.0</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -3456,44 +3600,61 @@ function openEventBriefing(k) {
 
 function beginEvent(eventId) {
   const ev = EVENTS[eventId]; if(!ev) return;
-  ['start','over','shopov','pause','perk'].forEach(i=>$(i).classList.remove('on'));
+  // The shop overlay was deleted from the markup, but its id was left in this
+  // reset list. The lookup returned null and the unguarded .classList threw
+  // before the event context was set, so tapping DEPLOY OPERATION closed the
+  // briefing and then did nothing at all. Guard every entry.
+  ['start', 'over', 'pause', 'perk'].forEach(i => {
+    const el = document.getElementById(i);
+    if (el) el.classList.remove('on');
+  });
   
-  // Set Dedicated Event Run Context FIRST so init() uses ev.map via getCurMap()
-  S = S || {};
-  S.isEvent = true;
-  S.evId = eventId;
-  S.evDef = ev;
-  S.evElites = 0;
-  S.evTargetWave = ev.targetWave || 5;
-  S.evWon = false;
+  run = 0;
 
-  init();
-  applySV();
+  const startRun = () => {
+    // Set Dedicated Event Run Context FIRST so init() uses ev.map via getCurMap()
+    S = S || {};
+    S.isEvent = true;
+    S.evId = eventId;
+    S.evDef = ev;
+    S.evElites = 0;
+    S.evTargetWave = ev.targetWave || 5;
+    S.evWon = false;
+
+    init();
+    applySV();
   
-  // Re-confirm event run context on the newly initialized S
-  S.isEvent = true;
-  S.evId = eventId;
-  S.evDef = ev;
-  S.evElites = 0;
-  S.evTargetWave = ev.targetWave || 5;
-  S.evWon = false;
+    // Re-confirm event run context on the newly initialized S
+    S.isEvent = true;
+    S.evId = eventId;
+    S.evDef = ev;
+    S.evElites = 0;
+    S.evTargetWave = ev.targetWave || 5;
+    S.evWon = false;
   
-  // Apply heavy weapon restriction if requested
-  if (ev.heavyOnly) {
-    const heavyIndices = [4, 9, 12, 14, 17]; // Minigun, Rocket, GL-40, Railgun, Arc Shotgun
-    const ownedHeavy = heavyIndices.find(i => P.w[i] || SV.own[i]);
-    P.w.fill(0);
-    if (ownedHeavy != null) {
-      P.w[ownedHeavy] = 1;
-      P.cur = ownedHeavy;
-    } else {
-      // Safe, explicit fallback: issue GL-40 heavy ordnance
-      P.w[12] = 1;
-      P.cur = 12;
+    // Apply heavy weapon restriction if requested
+    if (ev.heavyOnly) {
+      const heavyIndices = [4, 9, 12, 14, 17]; // Minigun, Rocket, GL-40, Railgun, Arc Shotgun
+      const ownedHeavy = heavyIndices.find(i => P.w[i] || SV.own[i]);
+      P.w.fill(0);
+      if (ownedHeavy != null) {
+        P.w[ownedHeavy] = 1;
+        P.cur = ownedHeavy;
+      } else {
+        // Safe, explicit fallback: issue GL-40 heavy ordnance
+        P.w[12] = 1;
+        P.cur = 12;
+      }
     }
-  }
   
-  startWave();
+    startWave();
+  };
+
+  if (typeof showDeployScreen === 'function') {
+    showDeployScreen(String(ev.title || 'OPERATION').toUpperCase(), 'SPECIAL OPERATION', 'OPERATION', startRun);
+  } else {
+    startRun();
+  }
 }
 
 function trackEventKill(z) {
@@ -12235,16 +12396,34 @@ function rebuild() {
 }
 
 
+let deployBusy = 0;
 function begin() {
+  if (deployBusy) return;
+  deployBusy = 1;
+
   ['start', 'over', 'pause', 'perk', 'boondraft', 'gunpick'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
   if (typeof clearEventContext === 'function') clearEventContext();
-  init();
-  if (S) S.gp = 0;
-  if (typeof applySV === 'function') applySV();
-  startWave();
+  // Hold the world still while the deploy transition plays.
+  run = 0;
+
+  const start = () => {
+    init();
+    if (S) S.gp = 0;
+    if (typeof applySV === 'function') applySV();
+    startWave();
+    deployBusy = 0;
+  };
+
+  const mi = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  const mp = (typeof MP !== 'undefined' && MP[mi]) ? MP[mi] : null;
+  const zoneName = mp ? String(mp.n).toUpperCase() : 'UNKNOWN SECTOR';
+  const threat = 'THREAT ' + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][mi] || 'I');
+
+  if (typeof showDeployScreen === 'function') showDeployScreen(zoneName, threat, 'DEPLOYING', start);
+  else start();
 }
 
 function tch(e) {
@@ -14089,7 +14268,10 @@ function lobby() {
 function openTacticalRecords() {
   const modal = document.getElementById('run-details-modal');
   if (!modal) return;
-  const body = document.getElementById('run-details-body');
+  // The markup names this node #run-details-content. It was looked up as
+  // #run-details-body, so the guard below never filled it and the COMBAT
+  // DOSSIER opened completely empty.
+  const body = document.getElementById('run-details-content');
   if (body) {
     body.innerHTML = `
       <div style="background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between">
@@ -14098,7 +14280,7 @@ function openTacticalRecords() {
       </div>
       <div style="background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between">
         <span style="opacity:0.8">Lifetime Confirmed Kills:</span>
-        <b style="color:#ff5a3a">${SV.kills || 0}</b>
+        <b style="color:#ff5a3a">${(SV.lt && SV.lt.kills) || 0}</b>
       </div>
       <div style="background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;display:flex;justify-content:space-between">
         <span style="opacity:0.8">Survivor Security Level:</span>
@@ -14657,29 +14839,135 @@ function autoSave() {
   }
 }
 
+// Rotating one-liners for both loading screens. Cosmetic — they exist so the
+// bars have something to say while real work runs behind them.
+const LOAD_TIPS = [
+  'TIP: dash THROUGH a horde, not around it.',
+  'TIP: boons reset every deploy, perks last the whole run.',
+  'TIP: each sector has its own enemy roster - read the map card.',
+  'TIP: reload behind cover. Reloading in the open is how runs end.',
+  'TIP: bosses telegraph before they charge. Watch the floor.',
+  'TIP: the even-wave supply beacon never drops SHOCKWAVE.'
+];
+
+// Boot loader. The previous version jumped 25% -> 65% -> 100% on fixed timers
+// with no work behind any of it, so it flickered past on a fast device and told
+// the player nothing. Now each step is real first-run work and the bar advances
+// as it lands, with a floor on how long the screen stays up.
 function initGameAssets() {
   const ls = document.getElementById('load-screen');
+  if (!ls) return;
   const lp = document.getElementById('load-progress');
   const lst = document.getElementById('load-status');
-  if (!ls) return;
-  if (lst) lst.textContent = 'CACHING PROCEDURAL OPERATIONAL ASSETS...';
-  if (lp) lp.style.width = '65%';
-  setTimeout(() => {
-    try {
+  const ltip = document.getElementById('load-tip');
+
+  const STEPS = [
+    { label: 'BOOTING TACTICAL KERNEL...' },
+    { label: 'DECRYPTING SURVIVOR RECORD...' },
+    { label: 'CACHING STAT GLYPHS...', run: () => {
       ['hp', 'dmg', 'rof', 'crit', 'spd', 'ar', 'kills', 'cr', 'lvl'].forEach(k => {
         if (typeof getStatIcon === 'function') getStatIcon(k);
       });
+    } },
+    { label: 'CACHING SKILL & PERK GLYPHS...', run: () => {
       ['dash', 'turret', 'repair', 'cloak', 'ward', 'nova', 'rage', 'bolt', 'frost', 'meteor', 'gren'].forEach(k => {
         if (typeof getSkillIcon === 'function') getSkillIcon(k);
       });
-    } catch (e) {}
-    if (lst) lst.textContent = 'SYSTEMS OPERATIONAL • READY FOR DEPLOYMENT';
-    if (lp) lp.style.width = '100%';
-    setTimeout(() => {
-      ls.style.opacity = '0';
-      setTimeout(() => { try { ls.remove(); } catch (e) {} }, 350);
-    }, 120);
-  }, 100);
+      if (typeof getPerkIcon === 'function' && typeof PKS !== 'undefined') {
+        PKS.forEach(p => getPerkIcon(p[0], p[4]));
+      }
+    } },
+    { label: 'RENDERING SECTOR PREVIEW...', run: () => {
+      if (typeof drawZonePreview === 'function') {
+        drawZonePreview(typeof curPreviewZone !== 'undefined' ? curPreviewZone : 0);
+      }
+    } }
+  ];
+
+  let i = 0;
+  const t0 = performance.now();
+  const MIN_VISIBLE = 900;
+  const advance = () => {
+    if (i >= STEPS.length) {
+      if (lp) lp.style.width = '100%';
+      if (lst) lst.textContent = 'SYSTEMS OPERATIONAL \u2022 READY FOR DEPLOYMENT';
+      if (ltip) ltip.textContent = '';
+      const wait = Math.max(0, MIN_VISIBLE - (performance.now() - t0));
+      setTimeout(() => {
+        ls.classList.add('gone');
+        setTimeout(() => { try { ls.remove(); } catch (e) {} }, 420);
+      }, wait + 200);
+      return;
+    }
+    const step = STEPS[i];
+    if (lst) lst.textContent = step.label;
+    if (ltip) ltip.textContent = LOAD_TIPS[i % LOAD_TIPS.length];
+    if (lp) lp.style.width = Math.round(((i + 1) / (STEPS.length + 1)) * 100) + '%';
+    // Yield a frame so the label paints before the synchronous work runs.
+    requestAnimationFrame(() => {
+      try { if (step.run) step.run(); } catch (e) {}
+      i++;
+      setTimeout(advance, 90);
+    });
+  };
+  advance();
+}
+
+// Run-start transition. begin() used to hide the lobby and call startWave() on
+// the same tick, so the first frame of a wave landed during a layout/paint
+// hitch. This names the sector, holds the world still, and runs the init work
+// while the screen is up. Tapping skips; a 3s guard means a stall can never
+// strand the player on the transition.
+const DEPLOY_STATUS = [
+  'ESTABLISHING DROP CORRIDOR...',
+  'SYNCING SQUAD TELEMETRY...',
+  'ARMING LOADOUT...',
+  'HOSTILES INBOUND'
+];
+let deployScreenActive = 0;
+function showDeployScreen(title, sub, kicker, onReady) {
+  const el = document.getElementById('deploy-screen');
+  if (!el) { onReady(); return; }
+  if (deployScreenActive) return;
+  deployScreenActive = 1;
+
+  const tEl = document.getElementById('dp-title');
+  const sEl = document.getElementById('dp-sub');
+  const kEl = document.getElementById('dp-kicker');
+  const bEl = document.getElementById('dp-bar');
+  const stEl = document.getElementById('dp-status');
+  const tipEl = document.getElementById('dp-tip');
+  if (tEl) tEl.textContent = title || 'SECTOR';
+  if (sEl) sEl.textContent = sub || '';
+  if (kEl) kEl.textContent = kicker || 'DEPLOYING';
+  if (tipEl) tipEl.textContent = LOAD_TIPS[(Math.random() * LOAD_TIPS.length) | 0];
+  if (bEl) bEl.style.width = '0%';
+  el.classList.remove('gone');
+  el.classList.add('on');
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(guard);
+    try { onReady(); } catch (e) { if (typeof console !== 'undefined') console.error(e); }
+    el.classList.add('gone');
+    setTimeout(() => { el.classList.remove('on'); deployScreenActive = 0; }, 420);
+  };
+  el.onclick = finish;
+  const guard = setTimeout(finish, 3000);
+
+  const t0 = performance.now();
+  const DURATION = 820;
+  const tick = () => {
+    if (done) return;
+    const k = Math.min(1, (performance.now() - t0) / DURATION);
+    if (bEl) bEl.style.width = Math.round(k * 100) + '%';
+    if (stEl) stEl.textContent = DEPLOY_STATUS[Math.min(DEPLOY_STATUS.length - 1, Math.floor(k * DEPLOY_STATUS.length))];
+    if (k >= 1) { finish(); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 

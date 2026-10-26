@@ -1,5 +1,26 @@
 apply plugin: 'com.android.application'
 
+// Release signing credentials are never committed. They are resolved, in order, from:
+//   1. android/app/keystore.properties  (gitignored; for local release builds)
+//   2. RELEASE_* environment variables   (CI, fed from repository secrets)
+// Without either, `assembleRelease` falls back to the debug key so a local build
+// still produces something installable, and warns loudly.
+def keystoreProps = new Properties()
+def keystorePropsFile = file('keystore.properties')
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String prop, String env -> keystoreProps.getProperty(prop) ?: System.getenv(env) }
+def releaseStorePath = signingValue('storeFile', 'RELEASE_STORE_FILE')
+def releaseStorePass = signingValue('storePassword', 'RELEASE_STORE_PASSWORD')
+def releaseKeyAlias  = signingValue('keyAlias', 'RELEASE_KEY_ALIAS')
+def releaseKeyPass   = signingValue('keyPassword', 'RELEASE_KEY_PASSWORD')
+def hasReleaseSigning = releaseStorePath && releaseStorePass && releaseKeyAlias && releaseKeyPass
+if (!hasReleaseSigning) {
+    logger.warn('[dead-zone] No release signing credentials (keystore.properties or RELEASE_* env). ' +
+                'Falling back to the debug keystore; this APK must not be published.')
+}
+
 android {
     namespace "com.deadzone.game"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +28,8 @@ android {
         applicationId "com.deadzone.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 29
-        versionName "2.9.1"
+        versionCode 30
+        versionName "2.10.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,13 +39,15 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('release.keystore')
-            storePassword 'deadzone2026'
-            keyAlias 'deadzone'
-            keyPassword 'deadzone2026'
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
+            if (hasReleaseSigning) {
+                storeFile file(releaseStorePath)
+                storePassword releaseStorePass
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPass
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
         }
     }
     packagingOptions {
@@ -34,7 +57,7 @@ android {
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

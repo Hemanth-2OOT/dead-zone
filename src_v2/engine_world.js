@@ -2972,16 +2972,34 @@ function rebuild() {
 }
 
 
+let deployBusy = 0;
 function begin() {
+  if (deployBusy) return;
+  deployBusy = 1;
+
   ['start', 'over', 'pause', 'perk', 'boondraft', 'gunpick'].forEach(i => {
     const el = document.getElementById(i);
     if (el) el.classList.remove('on');
   });
   if (typeof clearEventContext === 'function') clearEventContext();
-  init();
-  if (S) S.gp = 0;
-  if (typeof applySV === 'function') applySV();
-  startWave();
+  // Hold the world still while the deploy transition plays.
+  run = 0;
+
+  const start = () => {
+    init();
+    if (S) S.gp = 0;
+    if (typeof applySV === 'function') applySV();
+    startWave();
+    deployBusy = 0;
+  };
+
+  const mi = (typeof getCurMap === 'function') ? getCurMap() : 0;
+  const mp = (typeof MP !== 'undefined' && MP[mi]) ? MP[mi] : null;
+  const zoneName = mp ? String(mp.n).toUpperCase() : 'UNKNOWN SECTOR';
+  const threat = 'THREAT ' + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][mi] || 'I');
+
+  if (typeof showDeployScreen === 'function') showDeployScreen(zoneName, threat, 'DEPLOYING', start);
+  else start();
 }
 
 function tch(e) {

@@ -1,9 +1,30 @@
-<div id="load-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0d07;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .35s;pointer-events:none">
-  <div style="width:48px;height:48px;border:3px solid rgba(143,174,74,.2);border-top-color:#8fae4a;border-radius:50%;animation:dz-spin 1s linear infinite;margin-bottom:14px"></div>
-  <div style="font-size:20px;font-weight:900;letter-spacing:2px;color:#f0ece1;margin-bottom:4px">DEAD ZONE</div>
-  <div id="load-status" style="font-size:11px;opacity:.75;letter-spacing:1px;color:#8fae4a">INITIALIZING TACTICAL PROTOCOLS...</div>
-  <div style="width:160px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:12px;overflow:hidden">
-    <div id="load-progress" style="width:25%;height:100%;background:#8fae4a;transition:width .2s"></div>
+<!-- BOOT LOADER. Driven by initGameAssets() in engine_lobby.js, which advances
+     the bar as each piece of real first-run work lands. pointer-events stays off
+     so that failing to remove this can never trap the player on a dead screen. -->
+<div id="load-screen">
+  <div class="ld-scan" aria-hidden="true"></div>
+  <div class="ld-inner">
+    <div class="ld-emblem" aria-hidden="true"><i></i><i></i><b></b></div>
+    <div class="ld-title">DEAD ZONE</div>
+    <div class="ld-sub">OUTBREAK PROTOCOL</div>
+    <div id="load-status" class="ld-status">BOOTING TACTICAL KERNEL...</div>
+    <div class="ld-track"><div id="load-progress" class="ld-fill"></div></div>
+    <div id="load-tip" class="ld-tip"></div>
+  </div>
+</div>
+
+<!-- DEPLOY TRANSITION. Shown by showDeployScreen() while a run initialises, so
+     the first frame of a wave is never visible as a hitch. Tap to skip. -->
+<div id="deploy-screen">
+  <div class="dp-scan" aria-hidden="true"></div>
+  <div class="dp-inner">
+    <div id="dp-kicker" class="dp-kicker">DEPLOYING</div>
+    <div id="dp-title" class="dp-title">DOWNTOWN</div>
+    <div id="dp-sub" class="dp-sub">THREAT I</div>
+    <div class="dp-track"><div id="dp-bar" class="dp-fill"></div></div>
+    <div id="dp-status" class="dp-status">ESTABLISHING DROP CORRIDOR...</div>
+    <div id="dp-tip" class="dp-tip"></div>
+    <div class="dp-skip">TAP TO SKIP</div>
   </div>
 </div>
 
@@ -63,7 +84,7 @@
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.1</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.10.0</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">

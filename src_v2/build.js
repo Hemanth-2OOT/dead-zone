@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - BUNDLER & SYNTAX AUDITOR
+// DEAD ZONE - BUNDLER, SYNTAX AUDITOR & STATIC ID AUDIT
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -6,7 +6,8 @@ const vm = require('vm');
 const baseDir = __dirname;
 const rootDir = path.resolve(baseDir, '..');
 
-console.log('--- DEAD ZONE v2.9.0 BUILD PIPELINE ---');
+const pkgVersion = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version;
+console.log('--- DEAD ZONE v' + pkgVersion + ' BUILD PIPELINE ---');
 
 // 1. Read Stylesheet
 const css = fs.readFileSync(path.join(baseDir, 'style.css'), 'utf8');
@@ -64,6 +65,57 @@ if (collisions.length) {
   console.error('✕ Duplicate top-level declarations (later module silently overrides earlier):');
   collisions.forEach(c => console.error('  - ' + c));
   process.exit(1);
+}
+
+// 3b. Element-id audit. A reference to an element that no longer exists in the
+// markup is invisible to the syntax check and only throws at runtime, at whatever
+// moment that line runs. That is exactly how every Special Operation died: the id
+// of a deleted shop overlay was left in beginEvent's reset list, and the unguarded
+// .classList threw before the run context was ever set.
+// Three things are treated as intentional and skipped: ids assigned at runtime
+// (el.id = 'x'), ids built by JS templates, and legacy fallbacks of the form
+// getElementById('current') || getElementById('legacy').
+const staticIds = new Set();
+const dynIds = new Set();
+let idm;
+const idRe = /\bid="([^"]+)"/g;
+while ((idm = idRe.exec(bodyHtml)) !== null) staticIds.add(idm[1]);
+const dynRe = /(?:\bid=["']|\.id\s*=\s*["'])([A-Za-z][\w-]*)["']/g;
+while ((idm = dynRe.exec(bundledJs)) !== null) dynIds.add(idm[1]);
+
+const idRefs = new Set();
+const fallbackIds = new Set();
+const litRefRe = /(?:getElementById|\$)\(\s*['"]([^'"]+)['"]\s*\)/g;
+while ((idm = litRefRe.exec(bundledJs)) !== null) idRefs.add(idm[1]);
+// ids reached indirectly through a literal array: ['a','b'].forEach(i => $(i)...)
+const arrRefRe = /\[([^\]]*?)\]\.forEach\(\s*\w+\s*=>\s*\$\s*\(\s*\w+\s*\)/g;
+while ((idm = arrRefRe.exec(bundledJs)) !== null) {
+  idm[1].split(',').forEach(tok => {
+    const t = tok.trim().replace(/^['"]|['"]$/g, '');
+    if (/^[a-z][\w-]*$/.test(t)) idRefs.add(t);
+  });
+}
+const fbRe = /\|\|\s*(?:document\.)?(?:getElementById|\$)\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+while ((idm = fbRe.exec(bundledJs)) !== null) fallbackIds.add(idm[1]);
+
+// A lookup whose result is immediately null-checked is deliberate dead code, not
+// a crash risk, so leave it out of the report.
+const guardedIds = new Set();
+for (const id of idRefs) {
+  const assignRe = new RegExp('(?:const|let|var)\\s+(\\w+)\\s*=\\s*(?:document\\.)?(?:getElementById|\\$)\\s*\\(\\s*[\'"]' + id + '[\'"]\\s*\\)');
+  const am = assignRe.exec(bundledJs);
+  if (!am) continue;
+  const tail = bundledJs.slice(am.index, am.index + 400);
+  if (new RegExp('if\\s*\\(\\s*!?' + am[1] + '\\s*[\\)&|]').test(tail)) guardedIds.add(id);
+}
+const deadIds = [...idRefs]
+  .filter(id => !staticIds.has(id) && !dynIds.has(id) && !fallbackIds.has(id) && !guardedIds.has(id))
+  .sort();
+if (deadIds.length) {
+  console.warn('! Element ids referenced in JS but absent from the markup (null-deref risk):');
+  deadIds.forEach(id => console.warn('  - ' + id));
+} else {
+  console.log('\u2713 Element-id audit passed: every referenced id exists in the markup.');
 }
 
 // 4. Test Syntax with Node VM

@@ -1,1 +1,11 @@
-{"name":"dead-zone","version":"2.9.1","private":true,"dependencies":{"@capacitor/android":"^6.1.2","@capacitor/cli":"^6.1.2","@capacitor/core":"^6.1.2","@capacitor/preferences":"^6.0.4"}}
+{
+  "name": "dead-zone",
+  "version": "2.10.0",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/preferences": "^6.0.4"
+  }
+}
