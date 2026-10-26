@@ -381,8 +381,8 @@ button.eq {
 }
 
 .l-left {
-  flex: 0 0 43% !important;
-  width: 43% !important;
+  flex: 0 0 35% !important;
+  width: 35% !important;
   min-height: 0 !important;
   height: 100% !important;
   display: flex !important;
@@ -393,7 +393,7 @@ button.eq {
 }
 
 .l-right {
-  flex: 1 1 55% !important;
+  flex: 1 1 65% !important;
   min-height: 0 !important;
   height: 100% !important;
   display: flex !important;
@@ -779,7 +779,12 @@ button:active:not(:disabled) { transform: scale(0.96); }
   }
   .rewards-box { flex: 0 0 auto !important; min-height: 200px; }
   .rviews { min-height: 150px; }
-  #zone-preview { height: 112px !important; max-height: 112px !important; }
+  #zone-preview {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 132px !important;
+    flex: 1 1 auto !important;
+  }
   #maps { min-height: 74px; }
 }
 
@@ -1070,7 +1075,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
   /* Enemy tags live in the sector window; the hub keeps threat, level,
      bounty and ascension instead of repeating them here. */
   #zone-enemy-icons { display: none !important; }
-  #zone-preview { height: 148px !important; max-height: 148px !important; }
+  /* Let the sector preview fill the map column instead of a fixed strip. */
+  #zone-preview { height: auto !important; max-height: none !important; min-height: 140px !important; flex: 1 1 auto !important; }
   #nav button { min-height: 44px !important; font-size: 9px !important; min-width: 48px !important; }
   #nav button .nav-ic { width: 18px !important; height: 18px !important; }
 
@@ -1095,6 +1101,87 @@ button:active:not(:disabled) { transform: scale(0.96); }
   #best-badge { margin-top: 0 !important; }
   #hub-sector { padding: 3px 8px !important; gap: 1px !important; }
   #nav button { min-height: 42px !important; }
+}
+
+/* Narrow landscape phones (<= 700px wide, <= 420px tall — e.g. 640x360).
+   The hub's left column is a fixed-width sidebar, so at this width the sector
+   description and the stat row wrapped onto extra lines and pushed the sector
+   card past the bottom of a column that only has ~243px. Bound both rows and
+   tighten the stack so the whole hub — logo, deploy, next goal, sector card —
+   stays on one screen without scrolling. */
+@media (max-width: 700px) and (max-height: 420px) and (orientation: landscape) {
+  .logo { font-size: 18px !important; }
+  #best-badge { font-size: 9px !important; padding: 2px 6px !important; }
+  #play.go { min-height: 34px !important; font-size: 14px !important; }
+  #daily, .hub-btn { min-height: 34px !important; }
+  .hub-btn { font-size: 10px !important; }
+  .next-goal { padding: 3px 7px !important; }
+  #hub-sector { padding: 3px 8px !important; gap: 1px !important; }
+  #mapd {
+    font-size: 8.5px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  #zone-stats {
+    flex-wrap: nowrap !important;
+    gap: 5px !important;
+    font-size: 8px !important;
+  }
+  #zone-stats > span {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #zone-stats > span:empty { display: none !important; }
+  #zone-rec-lvl, #zone-bounty-wrap { flex: 0 0 auto !important; }
+}
+
+/* Map window on short landscape phones. The stacked layout put the ~265px
+   sector preview on top of a ~278px body, so the sector tiles always sat below
+   the fold and the window looked like nothing but a big map. Two columns
+   instead: preview + zone intel on the left, tile picker on the right, so the
+   whole deployment window fits without hunting for the tiles. */
+@media (max-height: 460px) and (orientation: landscape) {
+  #map-modal .modal-sheet { max-height: 96vh !important; }
+  #map-modal .modal-body {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    gap: 6px 10px !important;
+    overflow: hidden !important;
+    padding: 8px 10px !important;
+  }
+  #map-modal-preview { grid-column: 1; grid-row: 1; width: 100% !important; height: auto !important; align-self: start; }
+  #map-modal-info {
+    grid-column: 1; grid-row: 2;
+    overflow-y: auto !important;
+    padding: 6px 8px !important;
+    gap: 2px !important;
+  }
+  #map-modal-name { font-size: 12px !important; }
+  #map-modal-desc { font-size: 9px !important; line-height: 1.2 !important; }
+  #map-modal-stats { font-size: 8.5px !important; gap: 8px !important; }
+  #map-modal-enemies, #map-select-lbl { display: none !important; }
+  #map-modal #maps {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    align-content: start;
+  }
+  #map-modal #maps button { min-height: 42px !important; padding: 5px 6px !important; }
+  #map-modal #maps button .m-num { font-size: 7.5px !important; }
+  #map-modal #maps button .m-title { font-size: 12px !important; }
+  #map-modal #maps button .m-req { font-size: 8px !important; }
+  #map-modal .modal-body > button.go {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    min-height: 32px !important;
+    font-size: 12px !important;
+  }
 }
 
 </style>
@@ -1165,7 +1252,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.0</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.1</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -1199,7 +1286,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
             <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
           </div>
           <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
+          <div id="zone-stats" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
             <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
             <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
             <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
@@ -1400,7 +1487,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
         <div id="map-modal-stats" style="display:flex;flex-wrap:wrap;gap:10px;font-size:9.5px"></div>
         <div id="map-modal-enemies" style="display:flex;gap:6px;align-items:center;padding-top:4px;border-top:1px solid rgba(255,255,255,.06)"></div>
       </div>
-      <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
+      <div id="map-select-lbl" style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
       <div id="maps"></div>
       <button class="go" onclick="closeMapModal()" style="min-height:40px">CLOSE</button>
     </div>
@@ -1845,22 +1932,22 @@ const TIER_COLORS = {
 };
 
 const ZT = {
-  walk: { hp: 32, s: 55, spd: 55, r: 13, col: '#6f8f4a', dm: 8, dmg: 8, cash: 10, kb: 1.0 },
-  run: { hp: 18, s: 115, spd: 115, r: 11, col: '#a8a04a', dm: 6, dmg: 6, cash: 14, kb: 1.1 },
-  tank: { hp: 190, s: 38, spd: 38, r: 22, col: '#7a4a4a', dm: 18, dmg: 18, cash: 55, kb: 0.25 },
-  exp: { hp: 24, s: 90, spd: 90, r: 12, col: '#d0702a', dm: 0, dmg: 0, cash: 22, kb: 1.0 },
-  spit: { hp: 40, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
-  stalker: { hp: 42, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
-  charger: { hp: 115, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
-  boss: { hp: 3200, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
+  walk: { hp: 46, s: 55, spd: 55, r: 13, col: '#6f8f4a', dm: 8, dmg: 8, cash: 10, kb: 1.0 },
+  run: { hp: 30, s: 115, spd: 115, r: 11, col: '#a8a04a', dm: 6, dmg: 6, cash: 14, kb: 1.1 },
+  tank: { hp: 240, s: 38, spd: 38, r: 22, col: '#7a4a4a', dm: 18, dmg: 18, cash: 55, kb: 0.25 },
+  exp: { hp: 34, s: 90, spd: 90, r: 12, col: '#d0702a', dm: 0, dmg: 0, cash: 22, kb: 1.0 },
+  spit: { hp: 58, s: 58, spd: 58, r: 12, col: '#4fb04a', dm: 6, dmg: 6, cash: 30, kb: 0.95 },
+  stalker: { hp: 60, s: 82, spd: 82, r: 12, col: '#3e5f52', dm: 12, dmg: 12, cash: 25, stk: 1, kb: 0.85 },
+  charger: { hp: 150, s: 45, spd: 45, r: 18, col: '#8a4828', dm: 16, dmg: 16, cash: 35, chg: 1, kb: 0.35 },
+  boss: { hp: 3800, s: 48, spd: 48, r: 34, col: '#8a2f2f', dm: 32, dmg: 32, cash: 350, kb: 0.08 },
   // v2.7 support & specialist roster. Each new type owns a distinct tactical
   // job so encounters read logically instead of "more of the same walker".
-  crawler: { hp: 20, s: 132, spd: 132, r: 9, col: '#93a24e', dm: 5, dmg: 5, cash: 12, kb: 1.3, crawl: 1 },
-  bloater: { hp: 135, s: 33, spd: 33, r: 19, col: '#6d7a38', dm: 0, dmg: 0, cash: 42, kb: 0.28, blo: 1 },
-  armored: { hp: 160, s: 50, spd: 50, r: 17, col: '#59626b', dm: 14, dmg: 14, cash: 48, kb: 0.4, arm: 1 },
-  screamer: { hp: 58, s: 72, spd: 72, r: 13, col: '#a2597f', dm: 6, dmg: 6, cash: 30, kb: 0.9, scr: 1 },
-  shielder: { hp: 95, s: 62, spd: 62, r: 15, col: '#3d5c7d', dm: 8, dmg: 8, cash: 44, kb: 0.7, shd: 1 },
-  necromancer: { hp: 235, s: 42, spd: 42, r: 20, col: '#3a2a4a', dm: 10, dmg: 10, cash: 95, kb: 0.2, nec: 1 }
+  crawler: { hp: 32, s: 132, spd: 132, r: 9, col: '#93a24e', dm: 5, dmg: 5, cash: 12, kb: 1.3, crawl: 1 },
+  bloater: { hp: 175, s: 33, spd: 33, r: 19, col: '#6d7a38', dm: 0, dmg: 0, cash: 42, kb: 0.28, blo: 1 },
+  armored: { hp: 200, s: 50, spd: 50, r: 17, col: '#59626b', dm: 14, dmg: 14, cash: 48, kb: 0.4, arm: 1 },
+  screamer: { hp: 78, s: 72, spd: 72, r: 13, col: '#a2597f', dm: 6, dmg: 6, cash: 30, kb: 0.9, scr: 1 },
+  shielder: { hp: 125, s: 62, spd: 62, r: 15, col: '#3d5c7d', dm: 8, dmg: 8, cash: 44, kb: 0.7, shd: 1 },
+  necromancer: { hp: 290, s: 42, spd: 42, r: 20, col: '#3a2a4a', dm: 10, dmg: 10, cash: 95, kb: 0.2, nec: 1 }
 };
 ZT.walker = ZT.walk;
 ZT.runner = ZT.run;
@@ -4791,6 +4878,7 @@ function spawnDrop(x, y, type, value) {
     l: type === 'pu' ? 16 : 15,
     maxL: type === 'pu' ? 16 : 15,
     scale: 1.0,
+    age: 0,
     rot: Math.random() * 6.28,
     vrot: (Math.random() - 0.5) * 6,
     bounces: 0,
@@ -4805,6 +4893,7 @@ function updatePickups(dt) {
 
   for (const d of D) {
     d.l -= dt;
+    d.age = (d.age || 0) + dt;
 
     // 1. Arc pop & bounce physics
     if (d.z > 0 || d.vz > 0) {
@@ -4931,7 +5020,14 @@ function renderPickupsPass(cx, cy, W, H) {
 
     const bob = (d.z > 0) ? -d.z : Math.sin(S.t * 4.5 + d.x) * 3;
     const renderY = d.y + bob;
-    const scale = d.scale || 1.0;
+    // Damped-spring pop on arrival: a fresh power-up snaps in and overshoots
+    // once instead of appearing as a static texture on the ground.
+    let popS = 1;
+    if (d.k === 'pu') {
+      const a = d.age || 0;
+      popS = a > 1.2 ? 1 : Math.max(0.06, 1 - Math.exp(-a * 9) * Math.cos(a * 20));
+    }
+    const scale = (d.scale || 1.0) * popS;
 
     X.save();
     X.translate(d.x, renderY);
@@ -8585,6 +8681,20 @@ function renderPowerupAuras(cx, cy, W, H) {
     puPixelRing(P.x, P.y, 34 + Math.cos(t * 6) * 1.5, '#eab308', 6, -t * 0.8, 3);
   }
 
+  if (S.bc > 0) {
+    // Barrier charges (Aegis Ward / Arcane Barrier / Phase Plating). These used
+    // to be HUD text only, so a shield perk gave no in-world read. A dim faceted
+    // ward now rides the player while charges remain; the outer ring brightens
+    // on recharge so the rebuild is legible.
+    const recharging = (S.bc < (S.bl || 0));
+    const bA = recharging ? 0.30 + 0.14 * Math.sin(t * 9) : 0.42 + 0.16 * Math.sin(t * 5);
+    X.globalAlpha = bA;
+    puPixelRing(P.x, P.y, 23 + Math.sin(t * 5) * 1.2, '#be8cff', 6, t * 0.6, 3);
+    X.globalAlpha = bA * 0.6;
+    puPixelRing(P.x, P.y, 30 + Math.cos(t * 5) * 1.2, '#e0c8ff', 6, -t * 0.5, 2);
+    X.globalAlpha = 1;
+  }
+
   if (S.adr > 0) {
     // ADRENALINE: pixel sparks streaming outward, plus the facing smear below.
     X.globalAlpha = 0.5;
@@ -9567,9 +9677,13 @@ function spawn(t) {
     }
   }
 
-  let waveHpScale = 1 + S.wave * 0.055;
-  if (S.wave > 15) waveHpScale += Math.pow(S.wave - 15, 1.25) * 0.07;
-  if (S.wave > 25) waveHpScale += Math.pow(S.wave - 25, 1.4) * 0.12;
+  // Enemy durability curve. Player damage compounds multiplicatively (perk
+  // stacks, skills, class bonuses) while health used to grow linearly, so the
+  // horde turned into paper past the early waves. The curve now bends upward
+  // in two stages so late waves stay a threat without inflating wave 1-5.
+  let waveHpScale = 1 + S.wave * 0.07;
+  if (S.wave > 12) waveHpScale += Math.pow(S.wave - 12, 1.2) * 0.055;
+  if (S.wave > 22) waveHpScale += Math.pow(S.wave - 22, 1.35) * 0.11;
 
   const zh = (MP[curM] && MP[curM].zh) ? MP[curM].zh : 1;
   const sc = waveHpScale * zh * (S.zc || 1) * (1 + 0.07 * (S.ascTier || 0));
@@ -10242,8 +10356,14 @@ function openChest(c) {
 // Boon first, then perks, then release the run.
 function openNextDraft() {
   if (!S || !P || P.hp <= 0) return;
+  // Never stack a boon draft on top of an open perk draft. A level-up during a
+  // wave raises the perk modal (S.po = 1); the wave can then clear and call
+  // endWave -> openNextDraft, which used to open the boon draft underneath the
+  // perk screen. Resolve the perk first: its close handler calls openNextDraft
+  // again and the boon draft opens then.
+  if (S.po) return;
   if (typeof openBoonDraft === 'function' && openBoonDraft()) { run = 0; return; }
-  if (S.pend > 0 && !S.po) { openPerk(); return; }
+  if (S.pend > 0) { openPerk(); return; }
   run = pendingNextWave ? 0 : 1;
 }
 
@@ -10319,8 +10439,20 @@ function applyPerk(p) {
   p[2]();
   S.pk[p[0]] = (S.pk[p[0]] || 0) + 1;
   if (typeof snd === 'function') snd(700, 0.15, 'triangle', 0.06, 1.5);
+
+  // Visual pickup feedback. Previously a perk was a sound + floating text only,
+  // so shield/aura perks gave no in-world cue. Each perk now bursts on the
+  // player; barrier perks get a heavier ring so "shield up" is readable.
+  const col = p[4] || '#ffd36b';
+  const isBarrier = /SHIELD|PLATING|BARRIER|AEGIS|WARD/i.test(p[0]);
+  if (typeof burst === 'function') burst(P.x, P.y, col, isBarrier ? 26 : 14, isBarrier ? 3.4 : 2.6, isBarrier ? 130 : 95, 1);
+  if (isBarrier && typeof RG !== 'undefined') {
+    RG.push({ x: P.x, y: P.y, r: 8, l: 0.55, v: 260, c: '234,179,8' });
+    RG.push({ x: P.x, y: P.y, r: 4, l: 0.4, v: 180, c: '255,236,150' });
+  }
+
   const nm = p[0].startsWith('✦ ') ? p[0].slice(2) : p[0];
-  if (typeof txt === 'function') txt(P.x, P.y - 25, nm.toUpperCase(), p[4] || '#ffd36b', true);
+  if (typeof txt === 'function') txt(P.x, P.y - 25, nm.toUpperCase(), col, true);
 }
 
 // MAIN SIMULATION UPDATE TICK
@@ -10545,7 +10677,7 @@ function update(dt) {
         z.nw = (z.nw != null ? z.nw : 5) - dt;
         if (z.nw <= 0 && Z.length < 42) {
           z.nw = 8.5;
-          const hpS = ZT.walk.hp * (1 + S.wave * 0.055);
+          const hpS = ZT.walk.hp * (1 + S.wave * 0.07);
           for (let k = 0; k < 2; k++) {
             const an = Math.random() * 6.28;
             SUMQ.push({
@@ -10688,7 +10820,7 @@ function update(dt) {
         // NECROMANCER - raises a pair of walkers on a timer.
         if (z.bw <= 0 && Z.length < 44) {
           z.bw = 7.0;
-          const hpS = ZT.walk.hp * (1 + S.wave * 0.055) * 1.4;
+          const hpS = ZT.walk.hp * (1 + S.wave * 0.07) * 1.4;
           for (let k = 0; k < 2; k++) {
             const an = Math.random() * 6.28;
             SUMQ.push({
@@ -10716,7 +10848,7 @@ function update(dt) {
           if (Z.length < 44 && (z.bd = (z.bd || 0) + 1) % 2 === 0) {
             for (let k = 0; k < 2; k++) {
               const an = Math.random() * 6.28;
-              const hpS = ZT.crawler.hp * (1 + S.wave * 0.055);
+              const hpS = ZT.crawler.hp * (1 + S.wave * 0.07);
               SUMQ.push({
                 x: Math.max(20, Math.min(WS - 20, z.x + Math.cos(an) * 36)),
                 y: Math.max(20, Math.min(WS - 20, z.y + Math.sin(an) * 36)),
@@ -11918,7 +12050,10 @@ function drawControls() {
   }
 
   // 2. LEVEL UP banner
-  if (S && S.lu > 0) {
+  // Guarded on `run`: the banner used to keep painting while the boon draft or
+  // perk modal was up (run = 0), so a wave-clear read as "LEVEL UP!" + "BOON
+  // DRAFT" stacking. The banner belongs to live gameplay only.
+  if (run && S && S.lu > 0) {
     X.save();
     const luAlpha = Math.min(1, S.lu * 1.5);
     X.globalAlpha = luAlpha;
@@ -12301,10 +12436,11 @@ function puActive(id) {
   return !!(S && d && d.key && S[d.key] > 0);
 }
 
-function pickPowerupId() {
+function pickPowerupId(exclude) {
   let total = 0;
   const ws = {};
   for (const id in PU_DEFS) {
+    if (exclude && exclude.indexOf(id) >= 0) continue;
     // Active power-ups are less likely to be offered again so players see variety
     ws[id] = PU_DEFS[id].w * (puActive(id) ? 0.3 : 1);
     total += ws[id];
@@ -12314,14 +12450,18 @@ function pickPowerupId() {
   return 'dd';
 }
 
-function spawnPowerup(x, y, id, life) {
-  id = id || pickPowerupId();
+function spawnPowerup(x, y, id, life, exclude) {
+  id = id || pickPowerupId(exclude);
   if (typeof spawnDrop !== 'function') return null;
   spawnDrop(x, y, 'pu', id);
   const d = D[D.length - 1];
   if (d && d.k === 'pu') {
     d.l = life || 16; d.maxL = d.l;
+    d.age = 0;
     d.vx *= 0.4; d.vy *= 0.4;
+    // Arrival shockring so a drop announces itself even before it is on screen.
+    const def = PU_DEFS[id];
+    if (typeof RG !== 'undefined' && def) RG.push({ x, y, r: 6, l: 0.55, v: 460, c: hexToRgbStr(def.col) });
   }
   return d;
 }
@@ -12363,19 +12503,27 @@ function hexToRgbStr(hex) {
 function nukeBlast() {
   S.nukeFlash = 0.35;
   SH = Math.max(SH, 20);
-  RG.push({ x: P.x, y: P.y, r: 10, l: 0.9, v: 1100, c: '251,146,60' });
-  RG.push({ x: P.x, y: P.y, r: 6, l: 0.7, v: 800, c: '255,255,255' });
+  RG.push({ x: P.x, y: P.y, r: 10, l: 0.85, v: 900, c: '251,146,60' });
+  RG.push({ x: P.x, y: P.y, r: 6, l: 0.65, v: 650, c: '255,255,255' });
   if (typeof noise === 'function') noise(0.5, 0.16);
+  // Shockwave is a crowd-breaker, not a screen wipe. The old 560px radius with
+  // 420 base damage deleted every zombie that had already closed on the player,
+  // which read as "the wave cleared itself". It now staggers a tight ring hard
+  // and only finishes what it genuinely out-damages. Damage is also capped at
+  // 2x so late-game damage stacks cannot turn it back into a nuke.
+  const R = 340;
+  const cap = Math.min(S.dm || 1, 2.0);
   for (const z of Z) {
     if (z.dead) continue;
     const d = Math.hypot(z.x - P.x, z.y - P.y);
-    if (d > 560) continue;
-    const falloff = 1 - d / 700;
-    const dmg = z.t === 'boss' ? z.mh * 0.12 : 420 * (S.dm || 1) * falloff + 60;
+    if (d > R) continue;
+    const falloff = 1 - d / 430;
+    const dmg = z.t === 'boss' ? z.mh * 0.05 : 170 * cap * falloff + 45;
     damageZ(z, dmg, 'nuke', true);
     const a = Math.atan2(z.y - P.y, z.x - P.x);
-    z.kx = (z.kx || 0) + Math.cos(a) * 260 * (ZT[z.t] ? ZT[z.t].kb : 1);
-    z.ky = (z.ky || 0) + Math.sin(a) * 260 * (ZT[z.t] ? ZT[z.t].kb : 1);
+    const kb = 330 * (ZT[z.t] ? ZT[z.t].kb : 1);
+    z.kx = (z.kx || 0) + Math.cos(a) * kb;
+    z.ky = (z.ky || 0) + Math.sin(a) * kb;
   }
 }
 
@@ -12564,7 +12712,10 @@ function applyWaveModifier() {
       const y = Math.max(60, Math.min(WS - 60, P.y + Math.sin(a) * d));
       const inWall = O.some(o => x > o.x - 24 && x < o.x + o.w + 24 && y > o.y - 24 && y < o.y + o.h + 24);
       if (inWall && attempt < 13) continue;
-      const dr = spawnPowerup(x, y, null, 26);
+      // Never roll the instant SHOCKWAVE here: a guaranteed beacon drop that
+      // wipes the whole arena reads as a bug ("waves clear themselves"), not as
+      // a reward. The nuke stays in the normal kill-drop pool.
+      const dr = spawnPowerup(x, y, null, 26, ['nk']);
       if (dr) { dr.sup = 1; dr.vx = dr.vy = 0; }
       setTimeout(() => { if (S && run) announce('SUPPLY DROP', '#38bdf8', 'FOLLOW THE BEACON'); }, 1600);
       break;
@@ -13238,7 +13389,25 @@ function renderPowerupBeacons(cx, cy, W, H) {
 // Draws the power-up icon itself (called from pickups renderer)
 function drawPowerupIcon(id, t) {
   const def = PU_DEFS[id]; if (!def) return;
+  // 1. Counter-rotating rune ring with tick marks, so a grounded power-up
+  //    reads as an armed device rather than a flat token.
   X.save();
+  X.save();
+  X.rotate(t * 1.1);
+  X.strokeStyle = def.col;
+  X.globalAlpha = 0.4 + 0.3 * (0.5 + 0.5 * Math.sin(t * 4));
+  X.lineWidth = 1.6;
+  X.beginPath(); X.arc(0, 0, 17.5, 0, 6.28); X.stroke();
+  for (let k = 0; k < 6; k++) {
+    const a = k * 1.0472;
+    X.beginPath();
+    X.moveTo(Math.cos(a) * 17.5, Math.sin(a) * 17.5);
+    X.lineTo(Math.cos(a) * 20.5, Math.sin(a) * 20.5);
+    X.stroke();
+  }
+  X.restore();
+  X.globalAlpha = 1;
+  // 2. Idle wobble, hex plate and glass highlight.
   X.rotate(Math.sin(t * 2) * 0.08);
   X.fillStyle = '#0b0f14';
   X.beginPath();
@@ -13252,8 +13421,17 @@ function drawPowerupIcon(id, t) {
   X.beginPath(); X.moveTo(-10, -4); X.lineTo(0, -11); X.lineTo(10, -4); X.lineTo(0, -5); X.closePath(); X.fill();
   // Same vector glyph the HUD chip uses, so the icon on the ground and the
   // icon ticking down in the corner are literally the same shape.
-  if (typeof puGlyph === 'function') { puGlyph(id, 0, 0, 1, '#ffffff'); X.restore(); return; }
-  X.strokeStyle = '#fff'; X.fillStyle = '#fff'; X.lineWidth = 2; X.lineCap = 'round'; X.lineJoin = 'round';
+  if (typeof puGlyph === 'function') puGlyph(id, 0, 0, 1, '#ffffff');
+  X.restore();
+  // 3. Orbiting motes, kept outside the wobble so they trace a clean circle.
+  X.save();
+  for (let k = 0; k < 3; k++) {
+    const a = t * 2.4 + k * 2.094;
+    const rr = 15.5 + Math.sin(t * 3 + k * 1.7) * 1.6;
+    X.globalAlpha = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(t * 6 + k * 2));
+    X.fillStyle = '#ffffff';
+    X.beginPath(); X.arc(Math.cos(a) * rr, Math.sin(a) * rr, 1.4, 0, 6.28); X.fill();
+  }
   X.restore();
 }
 

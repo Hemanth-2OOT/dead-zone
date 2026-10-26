@@ -204,3 +204,35 @@ and not an extra block in `engine_world.js`).
   so class + skill crit is included. Showing raw `S.dm` overstated late-run damage.
 * Latent dead reads remain in `fire()` for `S.fo`/`S.stl` and in the speed/fire-rate math for
   `S.hd`/`S.cst`/`S.lu` (never written anywhere). Harmless today; wire them or drop them.
+
+## v2.9.1 notes (shipped)
+* The lobby split is `.l-left: 32% / .l-right: 68%` → back to **35/65**. Narrowing the left column
+  to buy width for the sector preview made the hub's own sidebar overflow: at 640x360 the zone
+  description and the `#zone-stats` row each wrapped a line, `#hub-sector` grew 52px→80px, and
+  `.l-left` needed 269px inside 243px. Measure both columns (`clientHeight` vs `scrollHeight`) after
+  any change to this split — the right column fitting says nothing about the left.
+* `#zone-stats` (body.html) exists so CSS can target the sector stat row directly. On narrow
+  landscape it goes `flex-wrap: nowrap` with ellipsis children, and `#mapd` is line-clamped, because
+  the row is what actually decides whether the sidebar fits. Empty `#zone-haz-tag`/`#zone-asc-tag`
+  are `display:none` there so they don't eat gap.
+* `@media (max-width: 700px) and (max-height: 420px) and (orientation: landscape)` is the block that
+  keeps the hub on one screen for 640x360-class phones. Verified: `.l-left` client == scroll (243/243).
+* The map window stacks on desktop but is a **two-column grid** under
+  `@media (max-height: 460px) and (orientation: landscape)`: preview + zone intel left, `#maps` tiles
+  right, CLOSE spanning both. Stacked, the 265px preview filled the whole 278px `.modal-body`, so the
+  sector tiles were permanently below the fold. Verified at 640x360: body client == scroll (235/235),
+  preview 127px, `#maps` 177px, last tile bottom 264 < body bottom 322. `#map-select-lbl` and
+  `#map-modal-enemies` are hidden there.
+* `nukeBlast()` (engine_director.js) was a screen wipe: 560px radius, `420 * S.dm` base damage, which
+  deleted everything that had closed on the player and looked like "the wave cleared itself". Now
+  340px radius, `1 - d/430` falloff, `170 * min(S.dm, 2) * falloff + 45`, boss chip 5%, knockback
+  raised to 330 so it staggers instead of killing. The even-wave supply beacon still excludes `nk`.
+* Power-up drops now read as arrivals: `spawnDrop` stamps `age`, `updatePickups` advances it,
+  `renderPickupsPass` applies a damped-spring pop (`1 - exp(-a*9) * cos(a*20)`, floored at 0.06)
+  for `k === 'pu'`, `spawnPowerup` pushes a coloured arrival ring via `hexToRgbStr(def.col)`, and
+  `drawPowerupIcon` (engine_fx.js — *not* engine_feel.js) adds a counter-rotating ticked rune ring
+  plus three orbiting motes around the hex plate.
+* Enemy HP (engine_data.js `ZT`) raised holistically and the `spawn()` wave curve re-bent
+  (`1 + w*0.07`, then `w>12` at 1.2/0.055 and `w>22` at 1.35/0.11), including the 3
+  reinforcement/splitter HP sites. Player damage compounds multiplicatively while enemy health grew
+  linearly, which is why late waves felt free.

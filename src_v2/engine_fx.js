@@ -80,7 +80,25 @@ function renderPowerupBeacons(cx, cy, W, H) {
 // Draws the power-up icon itself (called from pickups renderer)
 function drawPowerupIcon(id, t) {
   const def = PU_DEFS[id]; if (!def) return;
+  // 1. Counter-rotating rune ring with tick marks, so a grounded power-up
+  //    reads as an armed device rather than a flat token.
   X.save();
+  X.save();
+  X.rotate(t * 1.1);
+  X.strokeStyle = def.col;
+  X.globalAlpha = 0.4 + 0.3 * (0.5 + 0.5 * Math.sin(t * 4));
+  X.lineWidth = 1.6;
+  X.beginPath(); X.arc(0, 0, 17.5, 0, 6.28); X.stroke();
+  for (let k = 0; k < 6; k++) {
+    const a = k * 1.0472;
+    X.beginPath();
+    X.moveTo(Math.cos(a) * 17.5, Math.sin(a) * 17.5);
+    X.lineTo(Math.cos(a) * 20.5, Math.sin(a) * 20.5);
+    X.stroke();
+  }
+  X.restore();
+  X.globalAlpha = 1;
+  // 2. Idle wobble, hex plate and glass highlight.
   X.rotate(Math.sin(t * 2) * 0.08);
   X.fillStyle = '#0b0f14';
   X.beginPath();
@@ -94,8 +112,17 @@ function drawPowerupIcon(id, t) {
   X.beginPath(); X.moveTo(-10, -4); X.lineTo(0, -11); X.lineTo(10, -4); X.lineTo(0, -5); X.closePath(); X.fill();
   // Same vector glyph the HUD chip uses, so the icon on the ground and the
   // icon ticking down in the corner are literally the same shape.
-  if (typeof puGlyph === 'function') { puGlyph(id, 0, 0, 1, '#ffffff'); X.restore(); return; }
-  X.strokeStyle = '#fff'; X.fillStyle = '#fff'; X.lineWidth = 2; X.lineCap = 'round'; X.lineJoin = 'round';
+  if (typeof puGlyph === 'function') puGlyph(id, 0, 0, 1, '#ffffff');
+  X.restore();
+  // 3. Orbiting motes, kept outside the wobble so they trace a clean circle.
+  X.save();
+  for (let k = 0; k < 3; k++) {
+    const a = t * 2.4 + k * 2.094;
+    const rr = 15.5 + Math.sin(t * 3 + k * 1.7) * 1.6;
+    X.globalAlpha = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(t * 6 + k * 2));
+    X.fillStyle = '#ffffff';
+    X.beginPath(); X.arc(Math.cos(a) * rr, Math.sin(a) * rr, 1.4, 0, 6.28); X.fill();
+  }
   X.restore();
 }
 

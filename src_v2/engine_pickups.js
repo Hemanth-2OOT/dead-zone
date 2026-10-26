@@ -18,6 +18,7 @@ function spawnDrop(x, y, type, value) {
     l: type === 'pu' ? 16 : 15,
     maxL: type === 'pu' ? 16 : 15,
     scale: 1.0,
+    age: 0,
     rot: Math.random() * 6.28,
     vrot: (Math.random() - 0.5) * 6,
     bounces: 0,
@@ -32,6 +33,7 @@ function updatePickups(dt) {
 
   for (const d of D) {
     d.l -= dt;
+    d.age = (d.age || 0) + dt;
 
     // 1. Arc pop & bounce physics
     if (d.z > 0 || d.vz > 0) {
@@ -158,7 +160,14 @@ function renderPickupsPass(cx, cy, W, H) {
 
     const bob = (d.z > 0) ? -d.z : Math.sin(S.t * 4.5 + d.x) * 3;
     const renderY = d.y + bob;
-    const scale = d.scale || 1.0;
+    // Damped-spring pop on arrival: a fresh power-up snaps in and overshoots
+    // once instead of appearing as a static texture on the ground.
+    let popS = 1;
+    if (d.k === 'pu') {
+      const a = d.age || 0;
+      popS = a > 1.2 ? 1 : Math.max(0.06, 1 - Math.exp(-a * 9) * Math.cos(a * 20));
+    }
+    const scale = (d.scale || 1.0) * popS;
 
     X.save();
     X.translate(d.x, renderY);

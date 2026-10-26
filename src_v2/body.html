@@ -63,7 +63,7 @@
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.0</div>
+          <div class="tagline">OUTBREAK PROTOCOL ACTIVE &bull; v2.9.1</div>
         </div>
 
         <div id="best-badge" onclick="openTacticalRecords()" title="Tap to inspect tactical survival record" style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(58,65,40,.65);border-radius:6px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#d5d0c2;cursor:pointer">
@@ -97,7 +97,7 @@
             <span id="zone-threat-badge" style="font-size:8.5px;font-weight:900;padding:2px 6px;border-radius:4px;background:rgba(143,174,74,.2);color:#8fae4a;border:1px solid #8fae4a55">THREAT I</span>
           </div>
           <div id="mapd" style="font-size:10px;opacity:.85;color:#d5d0c2;line-height:1.25">Ruined city streets and buildings.</div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
+          <div id="zone-stats" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:9px">
             <span id="zone-rec-lvl" style="font-weight:800;color:#e0b83a">REC. LEVEL: 1</span>
             <span id="zone-best-wave" style="font-weight:800;color:#8fae4a">SECTOR BEST: W0</span>
             <span id="zone-bounty-wrap" style="font-weight:700;color:#d5d0c2">BOUNTY: <b id="zone-bounty" style="color:#ffd36b">1.0x</b></span>
@@ -298,7 +298,7 @@
         <div id="map-modal-stats" style="display:flex;flex-wrap:wrap;gap:10px;font-size:9.5px"></div>
         <div id="map-modal-enemies" style="display:flex;gap:6px;align-items:center;padding-top:4px;border-top:1px solid rgba(255,255,255,.06)"></div>
       </div>
-      <div style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
+      <div id="map-select-lbl" style="font-size:9px;font-weight:800;letter-spacing:.8px;opacity:.65;text-transform:uppercase">SELECT SECTOR</div>
       <div id="maps"></div>
       <button class="go" onclick="closeMapModal()" style="min-height:40px">CLOSE</button>
     </div>

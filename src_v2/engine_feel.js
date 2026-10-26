@@ -1038,6 +1038,20 @@ function renderPowerupAuras(cx, cy, W, H) {
     puPixelRing(P.x, P.y, 34 + Math.cos(t * 6) * 1.5, '#eab308', 6, -t * 0.8, 3);
   }
 
+  if (S.bc > 0) {
+    // Barrier charges (Aegis Ward / Arcane Barrier / Phase Plating). These used
+    // to be HUD text only, so a shield perk gave no in-world read. A dim faceted
+    // ward now rides the player while charges remain; the outer ring brightens
+    // on recharge so the rebuild is legible.
+    const recharging = (S.bc < (S.bl || 0));
+    const bA = recharging ? 0.30 + 0.14 * Math.sin(t * 9) : 0.42 + 0.16 * Math.sin(t * 5);
+    X.globalAlpha = bA;
+    puPixelRing(P.x, P.y, 23 + Math.sin(t * 5) * 1.2, '#be8cff', 6, t * 0.6, 3);
+    X.globalAlpha = bA * 0.6;
+    puPixelRing(P.x, P.y, 30 + Math.cos(t * 5) * 1.2, '#e0c8ff', 6, -t * 0.5, 2);
+    X.globalAlpha = 1;
+  }
+
   if (S.adr > 0) {
     // ADRENALINE: pixel sparks streaming outward, plus the facing smear below.
     X.globalAlpha = 0.5;

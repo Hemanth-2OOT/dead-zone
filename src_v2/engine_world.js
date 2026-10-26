@@ -414,9 +414,13 @@ function spawn(t) {
     }
   }
 
-  let waveHpScale = 1 + S.wave * 0.055;
-  if (S.wave > 15) waveHpScale += Math.pow(S.wave - 15, 1.25) * 0.07;
-  if (S.wave > 25) waveHpScale += Math.pow(S.wave - 25, 1.4) * 0.12;
+  // Enemy durability curve. Player damage compounds multiplicatively (perk
+  // stacks, skills, class bonuses) while health used to grow linearly, so the
+  // horde turned into paper past the early waves. The curve now bends upward
+  // in two stages so late waves stay a threat without inflating wave 1-5.
+  let waveHpScale = 1 + S.wave * 0.07;
+  if (S.wave > 12) waveHpScale += Math.pow(S.wave - 12, 1.2) * 0.055;
+  if (S.wave > 22) waveHpScale += Math.pow(S.wave - 22, 1.35) * 0.11;
 
   const zh = (MP[curM] && MP[curM].zh) ? MP[curM].zh : 1;
   const sc = waveHpScale * zh * (S.zc || 1) * (1 + 0.07 * (S.ascTier || 0));
@@ -1089,8 +1093,14 @@ function openChest(c) {
 // Boon first, then perks, then release the run.
 function openNextDraft() {
   if (!S || !P || P.hp <= 0) return;
+  // Never stack a boon draft on top of an open perk draft. A level-up during a
+  // wave raises the perk modal (S.po = 1); the wave can then clear and call
+  // endWave -> openNextDraft, which used to open the boon draft underneath the
+  // perk screen. Resolve the perk first: its close handler calls openNextDraft
+  // again and the boon draft opens then.
+  if (S.po) return;
   if (typeof openBoonDraft === 'function' && openBoonDraft()) { run = 0; return; }
-  if (S.pend > 0 && !S.po) { openPerk(); return; }
+  if (S.pend > 0) { openPerk(); return; }
   run = pendingNextWave ? 0 : 1;
 }
 
@@ -1166,8 +1176,20 @@ function applyPerk(p) {
   p[2]();
   S.pk[p[0]] = (S.pk[p[0]] || 0) + 1;
   if (typeof snd === 'function') snd(700, 0.15, 'triangle', 0.06, 1.5);
+
+  // Visual pickup feedback. Previously a perk was a sound + floating text only,
+  // so shield/aura perks gave no in-world cue. Each perk now bursts on the
+  // player; barrier perks get a heavier ring so "shield up" is readable.
+  const col = p[4] || '#ffd36b';
+  const isBarrier = /SHIELD|PLATING|BARRIER|AEGIS|WARD/i.test(p[0]);
+  if (typeof burst === 'function') burst(P.x, P.y, col, isBarrier ? 26 : 14, isBarrier ? 3.4 : 2.6, isBarrier ? 130 : 95, 1);
+  if (isBarrier && typeof RG !== 'undefined') {
+    RG.push({ x: P.x, y: P.y, r: 8, l: 0.55, v: 260, c: '234,179,8' });
+    RG.push({ x: P.x, y: P.y, r: 4, l: 0.4, v: 180, c: '255,236,150' });
+  }
+
   const nm = p[0].startsWith('✦ ') ? p[0].slice(2) : p[0];
-  if (typeof txt === 'function') txt(P.x, P.y - 25, nm.toUpperCase(), p[4] || '#ffd36b', true);
+  if (typeof txt === 'function') txt(P.x, P.y - 25, nm.toUpperCase(), col, true);
 }
 
 // MAIN SIMULATION UPDATE TICK
@@ -1392,7 +1414,7 @@ function update(dt) {
         z.nw = (z.nw != null ? z.nw : 5) - dt;
         if (z.nw <= 0 && Z.length < 42) {
           z.nw = 8.5;
-          const hpS = ZT.walk.hp * (1 + S.wave * 0.055);
+          const hpS = ZT.walk.hp * (1 + S.wave * 0.07);
           for (let k = 0; k < 2; k++) {
             const an = Math.random() * 6.28;
             SUMQ.push({
@@ -1535,7 +1557,7 @@ function update(dt) {
         // NECROMANCER - raises a pair of walkers on a timer.
         if (z.bw <= 0 && Z.length < 44) {
           z.bw = 7.0;
-          const hpS = ZT.walk.hp * (1 + S.wave * 0.055) * 1.4;
+          const hpS = ZT.walk.hp * (1 + S.wave * 0.07) * 1.4;
           for (let k = 0; k < 2; k++) {
             const an = Math.random() * 6.28;
             SUMQ.push({
@@ -1563,7 +1585,7 @@ function update(dt) {
           if (Z.length < 44 && (z.bd = (z.bd || 0) + 1) % 2 === 0) {
             for (let k = 0; k < 2; k++) {
               const an = Math.random() * 6.28;
-              const hpS = ZT.crawler.hp * (1 + S.wave * 0.055);
+              const hpS = ZT.crawler.hp * (1 + S.wave * 0.07);
               SUMQ.push({
                 x: Math.max(20, Math.min(WS - 20, z.x + Math.cos(an) * 36)),
                 y: Math.max(20, Math.min(WS - 20, z.y + Math.sin(an) * 36)),
@@ -2765,7 +2787,10 @@ function drawControls() {
   }
 
   // 2. LEVEL UP banner
-  if (S && S.lu > 0) {
+  // Guarded on `run`: the banner used to keep painting while the boon draft or
+  // perk modal was up (run = 0), so a wave-clear read as "LEVEL UP!" + "BOON
+  // DRAFT" stacking. The banner belongs to live gameplay only.
+  if (run && S && S.lu > 0) {
     X.save();
     const luAlpha = Math.min(1, S.lu * 1.5);
     X.globalAlpha = luAlpha;

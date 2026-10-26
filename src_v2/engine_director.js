@@ -18,10 +18,11 @@ function puActive(id) {
   return !!(S && d && d.key && S[d.key] > 0);
 }
 
-function pickPowerupId() {
+function pickPowerupId(exclude) {
   let total = 0;
   const ws = {};
   for (const id in PU_DEFS) {
+    if (exclude && exclude.indexOf(id) >= 0) continue;
     // Active power-ups are less likely to be offered again so players see variety
     ws[id] = PU_DEFS[id].w * (puActive(id) ? 0.3 : 1);
     total += ws[id];
@@ -31,14 +32,18 @@ function pickPowerupId() {
   return 'dd';
 }
 
-function spawnPowerup(x, y, id, life) {
-  id = id || pickPowerupId();
+function spawnPowerup(x, y, id, life, exclude) {
+  id = id || pickPowerupId(exclude);
   if (typeof spawnDrop !== 'function') return null;
   spawnDrop(x, y, 'pu', id);
   const d = D[D.length - 1];
   if (d && d.k === 'pu') {
     d.l = life || 16; d.maxL = d.l;
+    d.age = 0;
     d.vx *= 0.4; d.vy *= 0.4;
+    // Arrival shockring so a drop announces itself even before it is on screen.
+    const def = PU_DEFS[id];
+    if (typeof RG !== 'undefined' && def) RG.push({ x, y, r: 6, l: 0.55, v: 460, c: hexToRgbStr(def.col) });
   }
   return d;
 }
@@ -80,19 +85,27 @@ function hexToRgbStr(hex) {
 function nukeBlast() {
   S.nukeFlash = 0.35;
   SH = Math.max(SH, 20);
-  RG.push({ x: P.x, y: P.y, r: 10, l: 0.9, v: 1100, c: '251,146,60' });
-  RG.push({ x: P.x, y: P.y, r: 6, l: 0.7, v: 800, c: '255,255,255' });
+  RG.push({ x: P.x, y: P.y, r: 10, l: 0.85, v: 900, c: '251,146,60' });
+  RG.push({ x: P.x, y: P.y, r: 6, l: 0.65, v: 650, c: '255,255,255' });
   if (typeof noise === 'function') noise(0.5, 0.16);
+  // Shockwave is a crowd-breaker, not a screen wipe. The old 560px radius with
+  // 420 base damage deleted every zombie that had already closed on the player,
+  // which read as "the wave cleared itself". It now staggers a tight ring hard
+  // and only finishes what it genuinely out-damages. Damage is also capped at
+  // 2x so late-game damage stacks cannot turn it back into a nuke.
+  const R = 340;
+  const cap = Math.min(S.dm || 1, 2.0);
   for (const z of Z) {
     if (z.dead) continue;
     const d = Math.hypot(z.x - P.x, z.y - P.y);
-    if (d > 560) continue;
-    const falloff = 1 - d / 700;
-    const dmg = z.t === 'boss' ? z.mh * 0.12 : 420 * (S.dm || 1) * falloff + 60;
+    if (d > R) continue;
+    const falloff = 1 - d / 430;
+    const dmg = z.t === 'boss' ? z.mh * 0.05 : 170 * cap * falloff + 45;
     damageZ(z, dmg, 'nuke', true);
     const a = Math.atan2(z.y - P.y, z.x - P.x);
-    z.kx = (z.kx || 0) + Math.cos(a) * 260 * (ZT[z.t] ? ZT[z.t].kb : 1);
-    z.ky = (z.ky || 0) + Math.sin(a) * 260 * (ZT[z.t] ? ZT[z.t].kb : 1);
+    const kb = 330 * (ZT[z.t] ? ZT[z.t].kb : 1);
+    z.kx = (z.kx || 0) + Math.cos(a) * kb;
+    z.ky = (z.ky || 0) + Math.sin(a) * kb;
   }
 }
 
@@ -281,7 +294,10 @@ function applyWaveModifier() {
       const y = Math.max(60, Math.min(WS - 60, P.y + Math.sin(a) * d));
       const inWall = O.some(o => x > o.x - 24 && x < o.x + o.w + 24 && y > o.y - 24 && y < o.y + o.h + 24);
       if (inWall && attempt < 13) continue;
-      const dr = spawnPowerup(x, y, null, 26);
+      // Never roll the instant SHOCKWAVE here: a guaranteed beacon drop that
+      // wipes the whole arena reads as a bug ("waves clear themselves"), not as
+      // a reward. The nuke stays in the normal kill-drop pool.
+      const dr = spawnPowerup(x, y, null, 26, ['nk']);
       if (dr) { dr.sup = 1; dr.vx = dr.vy = 0; }
       setTimeout(() => { if (S && run) announce('SUPPLY DROP', '#38bdf8', 'FOLLOW THE BEACON'); }, 1600);
       break;
