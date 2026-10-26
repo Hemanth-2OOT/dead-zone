@@ -474,6 +474,55 @@ section('DAILY BOARD');
   const cappedOk = Object.keys(capped).every(k => capped[k].target <= Math.max.apply(null, boardApi.TEMPLATES.map(t => t.max)));
   ok(cappedOk, 'and stay under the per-template ceiling at rank 999',
     Object.keys(capped).map(k => capped[k].target).join('/'));
+
+  // A board drawn for a rank the sanitiser would never allow must still be sane:
+  // the target is the template base plus `step` per rank tier, so a negative tier
+  // would scale it below its own base (and could reach zero or below).
+  const baseOf = {};
+  boardApi.TEMPLATES.forEach(t => { baseOf[t.type] = t.base; });
+  const floorBad = [];
+  [0, -1, -1000, NaN, undefined, null, 'x'].forEach(bad => {
+    const board = boardApi.buildDailyBoard('Thu Mar 05 2026', bad);
+    Object.keys(board).forEach(k => {
+      const m = board[k];
+      if (!(m.target >= baseOf[m.type])) floorBad.push(String(bad) + ':' + m.type + '=' + m.target);
+    });
+  });
+  ok(!floorBad.length, 'a nonsense rank still draws targets at or above their base',
+    floorBad.slice(0, 3).join(', ') || 'rank 0, negative, NaN and non-numeric');
+}
+
+/* --------------------------------------------------- achievement counters --- */
+// Every achievement's `cur()` is a blind read: achState() catches the error and
+// coerces undefined to 0, so a counter that names a field the game never persists
+// does not crash and does not warn - the goal just becomes permanently unearnable
+// and the lobby silently shows a zero. The audit only checks the table's shape.
+// Cross-check every counter against the fields the run-end banking actually
+// writes onto SV.lt, and against the save template's own keys.
+section('ACHIEVEMENT COUNTERS');
+{
+  const fs = require('fs'), path = require('path');
+  const metaApi = exportsOf(loadEngine({ extra: ['engine_meta.js'] }).sandbox,
+    '({ ACHIEVEMENTS: ACHIEVEMENTS, SV: SV })');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src_v2', 'engine_meta.js'), 'utf8');
+  const banked = new Set(Array.from(src.matchAll(/lt\.([A-Za-z0-9_]+)\s*=/g)).map(m => m[1]));
+  const saveKeys = new Set(Object.keys(metaApi.SV));
+  const unknown = [];
+  const lt0 = {};
+  banked.forEach(f => { lt0[f] = 0; });
+  metaApi.ACHIEVEMENTS.forEach(a => {
+    const body = String(a.cur);
+    Array.from(body.matchAll(/\b(?:l|lt|SV)\.([A-Za-z0-9_]+)/g)).forEach(m => {
+      const f = m[1];
+      if (m[0].indexOf('SV.') === 0) { if (!saveKeys.has(f)) unknown.push(a.id + ' -> SV.' + f); }
+      else if (!banked.has(f)) unknown.push(a.id + ' -> lt.' + f);
+    });
+  });
+  ok(unknown.length === 0, 'every achievement counter is backed by a field the game writes',
+    unknown.slice(0, 3).join(' | ') || metaApi.ACHIEVEMENTS.length + ' achievements vs ' + banked.size + ' banked stats');
+  const free = metaApi.ACHIEVEMENTS.filter(a => { try { return (a.cur(lt0) || 0) >= a.goal; } catch (e) { return false; } });
+  ok(free.length === 0, 'no achievement is already earned by a fresh profile',
+    free.map(a => a.id + ' ' + a.goal).join(', ') || 'all ' + metaApi.ACHIEVEMENTS.length + ' start at zero');
 }
 
 console.log('\n' + '='.repeat(64));

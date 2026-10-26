@@ -1015,9 +1015,17 @@ function renderShop() {
       : rankOk ? cost.toLocaleString() + ' CREDITS'
         : 'UNLOCKS AT ACCOUNT RANK ' + rankReq;
     const footerCol = owned ? '#8fae4a' : (rankOk ? (affordable ? '#e0b83a' : '#c98a6a') : '#8892a0');
+    // The procedural weapon preview. The armory used to draw one per card; the
+    // shop that replaced it rendered text only, so the gun the player is about to
+    // buy was invisible. gunIcon() is the same renderer the in-run weapon crate
+    // uses, and it caches per weapon+skin, so this costs one canvas per gun.
+    const art = (typeof gunIcon === 'function') ? gunIcon(i) : '';
     return '<div class="card" style="display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,' + tCol + '0f,rgba(20,24,18,.96));border-left:5px solid ' + tCol + '">'
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      +   '<div style="min-width:0">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      +   '<div style="flex-shrink:0;width:104px;height:44px;border-radius:6px;background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.08);overflow:hidden;display:flex;align-items:center;justify-content:center">'
+      +     '<img src="' + art + '" alt="" style="width:100%;height:100%;object-fit:contain;display:block">'
+      +   '</div>'
+      +   '<div style="min-width:0;flex:1">'
       +     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
       +       '<span style="font-size:8.5px;font-weight:900;padding:1px 5px;border-radius:3px;background:' + tCol + '22;color:' + tCol + ';border:1px solid ' + tCol + '66">' + (w.tier || 'COMMON') + '</span>'
       +       '<b style="font-size:14px;color:' + (equipped ? '#8fae4a' : '#f0ece1') + '">' + w.n + '</b>'

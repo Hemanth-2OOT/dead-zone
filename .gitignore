@@ -20,6 +20,16 @@ www/_*.html
 # agent scratch space (generated harnesses, recordings, logs)
 .agent_tmp/
 
-# Release signing material — never commit
+# Release signing material — never commit. The .example template is the only
+# signing-related file that belongs in the repository: keystores and real
+# keystore.properties files live in the CI secret store, never in the tree.
+# The explicit paths cover the files this project has used; the wildcards cover
+# anything a future keystore, backup or renamed copy might be called.
 android/app/release.keystore
 android/app/keystore.properties
+*.keystore
+*.jks
+*.p12
+keystore.properties
+keystore.properties.*
+!keystore.properties.example

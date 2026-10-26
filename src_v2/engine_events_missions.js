@@ -222,7 +222,10 @@ function dailyBoardSeed(str) {
 }
 
 function buildDailyBoard(seedStr, lvl) {
-  const tier = Math.min(4, Math.floor(((Number(lvl) || 1) - 1) / 6));   // one step per six ranks
+  // Clamped at both ends: the sanitiser already floors rank at 1, but a board is
+  // also drawn for a caller that passes a raw value, and a negative tier would
+  // scale the target below its own base.
+  const tier = Math.max(0, Math.min(4, Math.floor(((Number(lvl) || 1) - 1) / 6)));   // one step per six ranks
   let seed = dailyBoardSeed(seedStr);
   const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const pool = DAILY_MISSION_TEMPLATES.slice();

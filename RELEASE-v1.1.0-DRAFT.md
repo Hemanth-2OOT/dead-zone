@@ -114,8 +114,37 @@ what `WEAP_RANK` actually is (the rank that *allows a purchase*) and where owner
 ## 9. Before this can ship
 
 - [ ] Your call on §8.1–§8.3.
-- [ ] Bump/confirm the version (currently set to 1.1.0 in `package.json`, `build.gradle` code 4,
-      `GAME_VERSION`, the lobby tagline and the module headers).
+- [x] Bump/confirm the version (1.1.0 in `package.json`, `build.gradle` code 4, `GAME_VERSION`, the
+      lobby tagline and the module headers — the audit fails if these disagree).
 - [ ] Move §1–§5 into `dead-zone-analysis.md` / `AGENTS.md` as the release note (v1.0.2 entries are
       the current format).
 - [ ] Tag `v1.1.0` and push — that is what triggers the signed APK build and the GitHub release.
+- [ ] Decide what to do about the exposed release keystore (§8.4). Investigated in the validation report
+      §11: the keystore is in public git history (`e975ad5`) but its password is not, and no release
+      asset ever carried it. Recommendation there is to ship v1.1.0 on the current key and treat
+      rotation as its own task; the report has the one-command check that closes the last unknown.
+- [ ] Optional, your call: apply the announcement-lane fix for the boss-wave banner (validation report
+      §12 — three lines, pre-existing, not a v1.1.0 regression).
+
+## 10. Validation pass (audit before release)
+
+`RELEASE-v1.1.0-VALIDATION.md` is the full report; this is the changelog of that pass. No feature,
+balance or economy change — the update as drafted was checked, and four things were fixed. All of it
+is uncommitted on `draft/v1.1.0`, so it is still reviewable as a diff.
+
+- **Per-weapon tables**: `ML` (muzzle length) and `WC` (tracer colour) still had 22 entries for 24
+  weapons, so Volt Carbine and Siegebreaker fired from a generic point ~20 px short of the barrel and
+  drew tracers in an undefined colour. Extended to 24, plus a `WC` fallback in `fire()`, plus a new
+  audit check that fails if either table is ever shorter than `WEAP` or has a hole in it.
+- **Shop preview**: a card in the lobby shop had no gun on it. Every card now renders `gunIcon(i)` in
+  a reserved preview box, and the harness asserts all 24 previews are drawn with distinct art.
+- **Daily board**: the rank tier is clamped at 0, so a negative or non-numeric rank can no longer draw
+  a target below the template base.
+- **Regression tests**: two assertions were non-deterministic (a piercing shot that a prop could
+  intercept, and a per-frame gradient figure that tracked how many damaged enemies were still alive).
+  Both were made deterministic rather than left to reroll, and the achievements gained a check that
+  every counter is backed by a field the game actually persists.
+
+Green on the working tree: 31 audit checks, 75 logic assertions, 231 browser assertions, zero captured
+console errors, three consecutive harness runs. Not covered: any Android device or soak test, and the
+release APK itself.

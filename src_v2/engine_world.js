@@ -768,7 +768,7 @@ function fire() {
   addShake(w.p > 1 ? 3 : 1.2);
 
   const curSkin = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[P.cur]) ? SKINS[SV.eqSkin[P.cur]] : null;
-  const bulletCol = curSkin ? curSkin.col : WC[P.cur];
+  const bulletCol = curSkin ? curSkin.col : (WC[P.cur] || '#ffe08a');
   const mOff = ((ML[P.cur] || 45) * 0.87);
 
   // Point-blank check: if an enemy is directly between player and muzzle, spawn close so bullets don't bypass them

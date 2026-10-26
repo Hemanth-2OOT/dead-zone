@@ -142,6 +142,8 @@ if (engine) {
     weaponStats: weaponStats, weaponTierIssues: weaponTierIssues, tierLadderIssues: tierLadderIssues,
     TIER_POLICY: TIER_POLICY, WEAP_TIER_EXCEPTIONS: WEAP_TIER_EXCEPTIONS,
     WEAP_RANK: typeof WEAP_RANK !== 'undefined' ? WEAP_RANK : null,
+    ML: typeof ML !== 'undefined' ? ML : null,
+    WC: typeof WC !== 'undefined' ? WC : null,
     TIERS: typeof TIERS !== 'undefined' ? TIERS : null
   })`);
   const { WEAP, SKINS, CL, MP, weaponStats } = api;
@@ -201,6 +203,26 @@ if (engine) {
     const rankBad = ranks.map((r, i) => [r, i]).filter(([r]) => !Number.isInteger(r) || r < 0 || r > 999);
     if (rankBad.length) fail('every weapon has a rank requirement', rankBad.map(([r, i]) => WEAP[i].n + ': ' + r).join(', '));
     else ok('every weapon has a rank requirement', WEAP.length + ' ranks, ' + Math.max.apply(null, ranks) + ' highest');
+  }
+
+  // The other per-weapon tables are indexed in parallel with WEAP too, and a short
+  // one fails quietly rather than loudly: ML drives where the flash, the muzzle
+  // smoke and the bullet spawn point sit (all callers fall back to a generic ~40px),
+  // and fire() reads WC[P.cur] straight into the tracer colour. Both were left at 22
+  // entries when the two v1.1.0 weapons were appended, so the new guns fired from a
+  // point short of their barrel and drew their tracers in whatever colour the canvas
+  // already had. Adding a weapon is a table edit; this is the check that remembers
+  // the other tables.
+  const perWeapon = [['ML', api.ML], ['WC', api.WC]];
+  const shortTables = perWeapon.filter(([, t]) => !Array.isArray(t) || t.length < WEAP.length);
+  if (shortTables.length) {
+    fail('every per-weapon table covers the whole arsenal',
+      shortTables.map(([n, t]) => n + ' has ' + (Array.isArray(t) ? t.length : 'no') + ' entries for ' + WEAP.length + ' weapons').join(', '));
+  } else {
+    const holes = [];
+    perWeapon.forEach(([n, t]) => t.forEach((v, i) => { if (v == null || (n === 'ML' && !(v > 0))) holes.push(n + '[' + i + ']=' + v); }));
+    if (holes.length) fail('every per-weapon table covers the whole arsenal', holes.join(', '));
+    else ok('every per-weapon table covers the whole arsenal', perWeapon.map(([n, t]) => n + ' ' + t.length).join(', '));
   }
 
   const skinBad = [];

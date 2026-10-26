@@ -646,3 +646,66 @@ Branch `draft/v1.1.0`, no tag, no push, no release. Notes for review live in
   state the earlier sections leave behind — a 14s OVERCHARGE left running read as 4.01 gradients/frame.
   A/B it against the old product before calling it a regression; measured this way the draft was
   lighter than v1.0.2 (3.44 vs 4.83).
+
+### v1.1.0 pre-release validation (uncommitted, on `draft/v1.1.0`)
+
+Full report in `RELEASE-v1.1.0-VALIDATION.md`; changelog entry in `RELEASE-v1.1.0-DRAFT.md` §10. No
+commit, tag, push or release came out of this pass.
+
+- `ML` (muzzle length) and `WC` (tracer colour) in `engine_data.js` are indexed by weapon, so they must
+  stay the same length as `WEAP` — 22 entries for 24 weapons made the two new guns fire ~20 px short of
+  the barrel with an undefined tracer colour. The audit now checks every per-weapon table for length
+  and holes, and `fire()` falls back to `'#ffe08a'`. **Anything indexed by weapon belongs in that
+  check.**
+- Achievement counters are read through `achState()`, which catches and coerces `undefined` to 0 — a
+  counter naming a field nobody writes is silently unearnable rather than an error. `test-logic.js`
+  now cross-checks every `cur()` against the `lt.*` fields the run-end banking writes in
+  `engine_meta.js` and against the save template's keys.
+- Harness determinism: the piercing test must clear `O` (solid props) around its shot, because a prop
+  between the player and the target silently eats the bullet; and per-frame gradient allocation is only
+  meaningful measured on an idle pass (`Z`/`S.q`/timed overlays cleared), because a live battle adds a
+  gradient for every enemy drawing a damage-chip HP bar. Both are now stable across runs.
+- The harness page never lays the game out, so `offsetWidth`/`getBoundingClientRect` on shop cards is
+  0×0 there. Assert on markup and `data:` sources, not on geometry.
+- **Release-blocking risk, your decision:** `android/app/release.keystore` is byte-identical
+  (md5 `2bf0356e…`) to the blob committed at `e975ad5`, which is an ancestor of `main` on a **public**
+  repository. The live signing key is therefore downloadable. The audit's "no signing material is
+  tracked" check only scans the current tree, so it cannot see history. Rotating the key would break
+  in-place updates for existing installs — decide before cutting a tag.
+- Local release build is not possible here (no JDK, Gradle or Android SDK, `ANDROID_HOME` unset); the
+  APK only exists after CI runs, and nothing in this pass is device- or soak-tested.
+
+### v1.1.0 validation, second pass (uncommitted) — supersedes the build/tooling bullet above
+
+Details in `RELEASE-v1.1.0-VALIDATION.md` §5, §6, §9, §11, §12. Still no commit, tag, push or release.
+
+- **A local Android release build *is* possible here.** Unpack Temurin JDK 17 and the Android
+  cmdline-tools under `/tmp/tools` (accept licences, install `platform-tools`, `build-tools;34.0.0`,
+  `platforms;android-34`), `npm install`, `npm run build`, `npx cap sync android`, then
+  `./gradlew assembleRelease`. This workspace is capped at 4 GiB, so the default 1.5 GB daemon heap plus
+  dexing plus `lintVital` gets OOM-killed ("Gradle build daemon disappeared unexpectedly"); add
+  `-x lintVitalAnalyzeRelease -x lintVitalRelease --max-workers=2 -Dorg.gradle.jvmargs="-Xmx2560m"`.
+  Sign with a throwaway PKCS12 key — never the release key. `apksigner verify --print-certs --verbose`
+  on a published APK must show v1/v2/v3 true and v3.1/v4 false; that is the scheme set the CI config
+  produces.
+- **Device testing is genuinely unavailable, not skipped.** `adb devices` is empty and `/dev/kvm` exists
+  but is group `660` for another group, so the workspace uid cannot open it and no emulator can boot.
+  Do not claim any on-device result.
+- **Signing exposure, precisely:** the keystore blob (PKCS#12, md5 `2bf0356e…`) is public *history*
+  (`e975ad5`, removed in `c849a6c` before the first tag — tagged trees and the published v1.0.x source
+  zips contain only `keystore.properties.example`). **No password is in history** (only `CHANGE_ME`
+  placeholders), the container is password-protected, and all published APKs share one signer
+  (`CN=Dead Zone, OU=Games, O=Hemanth, C=IN`, cert SHA-256 `5F:8A:8B:BC…52:E6`, issued 2026-10-21
+  08:47:58Z). Recommendation: ship v1.1.0 on the current key; treat rotation as its own task (Android
+  v3.1 rotation needs API 28+ *and* the old password, and this app's minSdk is 22).
+- **HUD lane collision (pre-existing, measured):** a live major announcement banner is centred at
+  `H * 0.2` (`drawAnnouncements`, called from `renderDirectorOverlay` inside `renderHUD`) while the boss
+  health bar is pinned at `52 * hudUnit()` — on short landscape viewports (≤ ~854 px wide) the banner
+  title prints under the bar for its 2.2–2.6 s life. Both lanes are byte-identical to v1.0.2, so it is
+  not a v1.1.0 regression, and clearing it is a visual decision: patch sketched in §12, not applied.
+- **Harness lesson:** anything that ages on real frame time (`annUpdate` runs from `loop()`) or lives in
+  `Z` makes a probe's result depend on how much of it straddled the probe. The HUD-layout section now
+  calls `fxReset()` before probing chrome, and measures the banner/boss-bar lane on its own with a
+  logged `NOTE` instead of asserting it. Before this, the same code produced 3 failures in one run and
+  none in the next.
+- `package-lock.json` still carried version 1.0.0 while `package.json` was 1.1.0; this pass aligned it.

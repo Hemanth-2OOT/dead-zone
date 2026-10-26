@@ -183,7 +183,11 @@ ZT.brute = ZT.tank;
 ZT.exploder = ZT.exp;
 ZT.spitter = ZT.spit;
 
-const ML = [36, 46, 60, 64, 60, 39, 62, 84, 56, 78, 60, 70, 54, 62, 86, 40, 66, 58, 62, 52, 48, 50];
+// Muzzle length per weapon, in the same art units as gun(). Every consumer guards
+// with a fallback, but a missing entry means the flash, the smoke and the bullet
+// spawn point sit ~20px short of the barrel - which is exactly what happened when
+// the two v1.1.0 weapons were added to WEAP without an entry here.
+const ML = [36, 46, 60, 64, 60, 39, 62, 84, 56, 78, 60, 70, 54, 62, 86, 40, 66, 58, 62, 52, 48, 50, 48, 60];
 const GL = {
   5: [24, 6, '#9a9a9a'],
   6: [46, 8, '#6a5a3c'],
@@ -194,7 +198,9 @@ const GL = {
   13: [52, 14, '#2e4254'],
   14: [74, 16, '#1c2432']
 };
-const WC = ['#ffe08a', '#ffb347', '#ff9a4a', '#9be7ff', '#ff5a3a', '#ffd36b', '#ff7a4a', '#9be7ff', '#5ae0ff', '#ff4a2a', '#ffaa33', '#00e5ff', '#ff9a4a', '#a6f0ff', '#ffe640', '#ffe08a', '#ffb347', '#00e5ff', '#d9c58a', '#ff4d6d', '#9be7ff', '#ffb347'];
+// Bullet/tracer colour per weapon. Indexed in parallel with WEAP, so it needs an
+// entry for every gun: fire() reads WC[P.cur] directly.
+const WC = ['#ffe08a', '#ffb347', '#ff9a4a', '#9be7ff', '#ff5a3a', '#ffd36b', '#ff7a4a', '#9be7ff', '#5ae0ff', '#ff4a2a', '#ffaa33', '#00e5ff', '#ff9a4a', '#a6f0ff', '#ffe640', '#ffe08a', '#ffb347', '#00e5ff', '#d9c58a', '#ff4d6d', '#9be7ff', '#ffb347', '#5ae0ff', '#ff8a4a'];
 
 const CL = [
   { n: 'Infantry', hp: 100, spd: 175, dm: 1, crit: 0.05, d: 'Standard frontline operator. Balanced mobility and firepower.', sk: ['dash', 'gren', 'turret'], pk: '#4a5738', ac: '#7a8e5a', hm: '#364024', vz: '#ffd36b' },
