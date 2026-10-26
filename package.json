@@ -1,6 +1,6 @@
 {
   "name": "dead-zone",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "private": true,
   "dependencies": {
     "@capacitor/android": "^6.1.2",

@@ -68,7 +68,7 @@ if (lobBtn) {
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '2.12.0';
+const GAME_VERSION = '2.12.1';
 
 ld();
 init();
