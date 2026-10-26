@@ -190,6 +190,19 @@ if (engine) {
   else fail('strongest weapon rises per tier', label(maxs));
   ok('median DPS per tier (informational)', label(meds));
 
+  // WEAP_RANK is what the shop gates on, and it is indexed in parallel with WEAP:
+  // a missing or short entry makes weaponRankReq() read `undefined` for the tail of
+  // the arsenal, and `lvl >= undefined` is false for every weapon - the whole top
+  // end of the shop silently becomes unbuyable. Cheap to check, expensive to miss.
+  const ranks = api.WEAP_RANK;
+  if (!Array.isArray(ranks)) fail('every weapon has a rank requirement', 'WEAP_RANK is not an array');
+  else if (ranks.length !== WEAP.length) fail('every weapon has a rank requirement', 'WEAP_RANK has ' + ranks.length + ' entries for ' + WEAP.length + ' weapons');
+  else {
+    const rankBad = ranks.map((r, i) => [r, i]).filter(([r]) => !Number.isInteger(r) || r < 0 || r > 999);
+    if (rankBad.length) fail('every weapon has a rank requirement', rankBad.map(([r, i]) => WEAP[i].n + ': ' + r).join(', '));
+    else ok('every weapon has a rank requirement', WEAP.length + ' ranks, ' + Math.max.apply(null, ranks) + ' highest');
+  }
+
   const skinBad = [];
   Object.keys(SKINS).forEach(k => {
     const s = SKINS[k];
@@ -259,6 +272,36 @@ try {
   else ok('every top-level function is referenced');
 } catch (e) {
   warn('dead code scan', e.message);
+}
+
+/* ------------------------------------------------- meta content tables -- */
+// Both tables are data the rest of the game trusts blindly: an achievement with a
+// duplicate id silently overwrites the first in SV.ach, one with a zero goal is
+// instantly "ready", and a mission template with no title function or a duplicate
+// type either crashes the board render or can never be drawn.
+section('META CONTENT');
+{
+  const meta = loadEngine({ extra: ['engine_meta.js'] });
+  const ach = exportsOf(meta.sandbox, '({ ACHIEVEMENTS: ACHIEVEMENTS })').ACHIEVEMENTS;
+  if (!Array.isArray(ach) || !ach.length) fail('the achievement table is well formed', 'no ACHIEVEMENTS found');
+  else {
+    const ids = ach.map(a => a.id);
+    const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+    const bad = ach.filter(a => !a.id || !a.n || !a.d || !(a.goal > 0) || !(a.rw >= 0) || typeof a.cur !== 'function');
+    if (dupes.length) fail('achievement ids are unique', 'duplicates: ' + Array.from(new Set(dupes)).join(', '));
+    else if (bad.length) fail('every achievement is well formed', bad.map(a => a.id || '(no id)').join(', '));
+    else ok('every achievement is well formed', ach.length + ' achievements, ids unique');
+  }
+
+  const missions = read('src_v2/engine_events_missions.js');
+  const block = missions.slice(missions.indexOf('const DAILY_MISSION_TEMPLATES'), missions.indexOf('function dailyBoardSeed'));
+  const types = Array.from(block.matchAll(/type:\s*'([a-z]+)'/g)).map(m => m[1]);
+  const dupTypes = types.filter((t, i) => types.indexOf(t) !== i);
+  const badTpl = !block.trim() || types.length < 3 || dupTypes.length ||
+    /base:\s*\d+/.test(block) === false || /max:\s*\d+/.test(block) === false ||
+    /title:\s*n\s*=>/.test(block) === false;
+  if (badTpl) fail('the daily mission pool is well formed', 'types: ' + (types.join(', ') || 'none'));
+  else ok('the daily mission pool is well formed', types.length + ' templates, ' + types.join(', '));
 }
 
 /* ------------------------------------------------------- gameplay wiring -- */

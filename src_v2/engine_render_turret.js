@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v1.1.0 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];

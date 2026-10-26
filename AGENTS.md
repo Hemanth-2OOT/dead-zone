@@ -619,3 +619,30 @@ feedback work. Details and root causes: `dead-zone-analysis.md` §9 (N14–N17).
   before expecting a buy button.
 * **Remember when running the harness:** `npm run harness` only repacks `www/index.html`, it does not
   rebuild it — run `npm run build` first or you will test a stale bundle.
+
+## Draft v1.1.0 — rotating dailies, two weapons, three achievements (UNRELEASED)
+
+Branch `draft/v1.1.0`, no tag, no push, no release. Notes for review live in
+`RELEASE-v1.1.0-DRAFT.md`. Released version is still v1.0.2.
+
+- `engine_events_missions.js`: the board is no longer three hardcoded missions. `DAILY_MISSION_TEMPLATES`
+  (5 templates) + `buildDailyBoard(seedStr, lvl)` draw three of them, seeded by FNV-1a over
+  `new Date().toDateString()` so a day is stable across devices and re-renders, and re-drawn only on a
+  day change or an empty board. Targets scale one step per six ranks, capped per template.
+- Two new mission types are wired to real events: `bosses` in `damageZ` (engine_world.js) and `pickups`
+  in `applyPowerup` (engine_director.js). The audit's gameplay-wiring check fails if a template has no
+  caller, so a new template is never silently impossible.
+- `SV.dmDone` is a new lifetime counter (default 0, clamped in `sanitizeSV`) incremented only by
+  `claimMission`, feeding the BOUNTY BOARD achievement.
+- Two weapons appended to `WEAP` (never insert: indices live in `SV.own`, `SV.start`, `SV.mast` and
+  skin `wi`): Volt Carbine (RARE, rank 21, `pr: 2` piercing) and Siegebreaker (LEGENDARY, rank 24,
+  `ex: 140`). `WEAP_RANK` gained 21 and 24.
+- Three achievements (`dl`, `bb`, `hm`) — the grid is now 17 goals.
+- Test tooling: audit +3 checks (WEAP_RANK length/values, achievement table shape, daily pool shape),
+  logic +13 assertions (board determinism/scaling/ceilings, dmDone), harness +15 assertions (drawn
+  board, same-day redraw, real boss kill and pickup, new weapons bought at their gate, piercing proved).
+  `arsenal table present` in the harness now expects 24 weapons.
+- Lesson worth keeping: harness perf numbers (frame cost, gradient objects/frame) drift with whatever
+  state the earlier sections leave behind — a 14s OVERCHARGE left running read as 4.01 gradients/frame.
+  A/B it against the old product before calling it a regression; measured this way the draft was
+  lighter than v1.0.2 (3.44 vs 4.83).

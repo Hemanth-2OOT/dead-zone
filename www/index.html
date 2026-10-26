@@ -1523,7 +1523,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.2</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.1.0</span>
         </div>
 
         <button type="button" id="best-badge" data-act="openTacticalRecords" title="Tap to inspect tactical survival record">
@@ -2325,13 +2325,25 @@ const WEAP = [
   { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE', rng: 520 },
   { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC', rng: 245 },
   { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC', rng: 210 },
-  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC', rng: 440 }
+  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC', rng: 440 },
+  // v1.1.0 additions. Appended, never inserted: a weapon's index is written into
+  // SV.own, SV.start, SV.mast and every skin's `wi`, so reordering the table
+  // would silently re-point saved progress at a different gun.
+  // Volt Carbine: the piercing RARE. Two targets per round, so a line of infected
+  // is worth more than the sum of its parts - the crowd answer the tier lacked.
+  { n: 'Volt Carbine', d: 26, r: 0.14, sp: 0.07, p: 1, c: 1150, pr: 2, kb: 0.8, mag: 26, rl: 1.4, tier: 'RARE', rng: 430 },
+  // Siegebreaker: slow, heavy, and the biggest blast in the arsenal.
+  { n: 'Siegebreaker', d: 190, r: 0.85, sp: 0.03, p: 1, c: 4400, ex: 140, kb: 2.6, mag: 4, rl: 2.3, tier: 'LEGENDARY', rng: 760 }
 ];
 
-// Weapons are no longer bought: each unlocks automatically once the account
-// reaches its rank. One new gun every rank or two, so the arsenal still opens
-// up over time without a shop to visit.
-const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,3,8,19,5,10,13,18];
+// WEAP_RANK is the account rank that *allows a weapon to be bought*, not the
+// unlock itself. Ownership lives in SV.own and is only ever written by a purchase
+// (or the starter pistol), through weaponRankReq()/weaponRankMet() and
+// buyWeapon(). This table used to be described as "each unlocks automatically
+// once the account reaches its rank", which is exactly what syncWeaponUnlocks()
+// did until v1.0.2 - the comment and the code agreed with each other and both
+// were wrong once the shop came back.
+const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,3,8,19,5,10,13,18,21,24];
 
 /* ---- Weapon tier policy ------------------------------------------------
    One table decides what a tier is worth, so the armoury, the HUD and the
@@ -3214,7 +3226,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v1.0.2 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.1.0 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -3258,6 +3270,7 @@ let SV = {
   rankClaimed: {},
   evDone: {},
   dailyMissions: {},
+  dmDone: 0,
   loginDays: 1,
   loginClaimed: {},
   mast: {},
@@ -3323,6 +3336,7 @@ function sanitizeSV(s) {
   out.cr = num(out.cr, 0, 1e12, 0);
   out.sp = num(out.sp, 0, 1e9, 0);
   out.best = num(out.best, 0, 100000, 0);
+  out.dmDone = num(out.dmDone, 0, 1e9, 0);   // lifetime daily-mission claims
   // `rev`/`ts` decide which copy wins when a save is merged back from the native
   // Preferences store, so they are clamped too: an infinite revision would win
   // every future merge.
@@ -4091,7 +4105,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v1.0.2 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.1.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -4288,6 +4302,46 @@ function triggerEventVictory() {
 // =========================================================================
 // LOGIN_REWARDS is defined in engine_data.js
 
+/* ---- Daily mission board ------------------------------------------------
+   The board used to be the same three missions every day, so the "daily" list
+   was a fixed checklist and the only thing that changed was the player's progress
+   through it. Three of the five templates below are now drawn for the day, and
+   the draw is seeded by the calendar date: every device and every re-render of
+   the same day agrees on the board (reopening the tab cannot re-roll a mission
+   away), while tomorrow's board is a different draw. Targets scale with account
+   rank, so the list still means something after the early levels. Every `type`
+   here must have a real trackMissionProgress() call site - the audit fails the
+   build if a template can never complete. */
+const DAILY_MISSION_TEMPLATES = [
+  { type: 'kills',   base: 60, step: 15, max: 120, reward: 150, title: n => 'Eliminate ' + n + ' Zombies' },
+  { type: 'waves',   base: 3,  step: 1,  max: 7,   reward: 200, title: n => 'Survive ' + n + ' Waves in any Sector' },
+  { type: 'elites',  base: 2,  step: 1,  max: 6,   reward: 250, title: n => 'Destroy ' + n + ' Elite Enemies' },
+  { type: 'bosses',  base: 1,  step: 1,  max: 3,   reward: 300, title: n => 'Bring down ' + n + ' Boss' + (n > 1 ? 'es' : '') },
+  { type: 'pickups', base: 3,  step: 1,  max: 7,   reward: 220, title: n => 'Collect ' + n + ' Power-ups' }
+];
+
+// FNV-1a over the date string, then an LCG for the draws. Deterministic on
+// purpose: the same day must produce the same board on every device.
+function dailyBoardSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+function buildDailyBoard(seedStr, lvl) {
+  const tier = Math.min(4, Math.floor(((Number(lvl) || 1) - 1) / 6));   // one step per six ranks
+  let seed = dailyBoardSeed(seedStr);
+  const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const pool = DAILY_MISSION_TEMPLATES.slice();
+  const board = {};
+  for (let i = 0; i < 3 && pool.length; i++) {
+    const t = pool.splice(Math.floor(rnd() * pool.length) % pool.length, 1)[0];
+    const target = Math.min(t.max, t.base + t.step * tier);
+    board['m' + (i + 1)] = { title: t.title(target), target, cur: 0, reward: t.reward, claimed: false, type: t.type };
+  }
+  return board;
+}
+
 function initDailyMissions() {
   const today = new Date().toDateString();
   const dayChanged = SV.dmDate !== today;
@@ -4298,11 +4352,7 @@ function initDailyMissions() {
   // this function only reseeded when the date flipped, that profile sat with an
   // empty missions board until the next midnight.
   if (dayChanged || !Object.keys(SV.dailyMissions).length) {
-    SV.dailyMissions = {
-      m1: { title: 'Eliminate 60 Zombies', target: 60, cur: 0, reward: 150, claimed: false, type: 'kills' },
-      m2: { title: 'Survive 3 Waves in any Sector', target: 3, cur: 0, reward: 200, claimed: false, type: 'waves' },
-      m3: { title: 'Destroy 2 Elite Enemies', target: 2, cur: 0, reward: 250, claimed: false, type: 'elites' }
-    };
+    SV.dailyMissions = buildDailyBoard(today, SV.lvl || 1);
     // The login streak advances at most once per calendar day, and only on a real
     // day change: re-seeding a wiped board must not hand out another day.
     if (dayChanged) {
@@ -4358,6 +4408,7 @@ function claimMission(k) {
   if (!m || m.claimed || m.cur < m.target) return;
   m.claimed = true;
   SV.cr = (SV.cr || 0) + m.reward;
+  SV.dmDone = (SV.dmDone || 0) + 1;
   SV.rev = (SV.rev || 0) + 1;
   SV.ts = Date.now();
   sv();
@@ -5930,7 +5981,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v1.0.2 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v1.1.0 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -6536,7 +6587,7 @@ function resetCharacterIconCache() {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v1.0.2 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v1.1.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -7505,7 +7556,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v1.0.2 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v1.1.0 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -7883,7 +7934,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v1.0.2 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v1.1.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -8422,7 +8473,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v1.0.2 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v1.1.0 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -9697,7 +9748,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v1.0.2 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v1.1.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -10239,7 +10290,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v1.0.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.1.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -11160,7 +11211,10 @@ function killZ(z, src, hitAngle, isCrit, wi) {
 
   S.kills = (S.kills || 0) + 1;
   if (z.el) S.eliteKills = (S.eliteKills || 0) + 1;
-  if (z.t === 'boss') S.bossKills = (S.bossKills || 0) + 1;
+  if (z.t === 'boss') {
+    S.bossKills = (S.bossKills || 0) + 1;
+    if (typeof trackMissionProgress === 'function') trackMissionProgress('bosses', 1);
+  }
   // Weapon mastery: attribute the kill to the weapon that is currently equipped
   // (bullets carry their origin index; other sources fall back to the held gun).
   if (typeof addMasteryXP === 'function') {
@@ -14282,7 +14336,7 @@ function drawControls() {
 
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v1.0.2 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v1.1.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -14358,6 +14412,7 @@ function applyPowerup(id) {
     setTimeout(() => snd(base * 2, 0.2, 'sine', 0.07, 1.1), 150);
   }
   if (S) S.puCount = (S.puCount || 0) + 1;
+  if (typeof trackMissionProgress === 'function') trackMissionProgress('pickups', 1);
 }
 
 function hexToRgbStr(hex) {
@@ -14727,7 +14782,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v1.0.2 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.1.0 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -14951,7 +15006,12 @@ const ACHIEVEMENTS = [
   { id: 'ar',  n: 'ARSENAL',          d: 'Own 12 weapons',                         goal: 12,     rw: 800,  cur: () => (SV.own || []).filter(Boolean).length },
   { id: 'sw',  n: 'SECTOR SWEEP',     d: 'Clear all 7 sectors',                    goal: 7,      rw: 1200, cur: () => Object.keys((SV.lt && SV.lt.maps) || {}).length },
   { id: 'mg',  n: 'GUNSMITH',         d: 'Max out mastery on a weapon',            goal: 1,      rw: 900,  cur: () => Object.keys(SV.mast || {}).filter(i => masteryLevel(+i) >= MAST_MAX).length },
-  { id: 'asc', n: 'ASCENDANT',        d: 'Reach ascension tier 3 on a sector',     goal: 3,      rw: 1000, cur: () => Math.max(0, ...Object.values(SV.asc || {}), 0) }
+  { id: 'asc', n: 'ASCENDANT',        d: 'Reach ascension tier 3 on a sector',     goal: 3,      rw: 1000, cur: () => Math.max(0, ...Object.values(SV.asc || {}), 0) },
+  // v1.1.0: three goals aimed at the systems that had no long-term reason to be
+  // used - the login track, the daily board, and the top of the armoury.
+  { id: 'dl',  n: 'DAILY DEVOTEE',    d: 'Claim 7 login rewards',                  goal: 7,      rw: 450,  cur: () => Object.keys(SV.loginClaimed || {}).length },
+  { id: 'bb',  n: 'BOUNTY BOARD',     d: 'Complete 25 daily missions',             goal: 25,     rw: 650,  cur: () => (SV.dmDone || 0) },
+  { id: 'hm',  n: 'HEAVY METAL',      d: 'Own 3 legendary weapons',                goal: 3,      rw: 800,  cur: () => (SV.own || []).filter((o, i) => o && WEAP[i] && WEAP[i].tier === 'LEGENDARY').length }
 ];
 
 function achState(id) {
@@ -15175,7 +15235,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v1.0.2 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v1.1.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 // Announcer queue (screen-space banners).
 //
@@ -15628,7 +15688,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v1.0.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.1.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -16931,7 +16991,7 @@ function showDeployScreen(title, sub, kicker, onReady) {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v1.0.2 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.1.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 /* ================================================================== */
 // UI ACTIONS
@@ -17047,7 +17107,7 @@ addEventListener('mouseup', () => { M.down = 0; });
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '1.0.2';
+const GAME_VERSION = '1.1.0';
 
 ld();
 init();

@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.1.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -195,6 +195,46 @@ function triggerEventVictory() {
 // =========================================================================
 // LOGIN_REWARDS is defined in engine_data.js
 
+/* ---- Daily mission board ------------------------------------------------
+   The board used to be the same three missions every day, so the "daily" list
+   was a fixed checklist and the only thing that changed was the player's progress
+   through it. Three of the five templates below are now drawn for the day, and
+   the draw is seeded by the calendar date: every device and every re-render of
+   the same day agrees on the board (reopening the tab cannot re-roll a mission
+   away), while tomorrow's board is a different draw. Targets scale with account
+   rank, so the list still means something after the early levels. Every `type`
+   here must have a real trackMissionProgress() call site - the audit fails the
+   build if a template can never complete. */
+const DAILY_MISSION_TEMPLATES = [
+  { type: 'kills',   base: 60, step: 15, max: 120, reward: 150, title: n => 'Eliminate ' + n + ' Zombies' },
+  { type: 'waves',   base: 3,  step: 1,  max: 7,   reward: 200, title: n => 'Survive ' + n + ' Waves in any Sector' },
+  { type: 'elites',  base: 2,  step: 1,  max: 6,   reward: 250, title: n => 'Destroy ' + n + ' Elite Enemies' },
+  { type: 'bosses',  base: 1,  step: 1,  max: 3,   reward: 300, title: n => 'Bring down ' + n + ' Boss' + (n > 1 ? 'es' : '') },
+  { type: 'pickups', base: 3,  step: 1,  max: 7,   reward: 220, title: n => 'Collect ' + n + ' Power-ups' }
+];
+
+// FNV-1a over the date string, then an LCG for the draws. Deterministic on
+// purpose: the same day must produce the same board on every device.
+function dailyBoardSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+function buildDailyBoard(seedStr, lvl) {
+  const tier = Math.min(4, Math.floor(((Number(lvl) || 1) - 1) / 6));   // one step per six ranks
+  let seed = dailyBoardSeed(seedStr);
+  const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const pool = DAILY_MISSION_TEMPLATES.slice();
+  const board = {};
+  for (let i = 0; i < 3 && pool.length; i++) {
+    const t = pool.splice(Math.floor(rnd() * pool.length) % pool.length, 1)[0];
+    const target = Math.min(t.max, t.base + t.step * tier);
+    board['m' + (i + 1)] = { title: t.title(target), target, cur: 0, reward: t.reward, claimed: false, type: t.type };
+  }
+  return board;
+}
+
 function initDailyMissions() {
   const today = new Date().toDateString();
   const dayChanged = SV.dmDate !== today;
@@ -205,11 +245,7 @@ function initDailyMissions() {
   // this function only reseeded when the date flipped, that profile sat with an
   // empty missions board until the next midnight.
   if (dayChanged || !Object.keys(SV.dailyMissions).length) {
-    SV.dailyMissions = {
-      m1: { title: 'Eliminate 60 Zombies', target: 60, cur: 0, reward: 150, claimed: false, type: 'kills' },
-      m2: { title: 'Survive 3 Waves in any Sector', target: 3, cur: 0, reward: 200, claimed: false, type: 'waves' },
-      m3: { title: 'Destroy 2 Elite Enemies', target: 2, cur: 0, reward: 250, claimed: false, type: 'elites' }
-    };
+    SV.dailyMissions = buildDailyBoard(today, SV.lvl || 1);
     // The login streak advances at most once per calendar day, and only on a real
     // day change: re-seeding a wiped board must not hand out another day.
     if (dayChanged) {
@@ -265,6 +301,7 @@ function claimMission(k) {
   if (!m || m.claimed || m.cur < m.target) return;
   m.claimed = true;
   SV.cr = (SV.cr || 0) + m.reward;
+  SV.dmDone = (SV.dmDone || 0) + 1;
   SV.rev = (SV.rev || 0) + 1;
   SV.ts = Date.now();
   sv();

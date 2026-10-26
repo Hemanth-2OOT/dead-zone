@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.1.0 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -222,7 +222,12 @@ const ACHIEVEMENTS = [
   { id: 'ar',  n: 'ARSENAL',          d: 'Own 12 weapons',                         goal: 12,     rw: 800,  cur: () => (SV.own || []).filter(Boolean).length },
   { id: 'sw',  n: 'SECTOR SWEEP',     d: 'Clear all 7 sectors',                    goal: 7,      rw: 1200, cur: () => Object.keys((SV.lt && SV.lt.maps) || {}).length },
   { id: 'mg',  n: 'GUNSMITH',         d: 'Max out mastery on a weapon',            goal: 1,      rw: 900,  cur: () => Object.keys(SV.mast || {}).filter(i => masteryLevel(+i) >= MAST_MAX).length },
-  { id: 'asc', n: 'ASCENDANT',        d: 'Reach ascension tier 3 on a sector',     goal: 3,      rw: 1000, cur: () => Math.max(0, ...Object.values(SV.asc || {}), 0) }
+  { id: 'asc', n: 'ASCENDANT',        d: 'Reach ascension tier 3 on a sector',     goal: 3,      rw: 1000, cur: () => Math.max(0, ...Object.values(SV.asc || {}), 0) },
+  // v1.1.0: three goals aimed at the systems that had no long-term reason to be
+  // used - the login track, the daily board, and the top of the armoury.
+  { id: 'dl',  n: 'DAILY DEVOTEE',    d: 'Claim 7 login rewards',                  goal: 7,      rw: 450,  cur: () => Object.keys(SV.loginClaimed || {}).length },
+  { id: 'bb',  n: 'BOUNTY BOARD',     d: 'Complete 25 daily missions',             goal: 25,     rw: 650,  cur: () => (SV.dmDone || 0) },
+  { id: 'hm',  n: 'HEAVY METAL',      d: 'Own 3 legendary weapons',                goal: 3,      rw: 800,  cur: () => (SV.own || []).filter((o, i) => o && WEAP[i] && WEAP[i].tier === 'LEGENDARY').length }
 ];
 
 function achState(id) {

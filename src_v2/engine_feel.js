@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v1.1.0 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 

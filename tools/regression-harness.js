@@ -181,7 +181,7 @@
       await sleep(120);
     }
     ok(typeof SV !== 'undefined' && !!SV, 'game booted', 'GAME_VERSION=' + (typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : '?'));
-    ok(typeof WEAP !== 'undefined' && WEAP.length === 22, 'arsenal table present', WEAP.length);
+    ok(typeof WEAP !== 'undefined' && WEAP.length === 24, 'arsenal table present', WEAP.length);
     ok(typeof weaponStats === 'function', 'weaponStats present');
     ok(typeof hudUnit === 'function', 'hudUnit present');
     ok(typeof addSolidPropColliders === 'function', 'prop collider builder present');
@@ -714,6 +714,47 @@
     if (lockBuy) lockBuy.click();
     ok(!SV.own[14], 'clicking a disabled BUY does not grant the weapon', 'own[14]=' + SV.own[14]);
 
+    // 8. The two weapons added in this draft. They are appended to WEAP, so their
+    // indices must not have disturbed anything already saved, and their rank gates
+    // must be visible on the card and enforced on the buy path.
+    var vcIdx = WEAP.findIndex(function (w) { return w.n === 'Volt Carbine'; });
+    var sbIdx = WEAP.findIndex(function (w) { return w.n === 'Siegebreaker'; });
+    ok(vcIdx > 21 && sbIdx > vcIdx, 'the new weapons are appended after the existing arsenal',
+      'Volt Carbine @' + vcIdx + ', Siegebreaker @' + sbIdx);
+    ok(WEAP[0].n === 'Pistol' && WEAP[15].n === 'Dual Pistols' && WEAP[21].n === 'Hornet',
+      'and the existing indices are unchanged', WEAP[0].n + '/' + WEAP[15].n + '/' + WEAP[21].n);
+    ok(weaponRankReq(vcIdx) === 21 && weaponRankReq(sbIdx) === 24, 'both carry their rank gate',
+      'VC rank ' + weaponRankReq(vcIdx) + ', SB rank ' + weaponRankReq(sbIdx));
+    SV = sanitizeSV(Object.assign({}, SV, { lvl: 20, cr: 20000 }));
+    tab(2);
+    cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
+    var vcCard = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'Volt Carbine'; })[0];
+    ok(!!vcCard, 'the Volt Carbine is listed in the shop');
+    var vcBuy = vcCard && vcCard.querySelector('button[data-buy]');
+    ok(!vcBuy, 'and is not buyable below its rank', vcCard ? vcCard.textContent.replace(/\s+/g, ' ').slice(0, 60) : 'no card');
+    SV = sanitizeSV(Object.assign({}, SV, { lvl: 21 }));
+    tab(2);
+    cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
+    vcCard = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'Volt Carbine'; })[0];
+    vcBuy = vcCard && vcCard.querySelector('button[data-buy]');
+    ok(!!vcBuy && !vcBuy.disabled, 'at its rank the BUY button appears', vcBuy ? vcBuy.textContent.trim() : 'none');
+    var vcCr = SV.cr;
+    if (vcBuy) vcBuy.click();
+    ok(SV.own[vcIdx] === 1 && SV.cr === vcCr - WEAP[vcIdx].c, 'and buying it spends its price',
+      'own=' + SV.own[vcIdx] + ', ' + vcCr + ' -> ' + SV.cr);
+    // A piercing RARE must actually pierce: one round, two targets.
+    var pierceA = { x: P.x + 200, y: P.y, t: 'walk', hp: 500, mh: 500, r: 16, hit: 0, flinch: 0, iv: 0, sh: 0, dead: 0, animOffset: 0, cd: 0, bv: 0, aff: -1, cgT: 0 };
+    var pierceB = { x: P.x + 210, y: P.y, t: 'walk', hp: 500, mh: 500, r: 16, hit: 0, flinch: 0, iv: 0, sh: 0, dead: 0, animOffset: 0, cd: 0, bv: 0, aff: -1, cgT: 0 };
+    Z.push(pierceA); Z.push(pierceB);
+    P.cur = vcIdx; P.a = 0; P.cd = 0; P.ammo = 10;
+    B.length = 0;
+    fire();
+    for (var pf = 0; pf < 20; pf++) { try { update(1 / 60); } catch (e) { break; } }
+    ok(pierceA.hp < 500 && pierceB.hp < 500, 'a piercing round damages both targets in line',
+      'A ' + (500 - pierceA.hp) + ' hp, B ' + (500 - pierceB.hp) + ' hp');
+    dropZ(pierceA); dropZ(pierceB);
+    P.cur = 0;
+
     section('CONTROLS');
     ok(BT.filter(function (b) { return b.fire; }).length === 0, 'no FIRE button remains on the pad');
     ok(document.getElementById('firebtn') === null, 'the FIRE setting row is gone from Options');
@@ -935,8 +976,34 @@
     } else { ok(false, 'the rank-2 milestone CLAIM button is enabled at rank 2'); }
 
     // 7. Daily missions: progress -> claim -> persisted, through the real buttons.
+    // The board rotates (three of five templates, drawn by the calendar date), so
+    // this cannot assume m1 is the kill mission any more. It first checks the draw
+    // itself, then seats a known board so the claim assertions are about the claim
+    // path rather than about which three missions today happened to produce.
     profile({ lvl: 5, cr: 0 });
     initDailyMissions();
+    var drawKeys = Object.keys(SV.dailyMissions || {});
+    var drawTypes = drawKeys.map(function (k) { return SV.dailyMissions[k].type; });
+    var WIRED = ['kills', 'waves', 'elites', 'bosses', 'pickups'];
+    ok(drawKeys.length === 3, 'the daily board draws three missions', drawKeys.join(','));
+    ok(drawTypes.every(function (t) { return WIRED.indexOf(t) >= 0; }),
+      'every drawn mission is a real, wired type', drawTypes.join(','));
+    ok(new Set(drawTypes).size === 3, 'and no type is drawn twice', drawTypes.join(','));
+    var drawTitlesOk = drawKeys.every(function (k) { var m = SV.dailyMissions[k]; return m.target > 0 && typeof m.title === 'string' && m.title.length > 0 && m.reward > 0; });
+    ok(drawTitlesOk, 'every drawn mission has a title, a target and a reward',
+      drawKeys.map(function (k) { return SV.dailyMissions[k].title; }).join(' | '));
+    // Same day, same board: reseeding must not re-roll the draw.
+    var firstDraw = JSON.stringify(SV.dailyMissions);
+    SV.dailyMissions = {}; SV.dmDate = new Date().toDateString();
+    initDailyMissions();
+    ok(JSON.stringify(SV.dailyMissions) === firstDraw, 'the same day redraws the same board');
+
+    // Seat a fixed board for the claim path.
+    SV.dailyMissions = {
+      m1: { title: 'Eliminate 60 Zombies', target: 60, cur: 0, reward: 150, claimed: false, type: 'kills' },
+      m2: { title: 'Survive 3 Waves', target: 3, cur: 0, reward: 200, claimed: false, type: 'waves' },
+      m3: { title: 'Destroy 2 Elites', target: 2, cur: 0, reward: 250, claimed: false, type: 'elites' }
+    };
     trackMissionProgress('kills', 60);
     trackMissionProgress('waves', 3);
     trackMissionProgress('elites', 1, { el: true });
@@ -967,6 +1034,30 @@
     sv(); ld();
     ok(SV.dailyMissions && Object.keys(SV.dailyMissions).length === 3 && SV.dailyMissions.m2.cur === 3,
       'and survives a save/reload round trip', SV.dailyMissions ? Object.keys(SV.dailyMissions).length + ' missions' : 'gone');
+
+    // 7b. The two mission types added in this draft, driven through the real
+    // gameplay entry points rather than the tracker: a boss really dying and a
+    // power-up really being picked up.
+    SV.dailyMissions = {
+      m1: { title: 'Bring down 1 Boss', target: 1, cur: 0, reward: 300, claimed: false, type: 'bosses' },
+      m2: { title: 'Collect 3 Power-ups', target: 3, cur: 0, reward: 220, claimed: false, type: 'pickups' }
+    };
+    var bossTarget = { x: P.x + 120, y: P.y, t: 'boss', hp: 40, mh: 9000, r: 40, hit: 0, flinch: 0, iv: 0, sh: 0, dead: 0, animOffset: 0, cd: 0, bv: 0, aff: -1, cgT: 0 };
+    Z.push(bossTarget);
+    damageZ(bossTarget, 1e6, 'test', false);
+    ok(SV.dailyMissions.m1.cur === 1, 'a boss kill advances the boss mission through the real kill path',
+      SV.dailyMissions.m1.cur + '/1');
+    var puId = (typeof PU_DEFS !== 'undefined' && Object.keys(PU_DEFS).length) ? Object.keys(PU_DEFS)[0] : 'dd';
+    applyPowerup(puId);
+    applyPowerup(puId);
+    ok(SV.dailyMissions.m2.cur === 2, 'a power-up pickup advances the pickup mission',
+      SV.dailyMissions.m2.cur + '/3');
+    dropZ(bossTarget);
+    // Clear the timed effects and the pools this block dirtied. The perf section
+    // runs later in this same session: a 14-second OVERCHARGE overlay left running
+    // would be counted there as per-frame gradient work and read as a regression.
+    S.dd = 0; S.fz = 0; S.sh2 = 0; S.mgTime = 0; S.adr = 0; S.dark = 0;
+    F.length = 0; RG.length = 0; DEC.length = 0; B.length = 0;
 
     // restore
     SV = sanitizeSV(JSON.parse(svSnap));

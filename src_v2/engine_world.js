@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.1.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -919,7 +919,10 @@ function killZ(z, src, hitAngle, isCrit, wi) {
 
   S.kills = (S.kills || 0) + 1;
   if (z.el) S.eliteKills = (S.eliteKills || 0) + 1;
-  if (z.t === 'boss') S.bossKills = (S.bossKills || 0) + 1;
+  if (z.t === 'boss') {
+    S.bossKills = (S.bossKills || 0) + 1;
+    if (typeof trackMissionProgress === 'function') trackMissionProgress('bosses', 1);
+  }
   // Weapon mastery: attribute the kill to the weapon that is currently equipped
   // (bullets carry their origin index; other sources fall back to the held gun).
   if (typeof addMasteryXP === 'function') {

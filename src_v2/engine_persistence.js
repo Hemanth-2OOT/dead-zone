@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.1.0 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -42,6 +42,7 @@ let SV = {
   rankClaimed: {},
   evDone: {},
   dailyMissions: {},
+  dmDone: 0,
   loginDays: 1,
   loginClaimed: {},
   mast: {},
@@ -107,6 +108,7 @@ function sanitizeSV(s) {
   out.cr = num(out.cr, 0, 1e12, 0);
   out.sp = num(out.sp, 0, 1e9, 0);
   out.best = num(out.best, 0, 100000, 0);
+  out.dmDone = num(out.dmDone, 0, 1e9, 0);   // lifetime daily-mission claims
   // `rev`/`ts` decide which copy wins when a save is merged back from the native
   // Preferences store, so they are clamped too: an infinite revision would win
   // every future merge.

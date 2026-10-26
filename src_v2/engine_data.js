@@ -25,13 +25,25 @@ const WEAP = [
   { n: 'Crossbow', d: 84, r: 0.62, sp: 0, p: 1, c: 650, pr: 2, rg: 0.9, kb: 1.3, mag: 6, rl: 1.7, tier: 'RARE', rng: 520 },
   { n: 'Siphon SMG', d: 13, r: 0.085, sp: 0.09, p: 1, c: 1900, ls: 1, kb: 0.4, mag: 36, rl: 1.3, tier: 'EPIC', rng: 245 },
   { n: 'Glacier Breaker', d: 20, r: 0.72, sp: 0.2, p: 6, c: 2600, fz: 1, rg: 0.42, kb: 0.8, mag: 8, rl: 1.7, tier: 'EPIC', rng: 210 },
-  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC', rng: 440 }
+  { n: 'Hornet', d: 34, r: 0.23, sp: 0.05, p: 1, c: 2600, ex: 48, kb: 0.9, mag: 18, rl: 1.5, tier: 'EPIC', rng: 440 },
+  // v1.1.0 additions. Appended, never inserted: a weapon's index is written into
+  // SV.own, SV.start, SV.mast and every skin's `wi`, so reordering the table
+  // would silently re-point saved progress at a different gun.
+  // Volt Carbine: the piercing RARE. Two targets per round, so a line of infected
+  // is worth more than the sum of its parts - the crowd answer the tier lacked.
+  { n: 'Volt Carbine', d: 26, r: 0.14, sp: 0.07, p: 1, c: 1150, pr: 2, kb: 0.8, mag: 26, rl: 1.4, tier: 'RARE', rng: 430 },
+  // Siegebreaker: slow, heavy, and the biggest blast in the arsenal.
+  { n: 'Siegebreaker', d: 190, r: 0.85, sp: 0.03, p: 1, c: 4400, ex: 140, kb: 2.6, mag: 4, rl: 2.3, tier: 'LEGENDARY', rng: 760 }
 ];
 
-// Weapons are no longer bought: each unlocks automatically once the account
-// reaches its rank. One new gun every rank or two, so the arsenal still opens
-// up over time without a shop to visit.
-const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,3,8,19,5,10,13,18];
+// WEAP_RANK is the account rank that *allows a weapon to be bought*, not the
+// unlock itself. Ownership lives in SV.own and is only ever written by a purchase
+// (or the starter pistol), through weaponRankReq()/weaponRankMet() and
+// buyWeapon(). This table used to be described as "each unlocks automatically
+// once the account reaches its rank", which is exactly what syncWeaponUnlocks()
+// did until v1.0.2 - the comment and the code agreed with each other and both
+// were wrong once the shop came back.
+const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,3,8,19,5,10,13,18,21,24];
 
 /* ---- Weapon tier policy ------------------------------------------------
    One table decides what a tier is worth, so the armoury, the HUD and the

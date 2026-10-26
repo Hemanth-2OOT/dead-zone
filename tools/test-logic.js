@@ -327,6 +327,7 @@ const claimApi = exportsOf(claimSandbox, `({
   sanitizeSV: sanitizeSV, setSV: function (v) { SV = v; }, getSV: function () { return SV; },
   claimLoginDay: claimLoginDay, claimRank: claimRank, claimMission: claimMission,
   initDailyMissions: initDailyMissions, trackMissionProgress: trackMissionProgress,
+  buildDailyBoard: buildDailyBoard, DAILY_MISSION_TEMPLATES: DAILY_MISSION_TEMPLATES,
   LOGIN_REWARDS: LOGIN_REWARDS, RANK_MILESTONES: RANK_MILESTONES
 })`);
 {
@@ -361,7 +362,19 @@ const claimApi = exportsOf(claimSandbox, `({
   ok(Object.keys(claimApi.getSV().dailyMissions).length === 3, 'an empty board is reseeded for today',
     Object.keys(claimApi.getSV().dailyMissions).join(','));
 
+  // The board rotates now, so these tests seat a known board rather than assume
+  // which three of the five templates today's draw produced. The tracking and
+  // claim rules are what is under test here; the draw has its own section below.
+  const seat = (board) => {
+    const st = fresh();
+    st.dmDate = today;
+    st.dailyMissions = board;
+    claimApi.setSV(st);
+  };
+  const mk = (type, target, reward) => ({ title: type, target, cur: 0, reward, claimed: false, type });
+
   // The board must survive the sanitiser that every lobby() pass runs.
+  seat({ m1: mk('kills', 60, 150), m2: mk('waves', 3, 200), m3: mk('elites', 2, 250) });
   claimApi.trackMissionProgress('kills', 25);
   claimApi.trackMissionProgress('waves', 3);
   const roundTrip = claimApi.sanitizeSV(JSON.parse(JSON.stringify(claimApi.getSV())));
@@ -371,8 +384,7 @@ const claimApi = exportsOf(claimSandbox, `({
     'a mission record keeps its title, type and reward');
 
   // Waves: the type that had no caller at all before this pass.
-  claimApi.setSV(fresh());
-  claimApi.initDailyMissions();
+  seat({ m1: mk('kills', 60, 150), m2: mk('waves', 3, 200), m3: mk('elites', 2, 250) });
   claimApi.trackMissionProgress('waves', 1);
   claimApi.trackMissionProgress('waves', 1);
   ok(claimApi.getSV().dailyMissions.m2.cur === 2, 'consecutive wave clears accumulate', claimApi.getSV().dailyMissions.m2.cur + '/3');
@@ -398,6 +410,70 @@ const claimApi = exportsOf(claimSandbox, `({
   claimApi.claimMission('nope');
   ok(claimApi.getSV().cr === paid, 'an unknown mission id is ignored');
   ok(claimApi.getSV().dailyMissions.m1.claimed === true, 'the claimed flag is persisted in the record');
+  ok(claimApi.getSV().dmDone === 1, 'a claim counts once towards the lifetime total', 'dmDone=' + claimApi.getSV().dmDone);
+  claimApi.claimMission('m1');
+  ok(claimApi.getSV().dmDone === 1, 'and a repeat claim does not count again');
+
+  // The two mission types added in this draft: bosses and power-ups. Both are
+  // plain counters, so the only thing to prove here is that the gameplay call
+  // sites move them (the audit proves the call sites exist at all).
+  seat({ m1: mk('bosses', 1, 300), m2: mk('pickups', 3, 220), m3: mk('kills', 60, 150) });
+  claimApi.trackMissionProgress('bosses', 1);
+  claimApi.trackMissionProgress('pickups', 1);
+  claimApi.trackMissionProgress('pickups', 1);
+  ok(claimApi.getSV().dailyMissions.m1.cur === 1, 'a boss kill advances the boss mission');
+  ok(claimApi.getSV().dailyMissions.m2.cur === 2, 'two power-ups advance the pickup mission',
+    claimApi.getSV().dailyMissions.m2.cur + '/3');
+  ok(claimApi.getSV().dailyMissions.m3.cur === 0, 'and neither advances the kill mission');
+}
+
+section('DAILY BOARD');
+{
+  const boardApi = exportsOf(claimSandbox, `({
+    buildDailyBoard: buildDailyBoard, TEMPLATES: DAILY_MISSION_TEMPLATES
+  })`);
+
+  const a = boardApi.buildDailyBoard('Mon Jan 01 2026', 1);
+  const b = boardApi.buildDailyBoard('Mon Jan 01 2026', 1);
+  ok(JSON.stringify(a) === JSON.stringify(b), 'the same day and rank draw the same board');
+  const other = boardApi.buildDailyBoard('Tue Jan 02 2026', 1);
+  ok(JSON.stringify(a) !== JSON.stringify(other), 'a different day draws a different board');
+
+  // Two months of draws: shape, uniqueness, reachability and target sanity. This
+  // is where a template with a duplicate type, a missing title function or a zero
+  // base would show up as a broken day rather than a broken line of code.
+  const shapeBad = [], dupBad = [], targetBad = [], seen = new Set();
+  for (let d = 0; d < 60; d++) {
+    const date = new Date(2026, 0, 1 + d).toDateString();
+    const board = boardApi.buildDailyBoard(date, 7);
+    const keys = Object.keys(board);
+    if (keys.length !== 3 || keys.join(',') !== 'm1,m2,m3') shapeBad.push(date);
+    const types = keys.map(k => board[k].type);
+    if (new Set(types).size !== keys.length) dupBad.push(date + ': ' + types.join('/'));
+    types.forEach(t => seen.add(t));
+    for (const k of keys) {
+      const m = board[k];
+      if (!(m.target > 0) || typeof m.title !== 'string' || !m.title || !(m.reward > 0) || m.claimed !== false || m.cur !== 0) {
+        targetBad.push(date + ':' + k);
+      }
+    }
+  }
+  ok(!shapeBad.length, 'every day draws exactly three missions', shapeBad.length ? shapeBad[0] : '60 days');
+  ok(!dupBad.length, 'never the same type twice in one day', dupBad.length ? dupBad[0] : '60 days');
+  ok(!targetBad.length, 'every drawn mission has a title, a target and a reward', targetBad.length ? targetBad[0] : '60 days');
+  ok(seen.size === boardApi.TEMPLATES.length,
+    'every template is reachable', Array.from(seen).join(', ') + ' of ' + boardApi.TEMPLATES.length);
+
+  const low = boardApi.buildDailyBoard('Wed Mar 04 2026', 1);
+  const high = boardApi.buildDailyBoard('Wed Mar 04 2026', 30);
+  const scales = Object.keys(low).every(k => high[k].target >= low[k].target && high[k].type === low[k].type);
+  ok(scales, 'targets scale with account rank at a fixed day',
+    Object.keys(low).map(k => low[k].type + ' ' + low[k].target + '->' + high[k].target).join(', '));
+
+  const capped = boardApi.buildDailyBoard('Wed Mar 04 2026', 999);
+  const cappedOk = Object.keys(capped).every(k => capped[k].target <= Math.max.apply(null, boardApi.TEMPLATES.map(t => t.max)));
+  ok(cappedOk, 'and stay under the per-template ceiling at rank 999',
+    Object.keys(capped).map(k => capped[k].target).join('/'));
 }
 
 console.log('\n' + '='.repeat(64));

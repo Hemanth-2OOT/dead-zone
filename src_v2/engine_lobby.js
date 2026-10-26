@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.1.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
