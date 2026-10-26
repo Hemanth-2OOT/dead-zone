@@ -556,16 +556,12 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .modal-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 
 /* Map tiles inside the window can be a little bigger than the hub strip.
-   display must be restated here: the carousel rule above sets
-   display:flex !important and would otherwise turn this into a horizontal
-   strip that overflows the window with most sectors off-screen. */
-#map-modal #maps {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  grid-auto-rows: auto;
-  gap: 8px !important;
-}
-#map-modal #maps button { min-width: 0 !important; flex: none !important; min-height: 52px !important; font-size: 11px !important; padding: 7px 6px !important; }
+   display stays flex here - the carousel rule above wins at this specificity.
+   The landscape block below restates display:grid with 3 columns, and that is
+   what actually lays the tiles out on every supported phone; do not restate
+   grid here, a 2-column grid does not fit this window's height above 460px. */
+#map-modal #maps { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+#map-modal #maps button { min-height: 52px !important; font-size: 11px !important; padding: 7px 6px !important; }
 #map-modal #maps button .m-title { font-size: 13px; }
 #map-modal-preview { transition: opacity .2s ease-out; }
 
