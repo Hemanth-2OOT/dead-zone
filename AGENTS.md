@@ -285,3 +285,25 @@ immediately null-guarded. This is the bug class that killed the Special Operatio
 - Soak: 42s at 640x360, 13 waves cleared through the real wave-clear branch, 17 drafts resolved,
   **0 boon/perk stack violations**, 0 errors.
 - Layout: 640x360 lobby and map modal fit with no overflow; all 7 sector tiles inside the scroll box.
+
+### Mobile-landscape lobby (v2.11.0+)
+The lobby is landscape-only by design; there is no portrait/desktop variant to keep in sync.
+All lobby CSS lives in one section of `src_v2/style.css` headed
+`v2.11.0 - MOBILE LANDSCAPE LOBBY`, scoped to `#start` through custom properties
+(`--z-surface`, `--z-line`, `--z-ink`, `--z-acc`, `--z-gold`, ...) so the arena tokens are
+untouched. Eight older overlapping landscape media queries were deleted, not layered over.
+Invariants worth preserving:
+- `.l-left > *:not(#hub-sector)` and `#hub-sector > *` are `flex-shrink: 0`. The zone card is
+  the only flexible row, so a short viewport can never squeeze a label or clip its own text.
+- `#hub-sector` is `justify-content: space-between` with `#zone-enemy-icons` hidden below
+  375px height; don't re-add `margin-top: auto` anywhere inside it.
+- `#best-badge` is a `<button>`, so it needs an explicit `min-height` or it inherits the
+  global `button { min-height: 38px }`.
+- `#mapd` must fall back to `MP[i].d`; `MAP_DATA` has no `desc` field and will blank it.
+
+Verification recipe: build, serve `www/` on a local port, then load `index.html` inside
+phone-sized iframes and assert `scrollHeight <= clientHeight` per element, that nothing sits
+outside the viewport, and that each of the 8 `#nav` buttons switches its `#p*` panel.
+Confirm that element ids 1-8 are `['p0','pe','psk','pc','ps','p2','pa','p3']`.
+The vision tool is not reliable for these screenshots; decode the PNG with Pillow instead.
+
