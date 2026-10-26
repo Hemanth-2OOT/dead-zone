@@ -1,4 +1,4 @@
-// DEAD ZONE v1.1.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.0.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -337,6 +337,9 @@ function tab(i) {
     target.style.animation = 'none'; void target.offsetWidth; target.style.animation = '';
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
+  // Micro-detail: tabs used to change in silence, which made the hub feel like a
+  // static page rather than a shell you move around in.
+  if (typeof snd === 'function') snd(i === 3 ? 620 : 480, 0.07, 'triangle', 0.035, 1.6);
 
   if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
     cancelAnimationFrame(TURNTABLE_RAF);
@@ -695,39 +698,68 @@ function relicIcon(i) {
   return RI[i] = cv.toDataURL();
 }
 
+// One line that states what is actually equipped. The count alone ("Equipped
+// 0/2") could not be told apart from a dead panel, which is exactly how the tab
+// was read before it re-rendered itself.
+function relicCountLine() {
+  const eq = Array.isArray(SV.eq) ? SV.eq : [];
+  const names = eq.map(i => AR[i] && AR[i][0]).filter(Boolean);
+  return `Equipped ${eq.length}/2 • ` + (names.length ? names.join(' + ') : 'Bosses drop relics, or buy one here');
+}
+
 function relics() {
   const rcnt = document.getElementById('rcnt');
-  if (rcnt) rcnt.textContent = `Equipped ${(SV.eq || []).length}/2 • Bosses drop relics`;
+  if (rcnt) rcnt.textContent = relicCountLine();
   const art = document.getElementById('art');
   if (!art) return;
 
   art.innerHTML = AR.map((a, i) => {
     const o = SV.ar && SV.ar.includes(i), e = SV.eq && SV.eq.includes(i);
+    const full = !e && SV.eq && SV.eq.length >= 2;
     return `<div class="card" style="display:flex;align-items:center;gap:10px;border-color:${e ? '#8fae4a' : '#3a4128'}">
       <img src="${relicIcon(i)}" style="width:48px;height:48px;flex-shrink:0;border-radius:6px;border:1px solid ${a[4]}55">
       <div style="flex:1;min-width:0">
         <b style="color:${a[4]};margin-bottom:2px">${a[0]}</b>
         <span style="display:block;opacity:.85;font-size:11.5px;line-height:1.25">${a[1]}</span>
+        ${e ? '<span style="display:block;margin-top:3px;font-size:10px;font-weight:800;color:#8fae4a">● ACTIVE THIS RUN</span>' : ''}
       </div>
-      <button data-a="${i}" ${(!o && a[2] > SV.cr) ? 'disabled' : ''} style="flex-shrink:0;min-width:80px;padding:6px 10px">
+      <button data-a="${i}" ${(!o && a[2] > SV.cr) ? 'disabled' : ''} style="flex-shrink:0;min-width:80px;padding:6px 10px${full ? ';opacity:.6' : ''}">
         ${o ? (e ? 'EQUIPPED' : 'EQUIP') : `BUY ${a[2]}`}
       </button>
     </div>`;
   }).join('');
 
   art.onclick = e => {
-    const b = e.target.closest('button');
-    if (!b) return;
+    const b = e.target.closest ? e.target.closest('button') : null;
+    if (!b || b.disabled) return;
     const i = +b.dataset.a;
+    let msg = '';
     if (SV.ar.includes(i)) {
       const k = SV.eq.indexOf(i);
-      if (k >= 0) SV.eq.splice(k, 1);
-      else if (SV.eq.length < 2) SV.eq.push(i);
+      if (k >= 0) { SV.eq.splice(k, 1); snd(300, 0.12, 'triangle', 0.05, 1.6); }
+      else if (SV.eq.length < 2) { SV.eq.push(i); snd(620, 0.14, 'sine', 0.06, 1.5); }
+      else { msg = 'SLOTS FULL — unequip a relic first'; snd(170, 0.22, 'square', 0.08, 0.7); }
     } else if (AR[i] && AR[i][2] <= SV.cr) {
-      if (transactMetaCredits(AR[i][2], 'relic_' + i)) SV.ar.push(i);
+      if (transactMetaCredits(AR[i][2], 'relic_' + i)) {
+        SV.ar.push(i);
+        // Two-tone purchase: the tab used to buy in total silence.
+        snd(760, 0.14, 'triangle', 0.07, 1.5);
+        setTimeout(() => snd(1180, 0.12, 'sine', 0.05, 1.4), 70);
+      }
+    } else {
+      snd(170, 0.22, 'square', 0.08, 0.7);
     }
     sv();
     lobby();
+    // Re-render the tab itself: sv()/lobby() only refresh the header, so the
+    // card labels and the equipped counter used to keep showing pre-click state
+    // and the whole section read as frozen.
+    relics();
+    if (msg) {
+      const rc = document.getElementById('rcnt');
+      if (rc) rc.textContent = msg;
+      setTimeout(() => { const r2 = document.getElementById('rcnt'); if (r2) r2.textContent = relicCountLine(); }, 1600);
+    }
   };
 }
 

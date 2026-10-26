@@ -1,4 +1,4 @@
-// DEAD ZONE v1.1.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v2.0.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the

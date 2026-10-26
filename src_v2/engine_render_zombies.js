@@ -1,4 +1,4 @@
-// DEAD ZONE v1.1.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.0.1 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -425,7 +425,86 @@ function drawZombie(z) {
     }
   }
   // ARCHETYPE 4: BRUTE (Armored Heavy Behemoth)
-  else if (z.t === 'brute' || z.t === 'tank') {
+  else if (z.t === 'brute') {
+    // BRUTE - the heavy butcher. It used to be drawn with the tank sprite (ZT
+    // even aliases the two), so the name on the sector cards and the wave-5 boss
+    // banner had no silhouette of its own. Hunched back plates, an iron jaw cage
+    // and one overgrown cleaver arm give it one.
+    const hideCol = fc || (z.el ? '#a2603c' : '#5b4636');
+    const plateCol = fc || '#2b2622';
+    const step = Math.sin(z.ph * 1.5) * 2.2;
+
+    // Hunched back mass, carried behind the body
+    X.fillStyle = fc || '#241d18';
+    X.beginPath(); X.ellipse(-r * 0.42, 0, r * 1.0, r * 0.78, 0, 0, 6.28); X.fill();
+
+    // Spined back plates
+    X.fillStyle = plateCol;
+    for (let k = 0; k < 3; k++) {
+      X.beginPath();
+      X.roundRect(-r * 0.95 + k * r * 0.36, -r * (0.52 - k * 0.06), r * 0.3, r * (1.04 - k * 0.12), 2);
+      X.fill();
+    }
+    X.strokeStyle = fc || '#4a4038'; X.lineWidth = 1.4;
+    X.beginPath(); X.moveTo(-r * 0.95, -r * 0.3); X.lineTo(-r * 0.1, -r * 0.34); X.stroke();
+
+    // Torso
+    X.fillStyle = hideCol;
+    X.beginPath(); X.ellipse(-r * 0.05, 0, r * 0.88, r * 0.72, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#1a1512'; X.lineWidth = 2.6; X.stroke();
+
+    // Rib work, plus an open wound once it is hurt
+    X.strokeStyle = fc || '#31281f'; X.lineWidth = 1.6;
+    X.beginPath();
+    X.moveTo(-r * 0.5, -r * 0.28); X.lineTo(r * 0.25, -r * 0.2);
+    X.moveTo(-r * 0.5, 0); X.lineTo(r * 0.3, 0);
+    X.moveTo(-r * 0.5, r * 0.28); X.lineTo(r * 0.25, r * 0.2);
+    X.stroke();
+    if (isDamaged && !fc) {
+      X.fillStyle = '#7d2320';
+      X.beginPath(); X.ellipse(-r * 0.1, r * 0.18, r * 0.3, r * 0.16, 0, 0, 6.28); X.fill();
+    }
+
+    // Cleaver arm (upper) - oversized, swings with the stride
+    X.strokeStyle = fc || '#2a221c'; X.lineWidth = 8; X.lineCap = 'round';
+    X.beginPath();
+    X.moveTo(-r * 0.1, -r * 0.55);
+    X.lineTo(r * 0.55 + step, -r * 0.85);
+    X.stroke();
+    X.fillStyle = fc || '#9aa0a6';
+    X.beginPath();
+    X.moveTo(r * 0.5 + step, -r * 1.15);
+    X.lineTo(r * 1.15 + step, -r * 0.95);
+    X.lineTo(r * 1.05 + step, -r * 0.35);
+    X.lineTo(r * 0.5 + step, -r * 0.6);
+    X.closePath(); X.fill();
+    X.strokeStyle = fc || '#5b6167'; X.lineWidth = 1.4; X.stroke();
+
+    // Fist arm (lower)
+    X.fillStyle = hideCol;
+    X.beginPath(); X.arc(r * 0.72 - step, r * 0.62, 8, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#cfd4d8';
+    for (let k = 0; k < 3; k++) X.fillRect(r * 0.86 - step + k * 4, r * 0.5, 3, 4);
+
+    // Low forward head behind an iron jaw cage
+    X.fillStyle = hideCol;
+    X.beginPath(); X.arc(r * 0.5, 0, r * 0.42, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#161210';
+    X.beginPath(); X.ellipse(r * 0.74, 0, r * 0.24, r * 0.26, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#8d949b'; X.lineWidth = 1.6;
+    for (let k = -1; k <= 1; k++) {
+      X.beginPath(); X.moveTo(r * 0.62, k * r * 0.16); X.lineTo(r * 0.92, k * r * 0.13); X.stroke();
+    }
+    X.fillStyle = fc || '#ffb347';
+    X.beginPath();
+    X.arc(r * 0.6, -r * 0.18, 2.6, 0, 6.28);
+    X.arc(r * 0.6, r * 0.18, 2.6, 0, 6.28);
+    X.fill();
+    X.fillStyle = fc || '#5b3a12';
+    X.fillRect(r * 0.56, -r * 0.25, 5, 2);
+    X.fillRect(r * 0.56, r * 0.11, 5, 2);
+  }
+  else if (z.t === 'tank') {
     const skinCol = fc || (z.el ? '#8a6230' : '#4a3f36');
     const armorCol = fc || '#24201c';
 

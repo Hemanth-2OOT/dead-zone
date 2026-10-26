@@ -1,4 +1,4 @@
-// DEAD ZONE v1.1.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.0.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -11,7 +11,10 @@ let S = null;
 // which could sit on top of the perk draft; now the wave-clear is a short
 // non-interactive pause and the perk draft is the only thing that can take the
 // screen. WAVE_CLEAR_T counts down in loop() because run is 0 meanwhile.
-let WAVE_CLEAR_T = 0, pendingNextWave = 0;
+// DRAFT_DELAY_T lets a boss death play out on screen before the draft covers the
+// arena: while it is running the wave countdown is held, so the delay can never
+// let the next wave start early.
+let WAVE_CLEAR_T = 0, pendingNextWave = 0, DRAFT_DELAY_T = 0;
 
 const K = {};
 const M = { x: 0, y: 0, down: 0, moved: 0 };
@@ -565,6 +568,7 @@ function init() {
 function startWave() {
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
+  DRAFT_DELAY_T = 0;
   run = 1;
   // Banked between-wave heal lands here, after the boon draft has been resolved.
   if (S.waveHeal > 0 && P && P.hp > 0) {
@@ -636,7 +640,26 @@ function bossPhaseBreak(z, n) {
   burst(z.x, z.y, (ZT[z.t] || ZT.boss).col, 22, 4, 150, 1);
   if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 78, d: ((ZT[z.t] || ZT.boss).dm || 32) * 0.9 });
   if (typeof announce === 'function') announce('PHASE ' + n + ' BROKEN', '#ff5a3a', 'the husk is venting', 2);
-  if (typeof snd === 'function') snd(130, 0.5, 'sawtooth', 0.1, 0.6);
+  // Per-boss phase roar. Every boss used to bark the same 130 Hz sawtooth, which
+  // on a phone speaker is a buzz, not a monster. Each variant now gets its own
+  // layered cue and the brute - the one people fight first - gets a growl with
+  // real low-end plus a noise chest.
+  if (typeof snd === 'function') {
+    if (bv === 0) {
+      snd(185, 0.55, 'sawtooth', 0.09, 0.3);
+      if (typeof noise === 'function') noise(0.34, 0.1);
+      setTimeout(() => snd(92, 0.5, 'square', 0.07, 0.45), 110);
+    } else if (bv === 1) {
+      snd(300, 0.5, 'triangle', 0.08, 3.1);
+      setTimeout(() => snd(210, 0.45, 'sine', 0.06, 2.4), 140);
+    } else if (bv === 2) {
+      snd(240, 0.6, 'sawtooth', 0.07, 2.6);
+      if (typeof noise === 'function') noise(0.4, 0.13);
+    } else {
+      snd(260, 0.3, 'square', 0.08, 0.7);
+      setTimeout(() => snd(130, 0.5, 'square', 0.09, 0.6), 90);
+    }
+  }
   addShake(11);
   if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, 0.07);
 }
@@ -721,6 +744,20 @@ function spawn(t) {
     aff: el ? (Math.random() * ELITE_AFFIX.length | 0) : -1,
     cgT: 0
   });
+
+  // Boss entrance. A wave boss used to appear with no cue at all - the health
+  // bar was the first sign. Announce the name and give every variant its own
+  // roar (the BRUTE gets the deepest one).
+  if (t === 'boss') {
+    const bvv = ((S.wave / 5 | 0) - 1) % 4;
+    if (typeof announce === 'function') announce((typeof BN !== 'undefined' && BN[bvv]) ? BN[bvv] : 'BOSS', '#ff5a3a', 'heavy signature inbound', 1.6);
+    if (typeof snd === 'function') {
+      snd(bvv === 0 ? 118 : 210, 0.7, 'sawtooth', 0.08, 2.6);
+      if (typeof noise === 'function') noise(0.5, 0.09);
+      setTimeout(() => snd(bvv === 0 ? 74 : 160, 0.6, 'square', 0.08, 0.5), 150);
+    }
+    addShake(7);
+  }
 }
 
 function fire() {
@@ -955,6 +992,10 @@ function killZ(z, src, hitAngle, isCrit, wi) {
     S.pend++;
     S.ts = 'BOSS DOWN! +POWER';
     S.tt = 3;
+    // Marks the wave-clear beat so the draft waits for the corpse to land, and
+    // slows the world for a beat so the kill is seen.
+    S.bossJustDied = 1;
+    BOSS_SLOWMO_T = 0.45;
     const un = AR.map((a, i) => i).filter(i => !SV.ar.includes(i));
     if (un.length) {
       const i = un[Math.floor(Math.random() * un.length)];
@@ -1477,6 +1518,7 @@ function returnToLobby() {
   run = 0;
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
+  DRAFT_DELAY_T = 0;
   if (typeof releaseAllInputs === 'function') releaseAllInputs();
   ['pause', 'perk', 'over', 'gunpick', 'boondraft'].forEach(id => {
     const el = document.getElementById(id);
@@ -2015,10 +2057,17 @@ function update(dt) {
           burst(z.x, z.y, '#ff8a3a', 22, 5, 170, 1);
           if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 90, d: damage * 2.2 });
           addShake(9);
-          if (typeof snd === 'function') snd(90, 0.4, 'square', 0.09, 0.7);
+          // Slam: pitch-dropping thud + noise crack + sub tail. The old 90 Hz
+          // square was inaudible mush on a phone speaker and read as a fault.
+          if (typeof snd === 'function') snd(165, 0.26, 'triangle', 0.12, 0.3);
+          if (typeof noise === 'function') noise(0.22, 0.12);
+          setTimeout(() => { if (typeof snd === 'function') snd(62, 0.34, 'sine', 0.11, 0.55); }, 40);
         } else if (z.bw <= 0 && dd < 620 && dd > 120 && los && !(P.dash > 0)) {
           z.ch = 0.7;
-          if (typeof snd === 'function') snd(120, 0.3, 'sawtooth', 0.06, 0.9);
+          // Charge telegraph: a rising growl (150 -> ~345 Hz) carries on a tiny
+          // speaker where the old falling 120 Hz sawtooth did not.
+          if (typeof snd === 'function') snd(150, 0.45, 'sawtooth', 0.07, 2.3);
+          if (typeof noise === 'function') noise(0.28, 0.05);
         }
       } else if (bv === 1) {
         // NECROMANCER - raises a pair of walkers on a timer.
@@ -2782,6 +2831,8 @@ function loop(t) {
   // resume.
   SH *= Math.pow(0.88, dt * 45);
   if (SH < 0.05) SH = 0;
+  // Presentation timers run on real frame time, not the simulation clock.
+  if (BOSS_SLOWMO_T > 0) BOSS_SLOWMO_T = Math.max(0, BOSS_SLOWMO_T - dt);
   if (S && S.nukeFlash > 0) S.nukeFlash = Math.max(0, S.nukeFlash - dt);
   if (typeof annUpdate === 'function') annUpdate(dt);
 
@@ -2809,8 +2860,24 @@ function loop(t) {
   // Between-wave beat. update() does not run while run is 0, so the countdown
   // has to live here; the perk draft holds it off until the player has chosen.
   if (!run && pendingNextWave && S && !S.po && !S.bd && !S.gp && P && P.hp > 0) {
-    WAVE_CLEAR_T -= dt;
-    if (WAVE_CLEAR_T <= 0) startWave();
+    // Corpse animations are pure presentation and sit inside update(), which run
+    // = 0 has just switched off. Step them here or the kill freezes mid-collapse
+    // the instant the wave ends - which is what hid every boss death. Scaled by
+    // the same clock the arena would have used, so a dying boss slows with it.
+    if (typeof updateDyingZombies === 'function') {
+      updateDyingZombies(dt * (typeof directorTimeScale === 'function' ? directorTimeScale() : 1));
+    }
+    if (DRAFT_DELAY_T > 0) {
+      DRAFT_DELAY_T -= dt;
+      if (DRAFT_DELAY_T <= 0) {
+        DRAFT_DELAY_T = 0;
+        WAVE_CLEAR_T = 0.45; // same respite the draft normally opens with
+        openNextDraft();
+      }
+    } else {
+      WAVE_CLEAR_T -= dt;
+      if (WAVE_CLEAR_T <= 0) startWave();
+    }
   }
 
   if (S) {
@@ -2859,13 +2926,21 @@ function endWave() {
   // arena for another two seconds after they pick it read as a freeze.
   pendingNextWave = 1;
   const draftQueued = !!(S && ((S.boonOffer && S.boonOffer.length) || S.pend > 0));
-  WAVE_CLEAR_T = draftQueued ? 0.45 : 1.4;
+  // A boss kill earns a longer beat. The draft used to open on the same frame as
+  // the corpse animation, so a full-screen draft covered the arena and the boss
+  // was never actually seen going down. The delay (not the open) is what runs
+  // first; the wave countdown is held for its duration in loop().
+  const bossBeat = (S && S.bossJustDied) ? 1.2 : 0;
+  if (S) S.bossJustDied = 0;
+  WAVE_CLEAR_T = Math.max(draftQueued ? 0.45 : 1.4, bossBeat);
   run = 0;
   if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
   if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound', 2, 'wave');
   // One draft at a time: the boon draft first, then the perk draft. Chained so
-  // a wave clear never shows two power-up screens together.
-  openNextDraft();
+  // a wave clear never shows two power-up screens together. A boss wave holds
+  // the draft back until its collapse has played (see DRAFT_DELAY_T).
+  if (bossBeat > 0 && draftQueued) DRAFT_DELAY_T = bossBeat;
+  else openNextDraft();
 }
 
 function rebuild() {

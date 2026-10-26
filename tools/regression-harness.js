@@ -249,6 +249,14 @@
     renderSkinsUI();
 
     /* ---------------- start a run ---------------- */
+    // Equipped relics are live combat effects (Storm Crown's lightning, Ember
+    // Core's immolation, the Frost and orb auras) and applySV() re-applies them
+    // on every run start, so a save that happened to have one equipped changed
+    // the numbers the run tests measure: the Immolation geometry assertions
+    // failed for anyone who owned Storm Crown, on unchanged game code. Strip
+    // them for the run and hand them back at the end.
+    var relicsBefore = { ar: (SV.ar || []).slice(), eq: (SV.eq || []).slice() };
+    SV.ar = []; SV.eq = [];
     section('RUN BOOT');
     var btn = document.getElementById('play');
     if (btn) btn.click(); else begin();
@@ -1175,6 +1183,10 @@
     ok(idleG !== null, 'the idle draw path survives 180 frames', idleG === null ? 'threw' : 'ok');
     ok(idleG !== null && idleG <= 4, 'idle per-frame gradient allocation stays at the base-path level',
       idleG === null ? 'not measured' : idleG.toFixed(2) + '/frame');
+
+    // Hand the borrowed profile back.
+    SV.ar = relicsBefore.ar;
+    SV.eq = relicsBefore.eq;
 
     log('');
     var n = R.filter(function (l) { return l.indexOf('ok   ') === 0 || l.indexOf('FAIL ') === 0; }).length;

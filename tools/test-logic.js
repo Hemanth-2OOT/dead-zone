@@ -22,6 +22,7 @@ function section(t) { console.log('\n== ' + t + ' =='); }
 const { sandbox } = loadEngine();
 const api = exportsOf(sandbox, `({
   WEAP: WEAP, WEAP_RANK: WEAP_RANK, SKINS: SKINS, CL: CL, MP: MP, ZT: ZT, TIER_POLICY: TIER_POLICY,
+  EVENTS: EVENTS, LOGIN_REWARDS: LOGIN_REWARDS,
   weaponStats: weaponStats, weaponTierIssues: weaponTierIssues, tierLadderIssues: tierLadderIssues,
   sanitizeSV: sanitizeSV, sv: sv, ld: ld,
   getSV: function () { return SV; },
@@ -80,6 +81,47 @@ skins.forEach(k => {
 ok(skinBad.length === 0, 'every skin resolves to a real operative or weapon', skinBad.slice(0, 4).join(', ') || skins.length + ' skins');
 const opCount = skins.filter(k => api.SKINS[k].type === 'op').length;
 ok(opCount > 0 && opCount < skins.length, 'both skin families are populated', opCount + ' operative / ' + (skins.length - opCount) + ' weapon');
+
+// Every skin must be reachable. A skin with no rule (rk/rf) is only legal if a
+// reward site actually grants it - the default finish, an operation's rewardSkin
+// or the day-10 login card. Ten skins shipped with an advertised condition and
+// neither, so the whole Skins tab read as permanently locked.
+const grantedElsewhere = new Set(['default']);
+Object.values(api.EVENTS || {}).forEach(ev => { if (ev && ev.rewardSkin) grantedElsewhere.add(ev.rewardSkin); });
+(api.LOGIN_REWARDS || []).forEach(r => { if (r && r.type === 'skin' && r.skin) grantedElsewhere.add(r.skin); });
+const orphans = skins.filter(k => {
+  const s = api.SKINS[k];
+  return !(s.rk || s.rf) && !grantedElsewhere.has(k);
+});
+ok(orphans.length === 0, 'every skin has an unlock path', orphans.join(', ') || 'rule-based or reward-granted');
+
+const ruled = skins.filter(k => { const s = api.SKINS[k]; return !!(s.rk || s.rf); });
+const ruleBad = ruled.filter(k => !(api.SKINS[k].rg > 0));
+ok(ruleBad.length === 0, 'every rule-based skin has a goal', ruleBad.join(', ') || ruled.length + ' rules');
+
+// The sector/class helpers the sector skins depend on. Both resolve their
+// subject by name off MP/CL and read the per-sector record the run settlement
+// writes, so the progress a player already has is what the card shows. The rule
+// engine lives in engine_meta.js, so this needs its own sandbox.
+const metaSandbox = loadEngine({
+  extra: ['engine_meta.js'],
+  globals: { snd: () => {}, sv: () => {}, lobby: () => {}, announce: () => {} }
+}).sandbox;
+const ruleApi = exportsOf(metaSandbox, `({
+  sanitizeSV: sanitizeSV, sectorBest: sectorBest, sectorCount: sectorCount,
+  classOwned: classOwned, skinRuleState: skinRuleState,
+  set: function (v) { SV = v; }, get: function () { return SV; }
+})`);
+ruleApi.set(ruleApi.sanitizeSV({ v: 3, lt: { maps: { 3: 17, 0: 9 } }, ucl: [1, 0, 0, 0, 1] }));
+const swamp = ruleApi.sectorBest('Toxic Swamp');
+ok(swamp === 17, 'sectorBest reads the per-sector record', 'Toxic Swamp wave ' + swamp);
+ok(ruleApi.sectorCount() === 2, 'sectorCount counts visited sectors', ruleApi.sectorCount());
+ok(ruleApi.classOwned('Spec-Ops') === 1 && ruleApi.classOwned('Commando') === 0, 'classOwned reads the class list');
+const toxSt = ruleApi.skinRuleState('toxic_shotgun');
+ok(toxSt && toxSt.cur === 15 && toxSt.goal === 15, 'a met sector rule reports complete', toxSt ? toxSt.cur + '/' + toxSt.goal : 'no state');
+const neonSt = ruleApi.skinRuleState('neon_plasma');
+ok(neonSt && neonSt.cur === 0 && neonSt.goal === 20, 'an unvisited sector rule reports zero', neonSt ? neonSt.cur + '/' + neonSt.goal : 'no state');
+ok(ruleApi.skinRuleState('ashen_assault') === null, 'a reward-only skin stays out of the rule engine');
 
 /* ------------------------------------------------------------------ shop - */
 section('SHOP CATALOGUE');

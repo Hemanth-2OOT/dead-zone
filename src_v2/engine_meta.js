@@ -1,4 +1,4 @@
-// DEAD ZONE v1.1.0 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.0.1 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -252,6 +252,28 @@ function achReady() {
 // Skins carrying rk/rg (lifetime stat + goal) or rf (custom counter) unlock
 // themselves the moment their condition is met, evaluated on every lobby
 // refresh. Reward-gated event/login skins are untouched by this system.
+// Sector/class rule helpers. Both look their subject up by name so a reshuffle
+// of MP or CL cannot silently point a skin at the wrong sector, and both read
+// the per-sector record the run settlement writes (SV.lt.maps, keyed by sector
+// index). No new save field: the record already existed, nothing consumed it.
+function sectorBest(name) {
+  if (typeof MP === 'undefined' || typeof SV === 'undefined' || !SV) return 0;
+  const i = MP.findIndex(m => m && m.n === name);
+  if (i < 0) return 0;
+  return ((SV.lt && SV.lt.maps) || {})[i] || 0;
+}
+
+function sectorCount() {
+  if (typeof SV === 'undefined' || !SV || !SV.lt || !SV.lt.maps) return 0;
+  return Object.keys(SV.lt.maps).length;
+}
+
+function classOwned(name) {
+  if (typeof CL === 'undefined' || typeof SV === 'undefined' || !SV) return 0;
+  const i = CL.findIndex(c => c && c.n === name);
+  return (i >= 0 && SV.ucl && SV.ucl[i]) ? 1 : 0;
+}
+
 function skinRuleState(k) {
   const s = (typeof SKINS !== 'undefined') ? SKINS[k] : null;
   if (!s || (!s.rk && !s.rf)) return null;

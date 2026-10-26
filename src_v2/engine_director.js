@@ -1,4 +1,4 @@
-// DEAD ZONE v1.1.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.0.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -334,7 +334,13 @@ function directorUpdate(dt) {
   if (typeof fxUpdate === 'function') fxUpdate(dt);
 }
 
+// Boss-death slow motion. A presentation timer only: it is ticked on real frame
+// time and bends the simulation clock for a beat, so the kill that ends a wave
+// reads as an event rather than just a number dropping to zero.
+let BOSS_SLOWMO_T = 0;
+
 function directorTimeScale() {
+  if (BOSS_SLOWMO_T > 0) return 0.42;
   return (S && S.bt > 0) ? 0.35 : 1;
 }
 

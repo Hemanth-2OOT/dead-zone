@@ -1523,7 +1523,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.1.0</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v2.0.1</span>
         </div>
 
         <button type="button" id="best-badge" data-act="openTacticalRecords" title="Tap to inspect tactical survival record">
@@ -2622,18 +2622,22 @@ const SKINS = {
   crimson_sniper: { id: 'crimson_sniper', type: 'weap', name: 'Crimson Eclipse', wi: 7, wName: 'Sniper Rifle', col: '#e11d48', desc: 'Anodized crimson casing with blood-red supersonic tracer.', tagCol: '#f43f5e', how: 'Complete Operation Elite Hunt (Events)', tier: 'EPIC' },
   volt_railgun: { id: 'volt_railgun', type: 'weap', name: 'Cyberpunk Volt', wi: 14, wName: 'Heavy Railgun', col: '#facc15', desc: 'High-voltage overclocked frame with electric yellow discharge.', tagCol: '#00e5ff', how: 'Complete Operation Heavy Metal (Events)', tier: 'LEGENDARY' },
   gold_minigun: { id: 'gold_minigun', type: 'weap', name: 'Golden Legion', wi: 4, wName: 'Minigun', col: '#fbbf24', desc: 'Prestigious gilded rotary cannon for 10-day frontier veterans.', tagCol: '#e0b83a', how: 'Claim Day 10 Login Reward', tier: 'LEGENDARY' },
-  toxic_shotgun: { id: 'toxic_shotgun', type: 'weap', name: 'Toxic Hazard', wi: 2, wName: 'Shotgun', col: '#22c55e', desc: 'Caustic bio-hazard plating with irradiated spread.', tagCol: '#22c55e', how: 'Survive Wave 15 in Toxic Swamp', tier: 'RARE' },
-  neon_plasma: { id: 'neon_plasma', type: 'weap', name: 'Neon Overdrive', wi: 8, wName: 'Plasma', col: '#00e5ff', desc: 'Cybernetic turquoise energy battery with luminous discharge.', tagCol: '#00e5ff', how: 'Survive Wave 20 in Neon Lab', tier: 'LEGENDARY' },
-  dragon_flamer: { id: 'dragon_flamer', type: 'weap', name: 'Dragon Breath', wi: 10, wName: 'Flamer', col: '#ff5722', desc: 'Obsidian dragon scale casing with roaring inferno burst.', tagCol: '#ff5722', how: 'Survive Wave 20 in Ashlands', tier: 'EPIC' },
-  stealth_smg: { id: 'stealth_smg', type: 'weap', name: 'Shadow Ghost', wi: 1, wName: 'SMG', col: '#94a3b8', desc: 'Matte suppressed composite frame for covert operations.', tagCol: '#94a3b8', how: 'Recruit Spec-Ops Operator', tier: 'RARE' },
+  // Sector skins: the rule reads the per-sector record the run settlement
+  // writes (SV.lt.maps), so "survive wave N in <sector>" is finally true. Every
+  // one of these advertised a condition that no code path ever evaluated, which
+  // is why the whole Skins tab read as permanently locked.
+  toxic_shotgun: { id: 'toxic_shotgun', type: 'weap', name: 'Toxic Hazard', wi: 2, wName: 'Shotgun', col: '#22c55e', desc: 'Caustic bio-hazard plating with irradiated spread.', tagCol: '#22c55e', how: 'Survive Wave 15 in Toxic Swamp', tier: 'RARE', rf: () => sectorBest('Toxic Swamp'), rg: 15 },
+  neon_plasma: { id: 'neon_plasma', type: 'weap', name: 'Neon Overdrive', wi: 8, wName: 'Plasma', col: '#00e5ff', desc: 'Cybernetic turquoise energy battery with luminous discharge.', tagCol: '#00e5ff', how: 'Survive Wave 20 in Neon Lab', tier: 'LEGENDARY', rf: () => sectorBest('Neon Lab'), rg: 20 },
+  dragon_flamer: { id: 'dragon_flamer', type: 'weap', name: 'Dragon Breath', wi: 10, wName: 'Flamer', col: '#ff5722', desc: 'Obsidian dragon scale casing with roaring inferno burst.', tagCol: '#ff5722', how: 'Survive Wave 20 in Ashlands', tier: 'EPIC', rf: () => sectorBest('Ashlands'), rg: 20 },
+  stealth_smg: { id: 'stealth_smg', type: 'weap', name: 'Shadow Ghost', wi: 1, wName: 'SMG', col: '#94a3b8', desc: 'Matte suppressed composite frame for covert operations.', tagCol: '#94a3b8', how: 'Recruit Spec-Ops Operator', tier: 'RARE', rf: () => classOwned('Spec-Ops'), rg: 1 },
 
   // Operative Skins
-  ghost_specops: { id: 'ghost_specops', type: 'op', name: 'Ghost Recon', ci: 4, col: '#00e5ff', ac: '#334155', hm: '#1e293b', vz: '#00e5ff', pk: '#0f172a', desc: 'Shadow stealth armor with thermal scanning cyan visor.', tagCol: '#00e5ff', how: 'Complete Operation Elite Hunt', tier: 'LEGENDARY' },
-  cyber_juggernaut: { id: 'cyber_juggernaut', type: 'op', name: 'Cyber Enforcer', ci: 3, col: '#f59e0b', ac: '#b45309', hm: '#78350f', vz: '#fbbf24', pk: '#451a03', desc: 'Reinforced cybernetic exo-suit with high-voltage visor.', tagCol: '#f59e0b', how: 'Survive Wave 25 in Downtown', tier: 'EPIC' },
-  hazmat_scout: { id: 'hazmat_scout', type: 'op', name: 'Biohazard Scout', ci: 2, col: '#84cc16', ac: '#4d7c0f', hm: '#365314', vz: '#a3e635', pk: '#1a2e05', desc: 'Chemical containment suit with toxin filter respirator.', tagCol: '#84cc16', how: 'Survive Wave 15 in Toxic Swamp', tier: 'RARE' },
-  arctic_commando: { id: 'arctic_commando', type: 'op', name: 'Arctic Frost', ci: 1, col: '#38bdf8', ac: '#0369a1', hm: '#0c4a6e', vz: '#7dd3fc', pk: '#082f49', desc: 'Sub-zero insulated tactical armor with frost-resistant optics.', tagCol: '#38bdf8', how: 'Survive Wave 15 in Frozen Peak', tier: 'RARE' },
-  desert_infantry: { id: 'desert_infantry', type: 'op', name: 'Desert Vanguard', ci: 0, col: '#eab308', ac: '#a16207', hm: '#713f12', vz: '#fde047', pk: '#422006', desc: 'Dune-camo heavy field uniform with sandstorm goggles.', tagCol: '#eab308', how: 'Survive Wave 15 in Dust Bowl', tier: 'COMMON' },
-  blood_hunter: { id: 'blood_hunter', type: 'op', name: 'Crimson Hunter', ci: 0, col: '#ef4444', ac: '#991b1b', hm: '#450a0a', vz: '#f87171', pk: '#2d0606', desc: 'Ceremonial crimson battle armor worn by veteran zombie slayers.', tagCol: '#ef4444', how: 'Survive 50 Total Cumulative Waves', tier: 'EPIC' },
+  ghost_specops: { id: 'ghost_specops', type: 'op', name: 'Ghost Recon', ci: 4, col: '#00e5ff', ac: '#334155', hm: '#1e293b', vz: '#00e5ff', pk: '#0f172a', desc: 'Shadow stealth armor with thermal scanning cyan visor.', tagCol: '#00e5ff', how: 'Clear Wave 6 in all 7 sectors', tier: 'LEGENDARY', rf: () => sectorCount(), rg: 7 },
+  cyber_juggernaut: { id: 'cyber_juggernaut', type: 'op', name: 'Cyber Enforcer', ci: 3, col: '#f59e0b', ac: '#b45309', hm: '#78350f', vz: '#fbbf24', pk: '#451a03', desc: 'Reinforced cybernetic exo-suit with high-voltage visor.', tagCol: '#f59e0b', how: 'Survive Wave 25 in Downtown', tier: 'EPIC', rf: () => sectorBest('Downtown'), rg: 25 },
+  hazmat_scout: { id: 'hazmat_scout', type: 'op', name: 'Biohazard Scout', ci: 2, col: '#84cc16', ac: '#4d7c0f', hm: '#365314', vz: '#a3e635', pk: '#1a2e05', desc: 'Chemical containment suit with toxin filter respirator.', tagCol: '#84cc16', how: 'Survive Wave 15 in Toxic Swamp', tier: 'RARE', rf: () => sectorBest('Toxic Swamp'), rg: 15 },
+  arctic_commando: { id: 'arctic_commando', type: 'op', name: 'Arctic Frost', ci: 1, col: '#38bdf8', ac: '#0369a1', hm: '#0c4a6e', vz: '#7dd3fc', pk: '#082f49', desc: 'Sub-zero insulated tactical armor with frost-resistant optics.', tagCol: '#38bdf8', how: 'Survive Wave 15 in Frozen Peak', tier: 'RARE', rf: () => sectorBest('Frozen Peak'), rg: 15 },
+  desert_infantry: { id: 'desert_infantry', type: 'op', name: 'Desert Vanguard', ci: 0, col: '#eab308', ac: '#a16207', hm: '#713f12', vz: '#fde047', pk: '#422006', desc: 'Dune-camo heavy field uniform with sandstorm goggles.', tagCol: '#eab308', how: 'Survive Wave 15 in Dust Bowl', tier: 'COMMON', rf: () => sectorBest('Dust Bowl'), rg: 15 },
+  blood_hunter: { id: 'blood_hunter', type: 'op', name: 'Crimson Hunter', ci: 0, col: '#ef4444', ac: '#991b1b', hm: '#450a0a', vz: '#f87171', pk: '#2d0606', desc: 'Ceremonial crimson battle armor worn by veteran zombie slayers.', tagCol: '#ef4444', how: 'Survive 50 Total Cumulative Waves', tier: 'EPIC', rk: 'waves', rg: 50 },
 
   // Milestone skins - unlocked automatically by the rule engine in
   // engine_meta.js (rk = lifetime stat key, rg = goal, rf = custom counter).
@@ -3232,7 +3236,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v1.1.0 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v2.0.1 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -4111,7 +4115,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v1.1.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v2.0.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -5990,7 +5994,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v1.1.0 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v2.0.1 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -6617,7 +6621,7 @@ function resetCharacterIconCache() {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v1.1.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v2.0.1 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -7044,7 +7048,86 @@ function drawZombie(z) {
     }
   }
   // ARCHETYPE 4: BRUTE (Armored Heavy Behemoth)
-  else if (z.t === 'brute' || z.t === 'tank') {
+  else if (z.t === 'brute') {
+    // BRUTE - the heavy butcher. It used to be drawn with the tank sprite (ZT
+    // even aliases the two), so the name on the sector cards and the wave-5 boss
+    // banner had no silhouette of its own. Hunched back plates, an iron jaw cage
+    // and one overgrown cleaver arm give it one.
+    const hideCol = fc || (z.el ? '#a2603c' : '#5b4636');
+    const plateCol = fc || '#2b2622';
+    const step = Math.sin(z.ph * 1.5) * 2.2;
+
+    // Hunched back mass, carried behind the body
+    X.fillStyle = fc || '#241d18';
+    X.beginPath(); X.ellipse(-r * 0.42, 0, r * 1.0, r * 0.78, 0, 0, 6.28); X.fill();
+
+    // Spined back plates
+    X.fillStyle = plateCol;
+    for (let k = 0; k < 3; k++) {
+      X.beginPath();
+      X.roundRect(-r * 0.95 + k * r * 0.36, -r * (0.52 - k * 0.06), r * 0.3, r * (1.04 - k * 0.12), 2);
+      X.fill();
+    }
+    X.strokeStyle = fc || '#4a4038'; X.lineWidth = 1.4;
+    X.beginPath(); X.moveTo(-r * 0.95, -r * 0.3); X.lineTo(-r * 0.1, -r * 0.34); X.stroke();
+
+    // Torso
+    X.fillStyle = hideCol;
+    X.beginPath(); X.ellipse(-r * 0.05, 0, r * 0.88, r * 0.72, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#1a1512'; X.lineWidth = 2.6; X.stroke();
+
+    // Rib work, plus an open wound once it is hurt
+    X.strokeStyle = fc || '#31281f'; X.lineWidth = 1.6;
+    X.beginPath();
+    X.moveTo(-r * 0.5, -r * 0.28); X.lineTo(r * 0.25, -r * 0.2);
+    X.moveTo(-r * 0.5, 0); X.lineTo(r * 0.3, 0);
+    X.moveTo(-r * 0.5, r * 0.28); X.lineTo(r * 0.25, r * 0.2);
+    X.stroke();
+    if (isDamaged && !fc) {
+      X.fillStyle = '#7d2320';
+      X.beginPath(); X.ellipse(-r * 0.1, r * 0.18, r * 0.3, r * 0.16, 0, 0, 6.28); X.fill();
+    }
+
+    // Cleaver arm (upper) - oversized, swings with the stride
+    X.strokeStyle = fc || '#2a221c'; X.lineWidth = 8; X.lineCap = 'round';
+    X.beginPath();
+    X.moveTo(-r * 0.1, -r * 0.55);
+    X.lineTo(r * 0.55 + step, -r * 0.85);
+    X.stroke();
+    X.fillStyle = fc || '#9aa0a6';
+    X.beginPath();
+    X.moveTo(r * 0.5 + step, -r * 1.15);
+    X.lineTo(r * 1.15 + step, -r * 0.95);
+    X.lineTo(r * 1.05 + step, -r * 0.35);
+    X.lineTo(r * 0.5 + step, -r * 0.6);
+    X.closePath(); X.fill();
+    X.strokeStyle = fc || '#5b6167'; X.lineWidth = 1.4; X.stroke();
+
+    // Fist arm (lower)
+    X.fillStyle = hideCol;
+    X.beginPath(); X.arc(r * 0.72 - step, r * 0.62, 8, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#cfd4d8';
+    for (let k = 0; k < 3; k++) X.fillRect(r * 0.86 - step + k * 4, r * 0.5, 3, 4);
+
+    // Low forward head behind an iron jaw cage
+    X.fillStyle = hideCol;
+    X.beginPath(); X.arc(r * 0.5, 0, r * 0.42, 0, 6.28); X.fill();
+    X.fillStyle = fc || '#161210';
+    X.beginPath(); X.ellipse(r * 0.74, 0, r * 0.24, r * 0.26, 0, 0, 6.28); X.fill();
+    X.strokeStyle = fc || '#8d949b'; X.lineWidth = 1.6;
+    for (let k = -1; k <= 1; k++) {
+      X.beginPath(); X.moveTo(r * 0.62, k * r * 0.16); X.lineTo(r * 0.92, k * r * 0.13); X.stroke();
+    }
+    X.fillStyle = fc || '#ffb347';
+    X.beginPath();
+    X.arc(r * 0.6, -r * 0.18, 2.6, 0, 6.28);
+    X.arc(r * 0.6, r * 0.18, 2.6, 0, 6.28);
+    X.fill();
+    X.fillStyle = fc || '#5b3a12';
+    X.fillRect(r * 0.56, -r * 0.25, 5, 2);
+    X.fillRect(r * 0.56, r * 0.11, 5, 2);
+  }
+  else if (z.t === 'tank') {
     const skinCol = fc || (z.el ? '#8a6230' : '#4a3f36');
     const armorCol = fc || '#24201c';
 
@@ -7586,7 +7669,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v1.1.0 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v2.0.1 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -7964,7 +8047,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v1.1.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v2.0.1 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -8503,7 +8586,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v1.1.0 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v2.0.1 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -9778,7 +9861,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v1.1.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v2.0.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -10320,7 +10403,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v1.1.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v2.0.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -10333,7 +10416,10 @@ let S = null;
 // which could sit on top of the perk draft; now the wave-clear is a short
 // non-interactive pause and the perk draft is the only thing that can take the
 // screen. WAVE_CLEAR_T counts down in loop() because run is 0 meanwhile.
-let WAVE_CLEAR_T = 0, pendingNextWave = 0;
+// DRAFT_DELAY_T lets a boss death play out on screen before the draft covers the
+// arena: while it is running the wave countdown is held, so the delay can never
+// let the next wave start early.
+let WAVE_CLEAR_T = 0, pendingNextWave = 0, DRAFT_DELAY_T = 0;
 
 const K = {};
 const M = { x: 0, y: 0, down: 0, moved: 0 };
@@ -10887,6 +10973,7 @@ function init() {
 function startWave() {
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
+  DRAFT_DELAY_T = 0;
   run = 1;
   // Banked between-wave heal lands here, after the boon draft has been resolved.
   if (S.waveHeal > 0 && P && P.hp > 0) {
@@ -10958,7 +11045,26 @@ function bossPhaseBreak(z, n) {
   burst(z.x, z.y, (ZT[z.t] || ZT.boss).col, 22, 4, 150, 1);
   if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 78, d: ((ZT[z.t] || ZT.boss).dm || 32) * 0.9 });
   if (typeof announce === 'function') announce('PHASE ' + n + ' BROKEN', '#ff5a3a', 'the husk is venting', 2);
-  if (typeof snd === 'function') snd(130, 0.5, 'sawtooth', 0.1, 0.6);
+  // Per-boss phase roar. Every boss used to bark the same 130 Hz sawtooth, which
+  // on a phone speaker is a buzz, not a monster. Each variant now gets its own
+  // layered cue and the brute - the one people fight first - gets a growl with
+  // real low-end plus a noise chest.
+  if (typeof snd === 'function') {
+    if (bv === 0) {
+      snd(185, 0.55, 'sawtooth', 0.09, 0.3);
+      if (typeof noise === 'function') noise(0.34, 0.1);
+      setTimeout(() => snd(92, 0.5, 'square', 0.07, 0.45), 110);
+    } else if (bv === 1) {
+      snd(300, 0.5, 'triangle', 0.08, 3.1);
+      setTimeout(() => snd(210, 0.45, 'sine', 0.06, 2.4), 140);
+    } else if (bv === 2) {
+      snd(240, 0.6, 'sawtooth', 0.07, 2.6);
+      if (typeof noise === 'function') noise(0.4, 0.13);
+    } else {
+      snd(260, 0.3, 'square', 0.08, 0.7);
+      setTimeout(() => snd(130, 0.5, 'square', 0.09, 0.6), 90);
+    }
+  }
   addShake(11);
   if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, 0.07);
 }
@@ -11043,6 +11149,20 @@ function spawn(t) {
     aff: el ? (Math.random() * ELITE_AFFIX.length | 0) : -1,
     cgT: 0
   });
+
+  // Boss entrance. A wave boss used to appear with no cue at all - the health
+  // bar was the first sign. Announce the name and give every variant its own
+  // roar (the BRUTE gets the deepest one).
+  if (t === 'boss') {
+    const bvv = ((S.wave / 5 | 0) - 1) % 4;
+    if (typeof announce === 'function') announce((typeof BN !== 'undefined' && BN[bvv]) ? BN[bvv] : 'BOSS', '#ff5a3a', 'heavy signature inbound', 1.6);
+    if (typeof snd === 'function') {
+      snd(bvv === 0 ? 118 : 210, 0.7, 'sawtooth', 0.08, 2.6);
+      if (typeof noise === 'function') noise(0.5, 0.09);
+      setTimeout(() => snd(bvv === 0 ? 74 : 160, 0.6, 'square', 0.08, 0.5), 150);
+    }
+    addShake(7);
+  }
 }
 
 function fire() {
@@ -11277,6 +11397,10 @@ function killZ(z, src, hitAngle, isCrit, wi) {
     S.pend++;
     S.ts = 'BOSS DOWN! +POWER';
     S.tt = 3;
+    // Marks the wave-clear beat so the draft waits for the corpse to land, and
+    // slows the world for a beat so the kill is seen.
+    S.bossJustDied = 1;
+    BOSS_SLOWMO_T = 0.45;
     const un = AR.map((a, i) => i).filter(i => !SV.ar.includes(i));
     if (un.length) {
       const i = un[Math.floor(Math.random() * un.length)];
@@ -11799,6 +11923,7 @@ function returnToLobby() {
   run = 0;
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
+  DRAFT_DELAY_T = 0;
   if (typeof releaseAllInputs === 'function') releaseAllInputs();
   ['pause', 'perk', 'over', 'gunpick', 'boondraft'].forEach(id => {
     const el = document.getElementById(id);
@@ -12337,10 +12462,17 @@ function update(dt) {
           burst(z.x, z.y, '#ff8a3a', 22, 5, 170, 1);
           if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 90, d: damage * 2.2 });
           addShake(9);
-          if (typeof snd === 'function') snd(90, 0.4, 'square', 0.09, 0.7);
+          // Slam: pitch-dropping thud + noise crack + sub tail. The old 90 Hz
+          // square was inaudible mush on a phone speaker and read as a fault.
+          if (typeof snd === 'function') snd(165, 0.26, 'triangle', 0.12, 0.3);
+          if (typeof noise === 'function') noise(0.22, 0.12);
+          setTimeout(() => { if (typeof snd === 'function') snd(62, 0.34, 'sine', 0.11, 0.55); }, 40);
         } else if (z.bw <= 0 && dd < 620 && dd > 120 && los && !(P.dash > 0)) {
           z.ch = 0.7;
-          if (typeof snd === 'function') snd(120, 0.3, 'sawtooth', 0.06, 0.9);
+          // Charge telegraph: a rising growl (150 -> ~345 Hz) carries on a tiny
+          // speaker where the old falling 120 Hz sawtooth did not.
+          if (typeof snd === 'function') snd(150, 0.45, 'sawtooth', 0.07, 2.3);
+          if (typeof noise === 'function') noise(0.28, 0.05);
         }
       } else if (bv === 1) {
         // NECROMANCER - raises a pair of walkers on a timer.
@@ -13104,6 +13236,8 @@ function loop(t) {
   // resume.
   SH *= Math.pow(0.88, dt * 45);
   if (SH < 0.05) SH = 0;
+  // Presentation timers run on real frame time, not the simulation clock.
+  if (BOSS_SLOWMO_T > 0) BOSS_SLOWMO_T = Math.max(0, BOSS_SLOWMO_T - dt);
   if (S && S.nukeFlash > 0) S.nukeFlash = Math.max(0, S.nukeFlash - dt);
   if (typeof annUpdate === 'function') annUpdate(dt);
 
@@ -13131,8 +13265,24 @@ function loop(t) {
   // Between-wave beat. update() does not run while run is 0, so the countdown
   // has to live here; the perk draft holds it off until the player has chosen.
   if (!run && pendingNextWave && S && !S.po && !S.bd && !S.gp && P && P.hp > 0) {
-    WAVE_CLEAR_T -= dt;
-    if (WAVE_CLEAR_T <= 0) startWave();
+    // Corpse animations are pure presentation and sit inside update(), which run
+    // = 0 has just switched off. Step them here or the kill freezes mid-collapse
+    // the instant the wave ends - which is what hid every boss death. Scaled by
+    // the same clock the arena would have used, so a dying boss slows with it.
+    if (typeof updateDyingZombies === 'function') {
+      updateDyingZombies(dt * (typeof directorTimeScale === 'function' ? directorTimeScale() : 1));
+    }
+    if (DRAFT_DELAY_T > 0) {
+      DRAFT_DELAY_T -= dt;
+      if (DRAFT_DELAY_T <= 0) {
+        DRAFT_DELAY_T = 0;
+        WAVE_CLEAR_T = 0.45; // same respite the draft normally opens with
+        openNextDraft();
+      }
+    } else {
+      WAVE_CLEAR_T -= dt;
+      if (WAVE_CLEAR_T <= 0) startWave();
+    }
   }
 
   if (S) {
@@ -13181,13 +13331,21 @@ function endWave() {
   // arena for another two seconds after they pick it read as a freeze.
   pendingNextWave = 1;
   const draftQueued = !!(S && ((S.boonOffer && S.boonOffer.length) || S.pend > 0));
-  WAVE_CLEAR_T = draftQueued ? 0.45 : 1.4;
+  // A boss kill earns a longer beat. The draft used to open on the same frame as
+  // the corpse animation, so a full-screen draft covered the arena and the boss
+  // was never actually seen going down. The delay (not the open) is what runs
+  // first; the wave countdown is held for its duration in loop().
+  const bossBeat = (S && S.bossJustDied) ? 1.2 : 0;
+  if (S) S.bossJustDied = 0;
+  WAVE_CLEAR_T = Math.max(draftQueued ? 0.45 : 1.4, bossBeat);
   run = 0;
   if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
   if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound', 2, 'wave');
   // One draft at a time: the boon draft first, then the perk draft. Chained so
-  // a wave clear never shows two power-up screens together.
-  openNextDraft();
+  // a wave clear never shows two power-up screens together. A boss wave holds
+  // the draft back until its collapse has played (see DRAFT_DELAY_T).
+  if (bossBeat > 0 && draftQueued) DRAFT_DELAY_T = bossBeat;
+  else openNextDraft();
 }
 
 function rebuild() {
@@ -14366,7 +14524,7 @@ function drawControls() {
 
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v1.1.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v2.0.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -14702,7 +14860,13 @@ function directorUpdate(dt) {
   if (typeof fxUpdate === 'function') fxUpdate(dt);
 }
 
+// Boss-death slow motion. A presentation timer only: it is ticked on real frame
+// time and bends the simulation clock for a beat, so the kill that ends a wave
+// reads as an event rather than just a number dropping to zero.
+let BOSS_SLOWMO_T = 0;
+
 function directorTimeScale() {
+  if (BOSS_SLOWMO_T > 0) return 0.42;
   return (S && S.bt > 0) ? 0.35 : 1;
 }
 
@@ -14812,7 +14976,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v1.1.0 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v2.0.1 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -15066,6 +15230,28 @@ function achReady() {
 // Skins carrying rk/rg (lifetime stat + goal) or rf (custom counter) unlock
 // themselves the moment their condition is met, evaluated on every lobby
 // refresh. Reward-gated event/login skins are untouched by this system.
+// Sector/class rule helpers. Both look their subject up by name so a reshuffle
+// of MP or CL cannot silently point a skin at the wrong sector, and both read
+// the per-sector record the run settlement writes (SV.lt.maps, keyed by sector
+// index). No new save field: the record already existed, nothing consumed it.
+function sectorBest(name) {
+  if (typeof MP === 'undefined' || typeof SV === 'undefined' || !SV) return 0;
+  const i = MP.findIndex(m => m && m.n === name);
+  if (i < 0) return 0;
+  return ((SV.lt && SV.lt.maps) || {})[i] || 0;
+}
+
+function sectorCount() {
+  if (typeof SV === 'undefined' || !SV || !SV.lt || !SV.lt.maps) return 0;
+  return Object.keys(SV.lt.maps).length;
+}
+
+function classOwned(name) {
+  if (typeof CL === 'undefined' || typeof SV === 'undefined' || !SV) return 0;
+  const i = CL.findIndex(c => c && c.n === name);
+  return (i >= 0 && SV.ucl && SV.ucl[i]) ? 1 : 0;
+}
+
 function skinRuleState(k) {
   const s = (typeof SKINS !== 'undefined') ? SKINS[k] : null;
   if (!s || (!s.rk && !s.rf)) return null;
@@ -15265,7 +15451,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v1.1.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v2.0.1 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 // Announcer queue (screen-space banners).
 //
@@ -15718,7 +15904,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v1.1.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v2.0.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -16057,6 +16243,9 @@ function tab(i) {
     target.style.animation = 'none'; void target.offsetWidth; target.style.animation = '';
     setTimeout(() => target.querySelectorAll('.grid').forEach(staggerIn), 0);
   }
+  // Micro-detail: tabs used to change in silence, which made the hub feel like a
+  // static page rather than a shell you move around in.
+  if (typeof snd === 'function') snd(i === 3 ? 620 : 480, 0.07, 'triangle', 0.035, 1.6);
 
   if (i !== 3 && typeof TURNTABLE_RAF !== 'undefined' && TURNTABLE_RAF) {
     cancelAnimationFrame(TURNTABLE_RAF);
@@ -16415,39 +16604,68 @@ function relicIcon(i) {
   return RI[i] = cv.toDataURL();
 }
 
+// One line that states what is actually equipped. The count alone ("Equipped
+// 0/2") could not be told apart from a dead panel, which is exactly how the tab
+// was read before it re-rendered itself.
+function relicCountLine() {
+  const eq = Array.isArray(SV.eq) ? SV.eq : [];
+  const names = eq.map(i => AR[i] && AR[i][0]).filter(Boolean);
+  return `Equipped ${eq.length}/2 • ` + (names.length ? names.join(' + ') : 'Bosses drop relics, or buy one here');
+}
+
 function relics() {
   const rcnt = document.getElementById('rcnt');
-  if (rcnt) rcnt.textContent = `Equipped ${(SV.eq || []).length}/2 • Bosses drop relics`;
+  if (rcnt) rcnt.textContent = relicCountLine();
   const art = document.getElementById('art');
   if (!art) return;
 
   art.innerHTML = AR.map((a, i) => {
     const o = SV.ar && SV.ar.includes(i), e = SV.eq && SV.eq.includes(i);
+    const full = !e && SV.eq && SV.eq.length >= 2;
     return `<div class="card" style="display:flex;align-items:center;gap:10px;border-color:${e ? '#8fae4a' : '#3a4128'}">
       <img src="${relicIcon(i)}" style="width:48px;height:48px;flex-shrink:0;border-radius:6px;border:1px solid ${a[4]}55">
       <div style="flex:1;min-width:0">
         <b style="color:${a[4]};margin-bottom:2px">${a[0]}</b>
         <span style="display:block;opacity:.85;font-size:11.5px;line-height:1.25">${a[1]}</span>
+        ${e ? '<span style="display:block;margin-top:3px;font-size:10px;font-weight:800;color:#8fae4a">● ACTIVE THIS RUN</span>' : ''}
       </div>
-      <button data-a="${i}" ${(!o && a[2] > SV.cr) ? 'disabled' : ''} style="flex-shrink:0;min-width:80px;padding:6px 10px">
+      <button data-a="${i}" ${(!o && a[2] > SV.cr) ? 'disabled' : ''} style="flex-shrink:0;min-width:80px;padding:6px 10px${full ? ';opacity:.6' : ''}">
         ${o ? (e ? 'EQUIPPED' : 'EQUIP') : `BUY ${a[2]}`}
       </button>
     </div>`;
   }).join('');
 
   art.onclick = e => {
-    const b = e.target.closest('button');
-    if (!b) return;
+    const b = e.target.closest ? e.target.closest('button') : null;
+    if (!b || b.disabled) return;
     const i = +b.dataset.a;
+    let msg = '';
     if (SV.ar.includes(i)) {
       const k = SV.eq.indexOf(i);
-      if (k >= 0) SV.eq.splice(k, 1);
-      else if (SV.eq.length < 2) SV.eq.push(i);
+      if (k >= 0) { SV.eq.splice(k, 1); snd(300, 0.12, 'triangle', 0.05, 1.6); }
+      else if (SV.eq.length < 2) { SV.eq.push(i); snd(620, 0.14, 'sine', 0.06, 1.5); }
+      else { msg = 'SLOTS FULL — unequip a relic first'; snd(170, 0.22, 'square', 0.08, 0.7); }
     } else if (AR[i] && AR[i][2] <= SV.cr) {
-      if (transactMetaCredits(AR[i][2], 'relic_' + i)) SV.ar.push(i);
+      if (transactMetaCredits(AR[i][2], 'relic_' + i)) {
+        SV.ar.push(i);
+        // Two-tone purchase: the tab used to buy in total silence.
+        snd(760, 0.14, 'triangle', 0.07, 1.5);
+        setTimeout(() => snd(1180, 0.12, 'sine', 0.05, 1.4), 70);
+      }
+    } else {
+      snd(170, 0.22, 'square', 0.08, 0.7);
     }
     sv();
     lobby();
+    // Re-render the tab itself: sv()/lobby() only refresh the header, so the
+    // card labels and the equipped counter used to keep showing pre-click state
+    // and the whole section read as frozen.
+    relics();
+    if (msg) {
+      const rc = document.getElementById('rcnt');
+      if (rc) rc.textContent = msg;
+      setTimeout(() => { const r2 = document.getElementById('rcnt'); if (r2) r2.textContent = relicCountLine(); }, 1600);
+    }
   };
 }
 
@@ -17029,7 +17247,7 @@ function showDeployScreen(title, sub, kicker, onReady) {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v1.1.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v2.0.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 /* ================================================================== */
 // UI ACTIONS
@@ -17145,7 +17363,7 @@ addEventListener('mouseup', () => { M.down = 0; });
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '1.1.0';
+const GAME_VERSION = '2.0.1';
 
 ld();
 init();
