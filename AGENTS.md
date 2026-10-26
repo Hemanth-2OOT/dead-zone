@@ -307,3 +307,23 @@ outside the viewport, and that each of the 8 `#nav` buttons switches its `#p*` p
 Confirm that element ids 1-8 are `['p0','pe','psk','pc','ps','p2','pa','p3']`.
 The vision tool is not reliable for these screenshots; decode the PNG with Pillow instead.
 
+
+### In-game controls and the maps window (v2.11.0+)
+- Canvas-drawn controls cannot inherit CSS `env()` insets. `saInsets()` in
+  `src_v2/engine_world.js` reads the computed padding of the zero-size `#sa-probe`
+  element instead; `jPos()`, the pause button and the top-right HUD cluster all offset
+  by it. If the HUD is ever added to, use `insetR()`, not a literal `W - n`.
+- Control geometry scales off the shorter viewport edge via `ctlScale()` (0.78-1.2), so a
+  360px-tall phone gets smaller sticks than a 440px one. The touch hit-test radius uses
+  the same factor, so button centres and hit areas cannot drift apart.
+- `#maps` has two conflicting declarations: `display: grid !important` in the lobby
+  section and `display: flex !important` in the swipe-carousel rule below it. The later
+  flex rule wins, which turned the 7 sector tiles into an 836px horizontal strip with 5
+  off-screen and each stretched to 171px tall. `#map-modal #maps` therefore restates
+  `display: grid` and neutralises the carousel's `min-width: 112px` / `flex-basis`.
+  Verify with the tile box, not the container: assert `scrollWidth == clientWidth`,
+  `scrollHeight == clientHeight`, and that no tile rect escapes the `#maps` box.
+- `returnToLobby()` clears the entity arrays. `init()` would clear them on the next
+  deploy anyway, but the lobby must not sit on a half-live world.
+- `openPerk()` carries the same "the lobby is not a gameplay state" guard as
+  `openNextDraft()`: a leftover level-up must never raise a draft over `#start`.
