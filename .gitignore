@@ -17,6 +17,9 @@ android/captures/
 # scratch verification harnesses (regenerated from www/index.html by the generators in /tmp)
 www/_*.html
 
+# agent scratch space (generated harnesses, recordings, logs)
+.agent_tmp/
+
 # Release signing material — never commit
 android/app/release.keystore
 android/app/keystore.properties

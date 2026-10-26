@@ -37,3 +37,41 @@ warns; never publish an APK built that way.
 > therefore remain in its *history*. The configuration is now fixed, but the old key should be
 > considered compromised — rotate it (`keytool -genkeypair`) if this repo is ever shared, and
 > accept that rotating means existing installs can no longer update in place.
+
+## Versioning
+
+The release line restarts at **v1.0.0**. Every release before it was deleted (tags and GitHub
+releases) so the repository has one clean starting point instead of a 2.x history carried over from
+an earlier, unreleased iteration. Tags are `vMAJOR.MINOR.PATCH`.
+
+Version lives in four places and `npm run audit` fails the build if they disagree:
+`package.json`, `src_v2/engine_bootstrap.js` (`GAME_VERSION`), and
+`android/app/build.gradle` (`versionCode` + `versionName`) — plus the `// DEAD ZONE vX.Y.Z` headers in
+`src_v2/*.js`.
+
+## Checks
+
+```
+npm install
+npm run build        # src_v2/* -> www/index.html (+ android/app/src/main/assets/public)
+npm run audit        # versions, tracked secrets, weapon tiers, skin indices, dead code
+npm run test:logic   # tier policy, skin indices, save sanitiser, save round-trip, quota guard
+npm test             # build + audit + logic tests, in that order
+npm run harness      # writes .agent_tmp/harness.html - browser regression harness (130 assertions)
+```
+
+`npm test` needs nothing but Node. The browser harness needs a browser: build it, then open
+`.agent_tmp/harness.html` from a static server rooted at `www/` (any headless browser works). It
+drives the shipped bundle and checks the Skins tab, HUD overlap at four landscape sizes, projectile
+lengths, collision from eight directions at two speeds, and pause/resume.
+
+## Releasing
+
+1. Bump the version in the four places listed above.
+2. `npm test` — the release workflow runs the same audit and refuses to publish a tree that fails it.
+3. Commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. The **Release APK** workflow builds, signs and verifies the APK, and attaches
+   `dead-zone-vX.Y.Z.apk` plus `dead-zone-vX.Y.Z-source.zip` (generated with `git archive`, so it
+   cannot contain build output, `node_modules` or the keystore) to the GitHub release.
+
+A push to `main` runs the **CI** workflow: build, audit, logic tests.

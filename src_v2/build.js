@@ -32,6 +32,7 @@ const jsModules = [
   'engine_feel.js',
   'engine_passives.js',
   'engine_world.js',
+  'engine_hud.js',
   'engine_director.js',
   'engine_meta.js',
   'engine_fx.js',
@@ -50,10 +51,14 @@ jsModules.forEach(modName => {
   // All modules are concatenated into ONE script scope, so a duplicate
   // top-level function/class name silently wins by load order instead of
   // erroring. Catch that at build time.
-  const re = /^(?:function|class)\s+([A-Za-z_$][\w$]*)/gm;
+  // `const`/`let` at column 0 too: a duplicated const is a hard SyntaxError once
+  // the modules are concatenated, and the V8 check below reports it as a bare
+  // "Identifier 'X' has already been declared" with no indication of which
+  // modules collided.
+  const re = /^(?:function|class)\s+([A-Za-z_$][\w$]*)|^(?:const|let|var)\s+([A-Za-z_$][\w$]*)/gm;
   let m;
   while ((m = re.exec(content)) !== null) {
-    const name = m[1];
+    const name = m[1] || m[2];
     if (topLevelDecls.has(name)) collisions.push(`${name} (${topLevelDecls.get(name)} -> ${modName})`);
     else topLevelDecls.set(name, modName);
   }

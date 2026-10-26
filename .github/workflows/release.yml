@@ -23,6 +23,13 @@ jobs:
       - name: Build web bundle
         run: node src_v2/build.js
 
+      # A release must never ship a tree that fails its own audit. The audit checks
+      # that the version in package.json, engine_bootstrap.js and build.gradle
+      # agree, that no signing material is tracked, that the weapon tiers and skin
+      # indices are consistent, and that nothing is dead.
+      - name: Audit and logic tests
+        run: npm run test:logic && npm run audit
+
       - run: npm install
       - run: npx cap sync android
 
@@ -55,10 +62,18 @@ jobs:
           BT=$(ls -d "${ANDROID_SDK_ROOT:-$ANDROID_HOME}"/build-tools/* | sort -V | tail -1)
           "$BT/apksigner" verify --print-certs "$APK"
 
-      - name: Stage artifact
-        run: cp android/app/build/outputs/apk/release/app-release.apk "dead-zone-${GITHUB_REF_NAME}.apk"
+      - name: Stage artifacts
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "dead-zone-${GITHUB_REF_NAME}.apk"
+          # Source archive straight from the tagged commit, so it can never contain
+          # build output, node_modules or the keystore.
+          git archive --format=zip --prefix="dead-zone-${GITHUB_REF_NAME}/" \
+            -o "dead-zone-${GITHUB_REF_NAME}-source.zip" "$GITHUB_REF_NAME"
+          ls -l dead-zone-*
 
       - uses: softprops/action-gh-release@v3
         with:
-          files: dead-zone-*.apk
+          files: |
+            dead-zone-*.apk
+            dead-zone-*-source.zip
           generate_release_notes: true

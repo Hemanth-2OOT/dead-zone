@@ -236,14 +236,6 @@ function spawnGroundDecal(x, y, vx, vy, r, col, rimCol, type) {
 }
 
 // Bakes or recycles oldest settled decals smoothly without permanent clutter
-function bakeDecalsToBackground(count) {
-  if (DEC.length > count) {
-    for (let i = 0; i < count; i++) {
-      if (DEC[i]) DEC[i].l = Math.min(DEC[i].l, 1.0);
-    }
-  }
-}
-
 // Spawns a bloody footprint when walking through blood
 function spawnFootprint(x, y, angle, side, col) {
   if (!isGoreEnabled()) return;

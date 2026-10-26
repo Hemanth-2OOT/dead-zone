@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v1.0.0 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -171,6 +171,13 @@ function bodyFront(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV
   X.restore();
 }
 
+// Run clock for cosmetic animation inside the player/gun sprites. The lobby
+// draws these same sprites for skin previews long before begin() exists, and S
+// is null until then, so every animated detail has to survive a missing run.
+function runClock() {
+  return (typeof S !== 'undefined' && S && typeof S.t === 'number') ? S.t : 0;
+}
+
 // 4-LAYER GUN SPRITE RENDERING
 function gun(i, rc) {
   if (i == null || typeof i !== 'number' || i < 0 || i > WEAP.length - 1 || isNaN(i)) i = 0;
@@ -255,7 +262,7 @@ function gun(i, rc) {
     bx(10, 3, 6, 8, DK); q(14, -5, 3, 2, '#bbb'); q(50, -4, 4, 5, '#222'); q(18, -11, 2, 1, '#fff7');
   } else if (i === 4) {
     // 4: Heavy Minigun (6-Barrel Gatling)
-    const ph = fl ? (S.t || 0) * 45 : 0;
+    const ph = fl ? runClock() * 45 : 0;
     bx(-10, -5, 6, 10, DK);
     bx(-4, -9, 16, 18, '#555');
     for (let k = 0; k < 3; k++) q(-2 + k * 4, -9, 1, 18, '#0004');
@@ -311,7 +318,7 @@ function gun(i, rc) {
     ln(38, 2, 32, 11, '#111'); ln(41, 2, 47, 11, '#111'); bx(8, 3, 6, 6, DK);
   } else if (i === 8) {
     // 8: Plasma Cannon (Ionized Energy Blaster)
-    const a = 0.6 + Math.sin((S.t || 0) * 8) * 0.3;
+    const a = 0.6 + Math.sin(runClock() * 8) * 0.3;
     bx(0, -6, 22, 12, '#4b5563');
     for (let k = 0; k < 3; k++) q(3 + k * 6, -6, 2, 12, '#0004');
     bx(22, -6, 18, 2, '#6a7a8a');
@@ -356,7 +363,7 @@ function gun(i, rc) {
     bx(-6, -8, 14, 14, WD); pg([[-6, -8], [-14, -3], [-14, 5], [-6, 6]], DK);
     bx(8, -8, 20, 16, '#3a4234');
     for (let k = 0; k < 6; k++) {
-      const a = k * 1.047 + (fl ? (S.t || 0) * 20 : 0);
+      const a = k * 1.047 + (fl ? runClock() * 20 : 0);
       q(18 + Math.cos(a) * 5 - 2, Math.sin(a) * 5 - 2, 4, 4, '#1a1f16');
       q(18 + Math.cos(a) * 5 - 1, Math.sin(a) * 5 - 1, 2, 2, '#d9b84a');
     }
@@ -364,7 +371,7 @@ function gun(i, rc) {
     pg([[4, 6], [10, 6], [8, 14], [2, 14]], DK);
   } else if (i === 13) {
     // 13: Cryo Cannon (Liquid Nitrogen Projector)
-    const cGlow = 0.7 + Math.sin((S.t || 0) * 10) * 0.3;
+    const cGlow = 0.7 + Math.sin(runClock() * 10) * 0.3;
     bx(-6, -8, 18, 16, '#223242'); bx(12, -7, 28, 14, '#2e4254');
     X.fillStyle = '#8fe3ff'; X.globalAlpha = ga * cGlow;
     bx(14, -10, 22, 3, '#5ac8e8'); bx(14, 7, 22, 3, '#5ac8e8');
@@ -377,7 +384,7 @@ function gun(i, rc) {
     bx(-8, -9, 22, 18, '#141922'); bx(14, -7, 16, 14, '#1c2432');
     bx(30, -8, 44, 4, '#2a3548'); bx(30, 4, 44, 4, '#2a3548');
     bx(74, -9, 6, 18, '#111720');
-    const rGlow = 0.6 + Math.sin((S.t || 0) * 15) * 0.4;
+    const rGlow = 0.6 + Math.sin(runClock() * 15) * 0.4;
     X.fillStyle = '#00f0ff'; X.globalAlpha = ga * rGlow;
     for (let k = 0; k < 6; k++) q(32 + k * 7, -3, 3, 6, '#00f0ff');
     if (fl || Math.random() < 0.35) {
@@ -481,7 +488,7 @@ function gun(i, rc) {
       const L = (typeof ML !== 'undefined' && ML[i]) ? ML[i] : 34;
       const core = skDef.col || '#94a3b8';
       const dark = skDef.ac || '#1c1917';
-      const pulse = 0.7 + Math.sin(((typeof S !== 'undefined' && S) ? (S.t || 0) : 0) * 8) * 0.3;
+      const pulse = 0.7 + Math.sin(runClock() * 8) * 0.3;
       X.globalAlpha = ga * 0.5;
       X.fillStyle = core;
       X.fillRect(2, -4.5, L * 0.56, 9);

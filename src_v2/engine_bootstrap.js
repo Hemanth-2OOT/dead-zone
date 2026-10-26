@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.0.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;
@@ -68,7 +68,7 @@ if (lobBtn) {
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '2.12.1';
+const GAME_VERSION = '1.0.0';
 
 ld();
 init();
@@ -76,7 +76,7 @@ init();
 // frame, so a player who turned shake off does not see it once more on launch.
 applyVisualSettings();
 lobby();
-{ const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION; }
+{ const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION + (typeof saveWarning === 'function' ? saveWarning() : ''); }
 initGameAssets();
 
 const resBtn = document.getElementById('resume');

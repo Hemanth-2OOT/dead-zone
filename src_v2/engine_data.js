@@ -4,12 +4,12 @@ const WEAP = [
   // `rng` is how far a round actually travels, in pixels: the projectile step
   // converts it to a lifetime via the muzzle velocity, so a pistol no longer
   // throws a slug the length of three screens while a sniper still reaches out.
-  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON', rng: 260 },
+  { n: 'Pistol', d: 20, r: 0.32, sp: 0.055, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON', rng: 260 },
   { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON', rng: 240 },
   { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON', rng: 160 },
   { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE', rng: 380 },
   { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC', rng: 250 },
-  { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON', rng: 330 },
+  { n: 'Revolver', d: 68, r: 0.60, sp: 0.02, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.45, tier: 'COMMON', rng: 330 },
   { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE', rng: 350 },
   { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC', rng: 1150 },
   { n: 'Plasma', d: 34, r: 0.14, sp: 0.025, p: 1, c: 2500, pr: 2, kb: 0.85, mag: 20, rl: 1.5, tier: 'LEGENDARY', rng: 430 },
@@ -32,6 +32,105 @@ const WEAP = [
 // reaches its rank. One new gun every rank or two, so the arsenal still opens
 // up over time without a shop to visit.
 const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,1,8,19,5,10,13,18];
+
+/* ---- Weapon tier policy ------------------------------------------------
+   One table decides what a tier is worth, so the armoury, the HUD and the
+   regression tests share a definition instead of each carrying its own idea of
+   what "EPIC" means. `dps` is *sustained* damage per second with reloads
+   included (the honest number in a survival arena, where every magazine ends in
+   a reload), `shot` is damage per trigger pull for a single-pellet weapon,
+   `mag`/`rl` are the magazine and reload windows, `spread` is the muzzle cone.
+   Bands are nested: every higher tier overlaps the one below it but reaches
+   further, so an upgrade is always an upgrade. */
+const TIER_POLICY = {
+  COMMON:    { dps: [45, 85],   shot: [8, 70],   mag: [6, 24],  rl: [0.9, 1.5], spread: [0, 0.14] },
+  UNCOMMON:  { dps: [65, 125],  shot: [8, 80],   mag: [6, 36],  rl: [1.0, 1.6], spread: [0, 0.25] },
+  RARE:      { dps: [90, 155],  shot: [12, 90],  mag: [5, 30],  rl: [1.1, 1.8], spread: [0, 0.30] },
+  EPIC:      { dps: [95, 185],  shot: [10, 200], mag: [5, 60],  rl: [1.2, 2.1], spread: [0, 0.35] },
+  LEGENDARY: { dps: [115, 200], shot: [13, 350], mag: [3, 50],  rl: [1.3, 2.5], spread: [0, 0.35] }
+};
+
+// Weapons that are defined by breaking their tier's band. Declaring them keeps
+// the validator honest - it still fails on accidental drift, but a deliberate
+// outlier is stated here instead of loosening the band for every other gun.
+const WEAP_TIER_EXCEPTIONS = {
+  4: { fields: ['mag', 'rl'], why: 'Minigun: the 100-round belt and its heavy 2.4s reload are the whole point of the gun' }
+};
+
+// Derived stats for a weapon index. Everything the player is shown about a gun
+// comes from here, so a change to WEAP can never leave the HUD stale.
+function weaponStats(i) {
+  const w = WEAP[i] || WEAP[0];
+  const mag = w.mag || 12;
+  const rl = w.rl || 1.2;
+  const rate = Math.max(0.02, w.r || 0.3);
+  const pellets = w.p || 1;
+  const shot = w.d * pellets;
+  const cycle = mag * rate + rl;
+  return {
+    tier: w.tier || 'COMMON',
+    pellets,
+    mag,
+    reload: rl,
+    rate,
+    spread: w.sp || 0,
+    shot,
+    dps: (mag * shot) / cycle
+  };
+}
+
+// The tier ladder itself: floors and ceilings must rise with the tier, so an
+// upgrade is always an upgrade. Returns [] when the ladder is sound.
+function tierLadderIssues() {
+  const order = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
+  const issues = [];
+  for (let i = 1; i < order.length; i++) {
+    const lo = TIER_POLICY[order[i - 1]], hi = TIER_POLICY[order[i]];
+    if (hi.dps[0] <= lo.dps[0]) issues.push(order[i] + ' dps floor ' + hi.dps[0] + ' does not exceed ' + order[i - 1] + ' ' + lo.dps[0]);
+    if (hi.dps[1] <= lo.dps[1]) issues.push(order[i] + ' dps ceiling ' + hi.dps[1] + ' does not exceed ' + order[i - 1] + ' ' + lo.dps[1]);
+    if (hi.shot[1] <= lo.shot[1]) issues.push(order[i] + ' shot ceiling ' + hi.shot[1] + ' does not exceed ' + order[i - 1] + ' ' + lo.shot[1]);
+  }
+  // The real table has to obey the ladder too: the weakest gun of a tier must
+  // out-perform the weakest gun of the tier below it.
+  const minDps = {};
+  WEAP.forEach((w, i) => {
+    const st = weaponStats(i);
+    minDps[st.tier] = (minDps[st.tier] == null) ? st.dps : Math.min(minDps[st.tier], st.dps);
+  });
+  for (let i = 1; i < order.length; i++) {
+    const a = minDps[order[i - 1]], b = minDps[order[i]];
+    if (a != null && b != null && b <= a) {
+      issues.push('weakest ' + order[i] + ' (' + Math.round(b * 10) / 10 + ' dps) is not stronger than the weakest ' + order[i - 1] + ' (' + Math.round(a * 10) / 10 + ' dps)');
+    }
+  }
+  return issues;
+}
+
+// Every weapon that falls outside its own tier's band. Used by the build-time
+// regression pass so a future stat edit cannot silently break the ladder.
+function weaponTierIssues() {
+  const issues = [];
+  const inBand = (v, b) => v >= b[0] - 1e-9 && v <= b[1] + 1e-9;
+  WEAP.forEach((w, i) => {
+    const st = weaponStats(i);
+    const pol = TIER_POLICY[st.tier];
+    if (!pol) { issues.push({ i, n: w.n, why: 'unknown tier ' + st.tier }); return; }
+    const fields = [
+      ['dps', Math.round(st.dps * 10) / 10],
+      ['shot', st.pellets > 1 ? 0 : w.d],
+      ['mag', st.mag],
+      ['rl', st.reload],
+      ['spread', st.spread]
+    ];
+    for (const [k, v] of fields) {
+      if (k === 'shot' && v === 0) continue;
+      const ex = WEAP_TIER_EXCEPTIONS[i];
+      if (ex && ex.fields.indexOf(k) !== -1) continue;
+      if (!inBand(v, pol[k])) issues.push({ i, n: w.n, tier: st.tier, why: k + ' ' + v + ' outside [' + pol[k] + ']' });
+    }
+  });
+  return issues;
+}
 
 
 const TIER_COLORS = {

@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v1.0.0 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -13,6 +13,7 @@ function bulletArchetype(wi) {
   if (w.ex) return 'rocket';
   if (w.n === 'Railgun') return 'rail';
   if (w.n === 'Sniper' || w.n === 'Crossbow') return 'heavy';
+  if (w.n === 'Revolver') return 'magnum';
   if (w.cl) return 'arc';
   if (w.fz) return 'cryo';
   if ((w.pr || 0) >= 2) return 'energy';
@@ -88,7 +89,9 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
   }
 
   // 3. Shockwave ring for heavy and critical impacts.
-  if (typeof RG !== 'undefined' && (tier >= 2 || isCrit)) {
+  // The revolver's magnum round is a punch, not an explosion: it keeps the ring
+  // only on a crit, where the extra emphasis is earned.
+  if (typeof RG !== 'undefined' && ((tier >= 2 && arch !== 'magnum') || isCrit)) {
     const rgb = isCrit ? '255,240,200' : hexToRgbTriplet(col);
     RG.push({ x, y, r: 4 + tier * 2, l: 0.2 + tier * 0.06, v: 420 + tier * 220, c: rgb });
   }
@@ -116,6 +119,21 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
     }
   } else if (arch === 'rocket' && tier >= 3) {
     if (typeof RG !== 'undefined') RG.push({ x, y, r: 6, l: 0.4, v: 520, c: '255,170,60' });
+  } else if (arch === 'magnum') {
+    // Small and sharp: a tight, fast spark fan along the impact axis with a
+    // short white core flash. A hand cannon should read as a hard punch, not a
+    // blast, so it deliberately gets no shockwave ring (see the ring gate above)
+    // and nothing beyond the shared dust puff.
+    for (let i = 0; i < 5; i++) {
+      const sa2 = a + Math.PI + (Math.random() - 0.5) * 0.55;
+      const sp2 = 190 + Math.random() * 200;
+      F.push({
+        x, y,
+        vx: Math.cos(sa2) * sp2, vy: Math.sin(sa2) * sp2,
+        l: 0.1 + Math.random() * 0.1, c: isCrit ? '#ffffff' : col, s: 1.4, fr: 1
+      });
+    }
+    F.push({ x, y, vx: 0, vy: 0, l: 0.09, c: '#fffdf0', s: 3.4 });
   }
 
   // 5. Hit-stop + screen punch, sized to the hit. HIT_STOP_TIMER was declared
@@ -127,7 +145,7 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
     HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, stop);
   }
   if (typeof QUALITY_SETTINGS !== 'undefined' && QUALITY_SETTINGS.screenShake) {
-    const punch = tier === 3 ? (isCrit ? 9 : 6.5) : tier === 2 ? (isCrit ? 5 : 3.4) : (isCrit ? 2.6 : 1.2);
+    const punch = (tier === 3 ? (isCrit ? 9 : 6.5) : tier === 2 ? (isCrit ? 5 : 3.4) : (isCrit ? 2.6 : 1.2)) * (arch === 'magnum' ? 0.72 : 1);
     addShake(punch);
   }
 }
@@ -142,7 +160,8 @@ function drawBulletDefault(b) {
   const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : null;
   const arch = bulletArchetype(wi);
   const tier = damageTier(w ? w.d : (b.d || 10));
-  const heavy = arch === 'heavy' || arch === 'rail' || tier >= 2;
+  const magnum = arch === 'magnum';
+  const heavy = arch === 'heavy' || arch === 'rail' || magnum || tier >= 2;
   const hot = arch === 'energy' || arch === 'cryo' || arch === 'arc' || arch === 'rocket';
   const baseCol = b.c || bulletColourFor(wi, false);
   // A crit must be readable in flight, not just marginally fatter: it takes the
@@ -156,13 +175,20 @@ function drawBulletDefault(b) {
   // as far as a 240px/s flamer puff.
   const spd = Math.hypot(b.vx, b.vy) || 700;
   const vk = Math.max(0.55, Math.min(1.35, spd / 700));
+  // Hard pixel ceiling per archetype, independent of muzzle velocity. A trail
+  // measured only in time still smears with speed, which is what turned the
+  // revolver's 700px/s round into an 80px streak - longer than the gun that
+  // fired it. The cap is applied as distance/speed, so a fast round and a slow
+  // round of the same archetype smear the same readable distance.
+  const TRAIL_PX = { pellet: 15, flame: 22, tracer: 30, magnum: 26, energy: 34, cryo: 30, arc: 30, heavy: 52, rail: 72, rocket: 38 };
   const base = heavy ? 0.055 : (b.isCrit ? 0.042 : 0.030);
   // Trail time, not trail pixels. The old 0.13s ceiling multiplied by a 1.9
   // velocity factor smeared a 1050px/s slug across ~260px - longer than most
   // enemies are tall - which read as the bullet itself being stuck in the air.
   // Capping the time to 55ms and the velocity factor to 1.35 keeps the longest
   // tracer under ~80px while still scaling visibly with muzzle speed.
-  const tlen = Math.min(0.055, base * (1 + tier * 0.12) * vk);
+  const capPx = TRAIL_PX[arch] || (heavy ? 52 : 30);
+  const tlen = Math.min(0.055, base * (1 + tier * 0.12) * vk, capPx / spd);
   // Muzzle bloom: a fresh round stretches for ~45ms before it settles, which
   // reads as the round being spat out of the barrel rather than teleporting.
   const bloom = 1 + 1.15 * Math.max(0, 1 - ft / 0.045);
@@ -175,16 +201,16 @@ function drawBulletDefault(b) {
   if (heavy || hot) {
     // Outer bloom halo, then the coloured body, then a hot white core.
     X.globalCompositeOperation = 'lighter';
-    X.globalAlpha = heavy ? 0.32 : 0.22;
+    X.globalAlpha = magnum ? 0.26 : (heavy ? 0.32 : 0.22);
     X.strokeStyle = col;
-    X.lineWidth = heavy ? 14 + tier * 4 : 9 + tier * 2;
+    X.lineWidth = magnum ? 10 : (heavy ? 14 + tier * 4 : 9 + tier * 2);
     X.beginPath(); X.moveTo(tx, ty); X.lineTo(b.x, b.y); X.stroke();
     X.globalCompositeOperation = 'source-over';
   }
 
   X.globalAlpha = heavy ? 0.85 : 0.5;
   X.strokeStyle = col;
-  X.lineWidth = heavy ? 6.5 + tier * 1.6 : (b.isCrit ? 5 : 3);
+  X.lineWidth = magnum ? 5 : (heavy ? 6.5 + tier * 1.6 : (b.isCrit ? 5 : 3));
   X.beginPath(); X.moveTo(tx, ty); X.lineTo(b.x, b.y); X.stroke();
 
   X.globalAlpha = 1;
@@ -248,6 +274,16 @@ function drawBulletDefault(b) {
     X.fillStyle = '#eaf9ff';
     X.beginPath(); X.moveTo(5, 0); X.lineTo(0, -2.6); X.lineTo(-5, 0); X.lineTo(0, 2.6); X.closePath(); X.fill();
     X.strokeStyle = '#7fd4f0'; X.lineWidth = 0.9; X.stroke();
+  } else if (magnum) {
+    // Compact hand-cannon round: a stubby jacketed slug with a bright nose.
+    // Deliberately shorter and narrower than the heavy band so a revolver round
+    // never reads as a rifle or sniper slug.
+    X.fillStyle = '#2f2a22';
+    X.beginPath(); X.roundRect(-3.4, -2.5, 6.4, 5, 1.6); X.fill();
+    X.fillStyle = col;
+    X.beginPath(); X.roundRect(-2.6, -2.1, 5, 4.2, 1.5); X.fill();
+    X.fillStyle = b.isCrit ? '#fffdf0' : '#ffffff';
+    X.beginPath(); X.moveTo(2.2, -2.3); X.lineTo(4.6, 0); X.lineTo(2.2, 2.3); X.closePath(); X.fill();
   } else if (heavy) {
     X.fillStyle = col;
     X.beginPath(); X.roundRect(-4.5 - tier, -2.1 - tier * 0.25, 9 + tier * 2, 4.2 + tier * 0.5, 2.1); X.fill();
@@ -271,10 +307,11 @@ function drawBulletDefault(b) {
   X.restore();
 
   // Every archetype now carries a travelling light bloom, so a stream of SMG
-  // rounds genuinely lights the ground it crosses.
+  // rounds genuinely lights the ground it crosses. (The magnum's is clamped
+  // below so a sidearm cannot light the arena like a rocket.)
   X.globalCompositeOperation = 'lighter';
-  X.globalAlpha = heavy ? 0.55 : (hot ? 0.4 : 0.2);
-  const r = heavy ? 5 + tier * 2.4 : (hot ? 5.5 : 4);
+  X.globalAlpha = magnum ? 0.42 : (heavy ? 0.55 : (hot ? 0.4 : 0.2));
+  const r = magnum ? 5.5 : (heavy ? 5 + tier * 2.4 : (hot ? 5.5 : 4));
   X.drawImage(getLightSprite(col, true), b.x - r, b.y - r, r * 2, r * 2);
   X.globalCompositeOperation = 'source-over';
   X.globalAlpha = 1;
@@ -1212,9 +1249,13 @@ function drawPlayerGear() {
     const lamp = 0.1 + 0.05 * Math.sin((S.t || 0) * 6);
     X.globalCompositeOperation = 'lighter';
     X.globalAlpha = lamp;
-    const lg = X.createLinearGradient(10, 0, 150, 0);
-    lg.addColorStop(0, 'rgba(255,246,214,0.55)');
-    lg.addColorStop(1, 'rgba(255,246,214,0)');
+    // Fixed geometry, rebuilt every frame for nothing: cache it per context.
+    const lg = grad('lampCone', g => {
+      const gr = g.createLinearGradient(10, 0, 150, 0);
+      gr.addColorStop(0, 'rgba(255,246,214,0.55)');
+      gr.addColorStop(1, 'rgba(255,246,214,0)');
+      return gr;
+    });
     X.fillStyle = lg;
     X.beginPath();
     X.moveTo(9, -1.5);

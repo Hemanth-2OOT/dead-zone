@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v1.0.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -49,17 +49,15 @@ function getLightSprite(col, soft) {
 /* GRADIENT CACHE                                                      */
 /* ------------------------------------------------------------------ */
 // Static prop lights keep their world position for the whole run, so their
-// gradients are built once instead of once per prop per frame.
-const GRAD_CACHE = new Map();
-
+// gradients are built once instead of once per prop per frame. The cache itself
+// lives in engine_core.js so every module shares one, and so the first rs() call
+// (which clears it) does not touch a map that is still in its temporal dead zone.
 function cachedRadialGradient(key, cx, cy, r0, r1, stops) {
-  let g = GRAD_CACHE.get(key);
-  if (!g) {
-    g = X.createRadialGradient(cx, cy, r0, cx, cy, r1);
-    for (const st of stops) g.addColorStop(st[0], st[1]);
-    GRAD_CACHE.set(key, g);
-  }
-  return g;
+  return grad('rad_' + key, g => {
+    const gr = g.createRadialGradient(cx, cy, r0, cx, cy, r1);
+    for (const st of stops) gr.addColorStop(st[0], st[1]);
+    return gr;
+  });
 }
 
 let MUZZLE_GLOW = null;
@@ -71,17 +69,6 @@ function muzzleGlowGradient() {
     MUZZLE_GLOW.addColorStop(1, 'rgba(255,240,190,0)');
   }
   return MUZZLE_GLOW;
-}
-
-let FLAME_MUZZLE_GLOW = null;
-function flameMuzzleGradient() {
-  if (!FLAME_MUZZLE_GLOW) {
-    FLAME_MUZZLE_GLOW = X.createRadialGradient(20, 0, 4, 20, 0, 46);
-    FLAME_MUZZLE_GLOW.addColorStop(0, 'rgba(255,220,120,0.85)');
-    FLAME_MUZZLE_GLOW.addColorStop(0.5, 'rgba(255,140,40,0.35)');
-    FLAME_MUZZLE_GLOW.addColorStop(1, 'rgba(255,120,20,0)');
-  }
-  return FLAME_MUZZLE_GLOW;
 }
 
 /* ------------------------------------------------------------------ */

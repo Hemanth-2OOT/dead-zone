@@ -107,10 +107,17 @@ never be exceeded: crit ≤ 75%, damage reduction ≤ 65% (armour floor 0.35), c
 wave-modifier `spMul` ≤ 2 and `eliteBoost` ≤ 0.8, ascension tier ≤ 5.
 
 ## Release
-Version lives in: `package.json`, `android/app/build.gradle` (`versionCode`/`versionName`),
-the `// DEAD ZONE vX.Y` headers in `src_v2/*.js`, `src_v2/build.js` banners and `src_v2/body.html`
-tagline. Bump all of them, rebuild `www/index.html`, then commit/tag/push. The Android release APK is
-produced by the GitHub Actions workflows in `.github/workflows/`.
+Version lives in: `package.json`, `src_v2/engine_bootstrap.js` (`GAME_VERSION`),
+`android/app/build.gradle` (`versionCode`/`versionName`) and the `// DEAD ZONE vX.Y.Z` headers in
+`src_v2/*.js`. `npm run audit` reads all of them and fails if any disagree, and the release workflow
+runs the audit before it builds, so a version drift cannot reach a release any more.
+
+`npm test` = build + audit + logic tests (`tools/`). The release path is a tag: push `vX.Y.Z`, and
+`.github/workflows/release.yml` builds the signed APK, verifies the signature, and attaches the APK
+and a `git archive` source zip. A push to `main` runs `.github/workflows/ci.yml`.
+
+Current line: **v1.0.0** — the 2.x tags and releases were deleted so the repository restarts from a
+single clean baseline.
 `build.js` also rejects duplicate top-level `function`/`class` names across modules — a new
 module must not redeclare an existing global (that is why the props module is `engine_props.js`
 and not an extra block in `engine_world.js`).
@@ -493,3 +500,31 @@ arrows 0 -> 129 light px, stick well ring mean luminance +8 (move) / +7 (aim), p
 1704 -> 2494 distinct colours; state feedback: FIRE ring luminance 96 -> 170 held plus glow
 93 -> 769 px, reload ring 72 -> 146 with 596 amber progress px, press flash 79 -> 115 with 272
 near-white px, cooling dash icon 53 -> 42 (dimmed) with the refill arc 60 -> 164 px.
+
+
+## Release baseline v1.0.0
+
+The 2.x line was deleted (tags and releases) and this repository restarts at `v1.0.0`: one commit
+range, one tag, one APK. What the pre-release audit changed, beyond the gameplay/UI work already
+recorded above:
+
+* **Dead code removed** (`tools/audit.js` scans every `function` declaration in `src_v2/*.js` against
+  every mention in the modules, `body.html`, `style.css` and `tools/`, so inline `onclick="fn('x')"`
+  handlers count as callers). Removed: `engine_maps.js:initMapArchitecture` (a parallel obstacle
+  builder that would have wiped `O`; the live path is `engine_world.js` `rebuild()` reading
+  `MAP_DATA[].walls`), `engine_core.js:getMaxDecals`/`getMaxBloodDrops` (superseded by
+  `getQualityProfile().maxDecals` and the `BLD` cap in `engine_gore.js`), `engine_core.js:sndTurretFire`
+  (the turret already plays its own shot sound in `engine_render_turret.js`), `engine_depth.js:flameMuzzleGradient`
+  + `FLAME_MUZZLE_GLOW` (superseded by `muzzleGlowGradient()`), `engine_events_missions.js:toggleSkin`
+  (superseded by the Skins tab's `equipSkinDirect`), `engine_gore.js:bakeDecalsToBackground` and
+  `engine_meta.js:boonHudLine`.
+* **Save sanitiser hardened** (`engine_persistence.js` `sanitizeSV`): the old
+  `Math.max(0, Math.floor(Number(v) || 0))` clamp lets `Infinity` through — a hand-edited save could
+  inject a non-finite XP/credit/skill-rank value and poison everything derived from it. All counters
+  now go through one `num(v, lo, hi, dflt)` that rejects non-finite input, `lvl` is capped at 9999,
+  `best` at 100000, and `rev`/`ts` (which decide the native-Preferences merge winner) are clamped too,
+  so an infinite revision cannot win every future merge.
+* **One gradient cache** (`engine_core.js` `grad()`/`gradReset()`, declared before the first `rs()`
+  call): static screen-space gradients are built once per resize instead of per frame. Measured on the
+  bundled build: 3.83 -> 0.32 gradient objects per frame at unchanged frame time.
+* **`engine_hud.js`** split out of `engine_world.js` (pure move, same single script scope).

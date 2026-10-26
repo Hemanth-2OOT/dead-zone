@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.0.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -334,22 +334,6 @@ function claimRank(r) {
   lobby();
 }
 
-function toggleSkin(weapIdx) {
-  const owned = Object.keys(SKINS).filter(k => SKINS[k].wi === weapIdx && (SV.skins && SV.skins[k]));
-  if (!owned.length) return;
-  SV.eqSkin = SV.eqSkin || {};
-  const cur = SV.eqSkin[weapIdx];
-  if (!cur) {
-    SV.eqSkin[weapIdx] = owned[0];
-  } else {
-    const nextIdx = owned.indexOf(cur) + 1;
-    if (nextIdx >= owned.length) delete SV.eqSkin[weapIdx];
-    else SV.eqSkin[weapIdx] = owned[nextIdx];
-  }
-  sv();
-  lobby();
-}
-
 const LOBBY_REWARD_TABS = ['m', 'l', 'c', 's'];
 function switchLobbyRewards(t){
   if (LOBBY_REWARD_TABS.indexOf(t) < 0) t = 'm';
@@ -392,32 +376,32 @@ function skinIcon(skinKey) {
   const cv = document.createElement('canvas');
   cv.width = 180; cv.height = 54;
   const cx = cv.getContext('2d');
-  const prevX = X;
+  const wi = skinWeaponIndex(sk);
   SV.eqSkin = SV.eqSkin || {};
-  const origEq = SV.eqSkin[sk.wi];
-  X = cx;
+  const origEq = SV.eqSkin[wi];
   try {
-    X.save();
-    X.fillStyle = '#10140c';
-    X.fillRect(0, 0, 180, 54);
-    X.strokeStyle = 'rgba(255,255,255,0.04)';
-    X.lineWidth = 1;
-    for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
-    for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
-    const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
-    rg.addColorStop(0, sk.col + '33');
-    rg.addColorStop(1, 'rgba(0,0,0,0)');
-    X.fillStyle = rg;
-    X.fillRect(0, 0, 180, 54);
-    X.translate(26, 27);
-    X.scale(1.6, 1.6);
-    SV.eqSkin[sk.wi] = skinKey;
-    gun(sk.wi, 0);
-    X.restore();
+    withCtx(cx, () => {
+      X.save();
+      X.fillStyle = '#10140c';
+      X.fillRect(0, 0, 180, 54);
+      X.strokeStyle = 'rgba(255,255,255,0.04)';
+      X.lineWidth = 1;
+      for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
+      for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
+      const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
+      rg.addColorStop(0, sk.col + '33');
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      X.fillStyle = rg;
+      X.fillRect(0, 0, 180, 54);
+      X.translate(26, 27);
+      X.scale(1.6, 1.6);
+      SV.eqSkin[wi] = skinKey;
+      gun(wi, 0);
+      X.restore();
+    });
   } finally {
-    // always hand the shared canvas context back, even if gun() throws
-    if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
-    X = prevX;
+    // gun() renders with the preview skin equipped, so the real one has to go back
+    if (origEq) SV.eqSkin[wi] = origEq; else delete SV.eqSkin[wi];
   }
   return SKI_CACHE[skinKey] = cv.toDataURL();
 }
@@ -425,10 +409,36 @@ function skinIcon(skinKey) {
 let TURNTABLE_SKIN = 'volt_railgun';
 let TURNTABLE_ROT = 0;
 let TURNTABLE_RAF = null;
+let TURNTABLE_ERR = 0;
+
+// A weapon or operative preview is decoration. If one definition is broken the
+// tab must stay usable, so the preview is allowed to fail once - loudly - and
+// then stops requesting frames instead of throwing on every one of them.
+function renderTurntable() {
+  try {
+    turntableFrame();
+  } catch (e) {
+    TURNTABLE_RAF = null;
+    if (!TURNTABLE_ERR) {
+      TURNTABLE_ERR = 1;
+      console.error('[Skins] turntable preview failed', e);
+    }
+  }
+}
+
+// Resolves a skin's weapon index to something drawable. A skin can legitimately
+// carry no weapon, or a stale index from an older build's arsenal.
+function skinWeaponIndex(sk) {
+  if (!sk) return 0;
+  const wi = Number(sk.wi);
+  if (!isFinite(wi) || wi < 0 || wi > WEAP.length - 1) return 0;
+  return wi | 0;
+}
 
 function inspectSkin(skinKey) {
   const sk = SKINS[skinKey]; if (!sk) return;
   TURNTABLE_SKIN = skinKey;
+  TURNTABLE_ERR = 0;
   const badge = $('st-badge'), title = $('st-title'), sub = $('st-sub'), desc = $('st-desc');
   const tier = sk.tier || 'RARE';
   const tierCols = { COMMON: '#94a3b8', RARE: '#38bdf8', EPIC: '#c084fc', LEGENDARY: '#f59e0b' };
@@ -437,13 +447,19 @@ function inspectSkin(skinKey) {
     badge.style.background = tierCols[tier] || '#38bdf8';
     badge.style.color = (tier === 'LEGENDARY' || tier === 'COMMON') ? '#18181b' : '#ffffff';
   }
-  if (title) title.textContent = sk.name.toUpperCase();
-  if (sub) sub.textContent = (sk.type === 'op' ? 'OPERATIVE CAMO' : ((WEAP[sk.wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH')) + ' • 360° TURNTABLE';
-  if (desc) desc.textContent = sk.desc;
+  if (title) title.textContent = String(sk.name || skinKey).toUpperCase();
+  if (sub) {
+    // The operative branch used to build a null weapon name and then uppercase it,
+    // so every op skin threw right here and took the whole preview down with it.
+    const isOp = sk.type === 'op';
+    const wName = String(isOp ? 'OPERATIVE' : ((WEAP[skinWeaponIndex(sk)] || {}).n || 'WEAPON')).toUpperCase();
+    sub.textContent = (isOp ? 'OPERATIVE CAMO' : (wName + ' FINISH')) + ' • 360° TURNTABLE';
+  }
+  if (desc) desc.textContent = sk.desc || '';
   renderTurntable();
 }
 
-function renderTurntable() {
+function turntableFrame() {
   const cv = $('skin-turntable-canvas');
   if (!cv) return;
   const cx = cv.getContext('2d');
@@ -499,52 +515,57 @@ function renderTurntable() {
   cx.translate(tw / 2, th / 2 + 6);
   const cosRot = Math.cos(TURNTABLE_ROT);
 
-  const prevX = X;
-  X = cx;
+  // The model draws through the shared X binding; withCtx hands it back even
+  // if a skin definition throws half way through the preview.
+  withCtx(cx, () => {
 
-  if (sk.type === 'op') {
-    // High-fidelity 4-layer operative turntable model
-    cx.scale(cosRot * 1.85, 1.85);
+    if (sk.type === 'op') {
+      // High-fidelity 4-layer operative turntable model
+      cx.scale(cosRot * 1.85, 1.85);
 
-    // Drop shadow
-    cx.fillStyle = 'rgba(0,0,0,0.42)';
-    cx.beginPath(); cx.ellipse(0, 13, 12, 5, 0, 0, 6.28); cx.fill();
+      // Drop shadow
+      cx.fillStyle = 'rgba(0,0,0,0.42)';
+      cx.beginPath(); cx.ellipse(0, 13, 12, 5, 0, 0, 6.28); cx.fill();
 
-    // Combat boots
-    cx.fillStyle = '#181b16';
-    cx.fillRect(-8, 5, 5.5, 9);
-    cx.fillRect(2.5, 5, 5.5, 9);
+      // Combat boots
+      cx.fillStyle = '#181b16';
+      cx.fillRect(-8, 5, 5.5, 9);
+      cx.fillRect(2.5, 5, 5.5, 9);
 
-    // Tactical gear backpack
-    cx.fillStyle = sk.pk || '#252e20';
-    cx.fillRect(-10, -8, 20, 13);
-    cx.strokeStyle = '#10140d'; cx.lineWidth = 1; cx.strokeRect(-10, -8, 20, 13);
+      // Tactical gear backpack
+      cx.fillStyle = sk.pk || '#252e20';
+      cx.fillRect(-10, -8, 20, 13);
+      cx.strokeStyle = '#10140d'; cx.lineWidth = 1; cx.strokeRect(-10, -8, 20, 13);
 
-    // Torso armor with camouflage accent
-    cx.fillStyle = sk.col;
-    cx.beginPath(); cx.roundRect(-8, -12, 16, 17, 3.5); cx.fill();
-    cx.strokeStyle = sk.ac || '#10140d'; cx.lineWidth = 1.6; cx.stroke();
+      // Torso armor with camouflage accent
+      cx.fillStyle = sk.col;
+      cx.beginPath(); cx.roundRect(-8, -12, 16, 17, 3.5); cx.fill();
+      cx.strokeStyle = sk.ac || '#10140d'; cx.lineWidth = 1.6; cx.stroke();
 
-    // Helmet & Visor
-    cx.fillStyle = sk.hm || '#1e293b';
-    cx.beginPath(); cx.arc(0, -15, 7.5, 0, 6.28); cx.fill();
-    cx.fillStyle = sk.vz || '#00e5ff';
-    cx.beginPath(); cx.roundRect(-4, -17, 8, 3.5, 1.5); cx.fill();
-    cx.fillStyle = 'rgba(255,255,255,0.7)';
-    cx.fillRect(-2, -16.5, 3, 1.5);
-  } else {
-    // High-resolution scaled weapon preview centered on turntable pedestal
-    cx.scale(cosRot * 2.35, 2.35);
-    cx.translate(-14, 0);
+      // Helmet & Visor
+      cx.fillStyle = sk.hm || '#1e293b';
+      cx.beginPath(); cx.arc(0, -15, 7.5, 0, 6.28); cx.fill();
+      cx.fillStyle = sk.vz || '#00e5ff';
+      cx.beginPath(); cx.roundRect(-4, -17, 8, 3.5, 1.5); cx.fill();
+      cx.fillStyle = 'rgba(255,255,255,0.7)';
+      cx.fillRect(-2, -16.5, 3, 1.5);
+    } else {
+      // High-resolution scaled weapon preview centered on turntable pedestal
+      cx.scale(cosRot * 2.35, 2.35);
+      cx.translate(-14, 0);
 
-    const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
-    SV.eqSkin = SV.eqSkin || {};
-    SV.eqSkin[sk.wi] = TURNTABLE_SKIN;
-    gun(sk.wi, 0);
-    if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
-  }
-
-  X = prevX;
+      const wi = skinWeaponIndex(sk);
+      const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[wi] : null;
+      SV.eqSkin = SV.eqSkin || {};
+      SV.eqSkin[wi] = TURNTABLE_SKIN;
+      try {
+        gun(wi, 0);
+      } finally {
+        // gun() renders with the preview skin equipped; put the real one back
+        if (origEq) SV.eqSkin[wi] = origEq; else delete SV.eqSkin[wi];
+      }
+    }
+  });
   cx.restore();
 
   // Specular reflection sweep across the pedestal
@@ -566,6 +587,7 @@ function renderTurntable() {
 
 function renderSkinsUI(){
   const el = $('skin-list'); if(!el) return;
+  if (typeof SV === 'undefined' || !SV) return;
   const sKeys = Object.keys(SKINS);
   const filtered = sKeys.filter(k => {
     const sk = SKINS[k];
@@ -586,9 +608,13 @@ function renderSkinsUI(){
   el.innerHTML = filtered.map(k => {
     const sk = SKINS[k];
     const isOp = sk.type === 'op';
+    // A definition can be incomplete (an event skin shipped without a colour or a
+    // description). Fall back instead of printing "undefined" into the card.
+    const skName = sk.name || k, skCol = sk.col || '#8fae4a', skDesc = sk.desc || '';
+    const wi = skinWeaponIndex(sk);
     const isOwned = Boolean(SV.skins && SV.skins[k]);
-    const isEquipped = isOp ? (SV.eqOpSkin === k) : Boolean(SV.eqSkin && SV.eqSkin[sk.wi] === k);
-    const subTitle = isOp ? 'OPERATIVE CAMO' : ((WEAP[sk.wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH');
+    const isEquipped = isOp ? (SV.eqOpSkin === k) : Boolean(SV.eqSkin && SV.eqSkin[wi] === k);
+    const subTitle = isOp ? 'OPERATIVE CAMO' : ((WEAP[wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH');
     const previewSrc = isOp ? charSkinIcon(k) : skinIcon(k);
     const tier = sk.tier || 'RARE';
     const tCol = tierCols[tier] || '#38bdf8';
@@ -614,22 +640,22 @@ function renderSkinsUI(){
     }
 
     const flourish = (tier === 'EPIC' || tier === 'LEGENDARY');
-    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${sk.col};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${sk.col}66">
+    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${skCol};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${skCol}66">
       ${flourish ? '<div class="sk-pixel"></div><div class="sk-aura"></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:8.5px;font-weight:900;padding:1px 5px;border-radius:3px;background:${tCol}22;color:${tCol};border:1px solid ${tCol}66">${tier}</span>
-            <b style="font-size:13.5px;color:${isEquipped?'#8fae4a':'#f0ece1'}">${sk.name}</b>
+            <b style="font-size:13.5px;color:${isEquipped?'#8fae4a':'#f0ece1'}">${skName}</b>
           </div>
-          <div style="font-size:10px;opacity:.75;color:${sk.col};font-weight:700;margin-top:2px">${subTitle}</div>
+          <div style="font-size:10px;opacity:.75;color:${skCol};font-weight:700;margin-top:2px">${subTitle}</div>
         </div>
         <span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:${isEquipped?'rgba(143,174,74,.25)':(isOwned?'rgba(143,174,74,.15)':'rgba(255,255,255,.08)')};color:${isEquipped?'#8fae4a':(isOwned?'#8fae4a':'#888')};border:1px solid ${isEquipped?'#8fae4a55':'transparent'}">${isEquipped?'EQUIPPED':(isOwned?'UNLOCKED':'LOCKED')}</span>
       </div>
-      <div style="background:radial-gradient(ellipse at center, rgba(35,42,30,.7) 0%, rgba(12,15,10,.95) 100%);border:1px solid ${sk.col}33;border-radius:6px;padding:6px;display:flex;justify-content:center;align-items:center;min-height:56px">
+      <div style="background:radial-gradient(ellipse at center, rgba(35,42,30,.7) 0%, rgba(12,15,10,.95) 100%);border:1px solid ${skCol}33;border-radius:6px;padding:6px;display:flex;justify-content:center;align-items:center;min-height:56px">
         <img src="${previewSrc}" style="width:100%;max-width:210px;height:52px;object-fit:contain">
       </div>
-      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${sk.desc}</div>
+      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${skDesc}</div>
       <div style="background:rgba(0,0,0,.35);padding:6px 8px;border-radius:6px;font-size:10px">
         <span style="opacity:.65">UNLOCK: </span>
         <span style="color:${isOwned?'#8fae4a':'#e0b83a'};font-weight:700">${sk.how || 'Special Event'}</span>
@@ -652,7 +678,7 @@ function renderSkinsUI(){
           <button onclick="event.stopPropagation();equipSkinDirect('${k}')" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
             ${isEquipped ? 'EQUIPPED' : 'EQUIP SKIN'}
           </button>
-          ${isEquipped ? `<button onclick="event.stopPropagation();${isOp ? "unequipOpSkinDirect()" : "unequipSkinDirect("+sk.wi+")"}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
+          ${isEquipped ? `<button onclick="event.stopPropagation();${isOp ? "unequipOpSkinDirect()" : "unequipSkinDirect("+wi+")"}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
         ` : `
           <button disabled style="flex:1;min-height:34px;font-size:11px;opacity:.5">LOCKED</button>
         `}
@@ -679,7 +705,7 @@ function equipSkinDirect(skinId){
     SV.eqOpSkin = skinId;
   } else {
     SV.eqSkin = SV.eqSkin || {};
-    SV.eqSkin[sk.wi] = skinId;
+    SV.eqSkin[skinWeaponIndex(sk)] = skinId;
   }
   SV.rev = (SV.rev || 0) + 1;
   SV.ts = Date.now();

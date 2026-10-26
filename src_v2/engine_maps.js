@@ -396,56 +396,6 @@ enrichMapData();
 let P_PROPS = [];
 let AMB_PARTICLES = [];
 
-function initMapArchitecture(curM) {
-  O = [];
-  P_PROPS = [];
-  HZ = [];
-  AMB_PARTICLES = [];
-
-  const mData = MAP_DATA[curM] || MAP_DATA[0];
-
-  // 1. Load 3D Obstacles into O
-  if (mData.walls) {
-    for (const w of mData.walls) {
-      O.push({
-        x: w.x, y: w.y, w: w.w, h: w.h,
-        t: w.t || 'building',
-        col: w.col || '#3a4234',
-        roof: w.roof || '#242a1e',
-        name: w.name || ''
-      });
-    }
-  }
-
-  // 2. Load Props
-  if (mData.props) {
-    for (const p of mData.props) {
-      P_PROPS.push({ ...p });
-    }
-  }
-
-  // 3. Load Hazards
-  if (mData.hazards) {
-    for (const h of mData.hazards) {
-      HZ.push({ x: h.x, y: h.y, r: h.r });
-    }
-  }
-
-  // 4. Initialize Ambient Weather Particles
-  const ambCount = getQualityProfile().ambientCount;
-  for (let i = 0; i < ambCount; i++) {
-    AMB_PARTICLES.push({
-      x: Math.random() * WS,
-      y: Math.random() * WS,
-      vx: (Math.random() - 0.5) * 20 + (curM === 2 ? 15 : (curM === 1 ? 40 : 0)),
-      vy: (Math.random() - 0.5) * 20 + (curM === 2 ? 35 : (curM === 4 ? -25 : 0)),
-      sz: 1.5 + Math.random() * 2.5,
-      alpha: 0.2 + Math.random() * 0.4,
-      rot: Math.random() * 6.28
-    });
-  }
-}
-
 function getCurMap() {
   return (typeof S !== 'undefined' && S && S.isEvent && S.evDef && S.evDef.map != null) ? S.evDef.map : (typeof SV !== 'undefined' && SV ? (SV.map || 0) : 0);
 }

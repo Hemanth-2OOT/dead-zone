@@ -1,11 +1,19 @@
 {
   "name": "dead-zone",
-  "version": "2.12.1",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/preferences": "^6.0.4"
+  },
+  "scripts": {
+    "build": "node src_v2/build.js",
+    "audit": "node tools/audit.js",
+    "test": "node src_v2/build.js && node tools/audit.js && node tools/test-logic.js",
+    "test:logic": "node tools/test-logic.js",
+    "harness": "node tools/make-harness-page.js",
+    "sync:android": "npx cap sync android"
   }
 }

@@ -2,24 +2,44 @@
 
 // On-screen error overlay for Step 0 bug reproduction
 (function() {
+  // A throw inside a render or animation loop repeats up to 60x a second. The
+  // overlay used to append a fresh row for every occurrence, so one broken frame
+  // path buried the whole screen in red. Identical failures now share one row
+  // with a repeat counter, the list is capped, and a tap dismisses it.
+  const seen = new Map();
+  const MAX_ROWS = 12;
   function showError(msg, file, line, col, err) {
     console.error('[DeadZone Runtime Error]', msg, file, line, col, err);
+    const stack = (err && err.stack) ? err.stack : `${file}:${line}:${col}`;
     let box = document.getElementById('debug-err-overlay');
     if (!box) {
       box = document.createElement('div');
       box.id = 'debug-err-overlay';
       box.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45vh;overflow-y:auto;background:rgba(200,20,20,0.95);color:#fff;font-family:monospace;font-size:12px;padding:10px;z-index:999999;pointer-events:auto;border-bottom:2px solid #fff;white-space:pre-wrap;';
+      const head = document.createElement('div');
+      head.textContent = 'RUNTIME ERRORS - tap to dismiss';
+      head.style.cssText = 'font-weight:700;letter-spacing:.5px;opacity:.85;margin-bottom:6px;';
+      box.appendChild(head);
+      box.addEventListener('click', () => { box.remove(); seen.clear(); });
       if (document.body) {
         document.body.appendChild(box);
       } else {
         window.addEventListener('DOMContentLoaded', () => document.body && document.body.appendChild(box));
       }
     }
-    const stack = (err && err.stack) ? err.stack : `${file}:${line}:${col}`;
+    const key = `${msg}@${line}:${col}`;
+    const rec = seen.get(key);
+    if (rec) {
+      rec.n++;
+      rec.node.textContent = `[ERROR x${rec.n}] ${msg}\nAt: ${stack}`;
+      return;
+    }
     const p = document.createElement('div');
     p.style.cssText = 'margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:4px;';
     p.textContent = `[ERROR] ${msg}\nAt: ${stack}`;
+    seen.set(key, { node: p, n: 1 });
     box.appendChild(p);
+    while (box.childElementCount > MAX_ROWS + 1) box.removeChild(box.children[1]);
   }
   window.onerror = function(msg, file, line, col, err) {
     showError(msg, file, line, col, err);
@@ -78,7 +98,43 @@ function rs() {
   C.height = H * DPR;
   X.resetTransform && X.resetTransform();
   X.scale(DPR, DPR);
+  gradReset();
 }
+
+// ---------------------------------------------------------------------------
+// Shared drawing helpers
+// ---------------------------------------------------------------------------
+
+// Viewport-sized vignettes, tints and glows were rebuilt from scratch on every
+// frame even though their geometry only changes when the canvas resizes, and the
+// colour stops of the animated ones only move by fractions of a percent. Cache by
+// key and the per-frame allocation disappears. The cache is dropped whenever the
+// canvas is resized, because a CanvasGradient is bound to the context and the
+// viewport size it was built for.
+const GRAD_CACHE = new Map();
+const GRAD_CACHE_MAX = 256;
+function grad(key, make) {
+  let g = GRAD_CACHE.get(key);
+  if (g === undefined) {
+    if (GRAD_CACHE.size >= GRAD_CACHE_MAX) GRAD_CACHE.clear();
+    g = make(X);
+    GRAD_CACHE.set(key, g);
+  }
+  return g;
+}
+function gradReset() { GRAD_CACHE.clear(); }
+
+// The engine draws through the single mutable `X` binding, so code that renders
+// into a scratch canvas has to point X at it and hand it back. Doing that by hand
+// means one early `return` outside the try block leaves the main loop drawing into
+// a 180x54 offscreen canvas, which is silent and very hard to trace. Route every
+// swap through here instead.
+function withCtx(cx, fn) {
+  const prev = X;
+  X = cx;
+  try { return fn(X); } finally { X = prev; }
+}
+
 addEventListener('resize', rs);
 rs();
 
@@ -195,12 +251,6 @@ function isGoreEnabled() {
   return (typeof SV !== 'undefined' && SV && SV.gore != null) ? Boolean(SV.gore) : true;
 }
 
-function getMaxDecals() {
-  if (QUALITY_SETTINGS.profile === 'low') return 60;
-  if (QUALITY_SETTINGS.profile === 'med') return 160;
-  return 300;
-}
-
 function getMaxParticles() {
   if (QUALITY_SETTINGS.profile === 'low') return 60;
   if (QUALITY_SETTINGS.profile === 'med') return 140;
@@ -217,12 +267,6 @@ function trimParticleBudget() {
   if (typeof F === 'undefined') return;
   const maxP = getMaxParticles();
   if (F.length > maxP) F.splice(0, F.length - maxP);
-}
-
-function getMaxBloodDrops() {
-  if (QUALITY_SETTINGS.profile === 'low') return 25;
-  if (QUALITY_SETTINGS.profile === 'med') return 60;
-  return 120;
 }
 
 // In-place array compaction. Array.prototype.filter() allocates a brand new
@@ -327,13 +371,13 @@ function sndPickup(type) {
   setTimeout(() => { snd(baseFreq * 1.5 * pitchMult, 0.07, 'sine', 0.05, 1.5); }, 45);
 }
 
-function sndTurretFire() {
-  noise(0.08, 0.07);
-  snd(260, 0.06, 'sawtooth', 0.05, 0.3);
-}
-
 function sfx(i) {
-  if (i == 2) noise(0.18, 0.12);
+  // The two starter sidearms used to share the generic fallback report, so the
+  // first guns the player ever fires sounded identical. A pistol is a short, dry
+  // crack; a revolver is a heavier, lower boom with more of a tail.
+  if (i == 0) { noise(0.05, 0.055); snd(430, 0.05, 'square', 0.05, 1.5); }
+  else if (i == 5) { noise(0.16, 0.15); snd(140, 0.17, 'sawtooth', 0.09, 0.45); }
+  else if (i == 2) noise(0.18, 0.12);
   else if (i == 7) noise(0.25, 0.14);
   else if (i == 9) snd(110, 0.3, 'sawtooth', 0.1, 0.3);
   else if (i == 8 || i == 11) snd(900, 0.12, 'sine', 0.06, 0.3);

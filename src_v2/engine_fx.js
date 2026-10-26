@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v1.0.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 // Announcer queue (screen-space banners).
 //
@@ -187,8 +187,11 @@ function renderDirectorOverlay(W, H) {
     const sev = 1 - (P.hp / P.mx) / 0.3;
     const beat = Math.max(0, Math.sin(FX_HEART * 6.28 * 1)) ;
     const a = (0.14 + sev * 0.22) * (0.5 + beat * 0.5);
-    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
-    g.addColorStop(0, 'rgba(160,0,0,0)'); g.addColorStop(1, 'rgba(160,0,0,' + a + ')');
+    const g = grad('heartbeat' + W + 'x' + H + '_' + a.toFixed(2), c => {
+      const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+      gr.addColorStop(0, 'rgba(160,0,0,0)'); gr.addColorStop(1, 'rgba(160,0,0,' + a.toFixed(2) + ')');
+      return gr;
+    });
     X.fillStyle = g; X.fillRect(0, 0, W, H);
   }
 
@@ -200,8 +203,12 @@ function renderDirectorOverlay(W, H) {
   // Aegis shield / adrenaline screen-edge glow
   if (S.sh2 > 0 || S.adr > 0) {
     const col = S.sh2 > 0 ? '234,179,8' : '34,211,238';
-    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.72);
-    g.addColorStop(0, 'rgba(' + col + ',0)'); g.addColorStop(1, 'rgba(' + col + ',' + (0.10 + Math.sin(t * 6) * 0.03) + ')');
+    const edgeA = 0.10 + Math.sin(t * 6) * 0.03;
+    const g = grad('aegis' + W + 'x' + H + '_' + col + '_' + edgeA.toFixed(2), c => {
+      const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.72);
+      gr.addColorStop(0, 'rgba(' + col + ',0)'); gr.addColorStop(1, 'rgba(' + col + ',' + edgeA.toFixed(2) + ')');
+      return gr;
+    });
     X.fillStyle = g; X.fillRect(0, 0, W, H);
   }
 
@@ -233,9 +240,12 @@ function renderDirectorOverlay(W, H) {
     const pulse = 0.86 + Math.sin(t * (5 + Math.min(4, S.cmb * 0.06))) * 0.14;
     const kick = Math.min(0.14, (S.cmbKick || 0) * 0.30);
     const a = base * pulse + kick;
-    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.78);
-    g.addColorStop(0, 'rgba(' + col + ',0)');
-    g.addColorStop(1, 'rgba(' + col + ',' + a.toFixed(3) + ')');
+    const g = grad('combo' + W + 'x' + H + '_' + col + '_' + a.toFixed(2), c => {
+      const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.78);
+      gr.addColorStop(0, 'rgba(' + col + ',0)');
+      gr.addColorStop(1, 'rgba(' + col + ',' + a.toFixed(2) + ')');
+      return gr;
+    });
     X.save(); X.fillStyle = g; X.fillRect(0, 0, W, H); X.restore();
   }
 

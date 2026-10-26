@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.0.0 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -77,15 +77,30 @@ function sanitizeSV(s) {
     if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     out[k] = s[k];
   }
-  out.lvl = Math.max(1, Math.floor(Number(out.lvl) || 1));
-  out.xp = Math.max(0, Math.floor(Number(out.xp) || 0));
-  out.cr = Math.max(0, Math.floor(Number(out.cr) || 0));
-  out.sp = Math.max(0, Math.floor(Number(out.sp) || 0));
-  out.best = Math.max(0, Math.floor(Number(out.best) || 0));
+  // `Math.max(0, Math.floor(Number(v) || 0))` is not enough on its own: an edited
+  // save containing `Infinity` passes straight through it (Number(Infinity) is
+  // truthy, Math.floor keeps it, Math.max accepts it) and poisons every derived
+  // value from XP to the crit roll. Every counter goes through one clamp that
+  // rejects anything non-finite.
+  const num = (v, lo, hi, dflt) => {
+    const n = Math.floor(Number(v));
+    if (!isFinite(n)) return dflt;
+    return Math.max(lo, Math.min(hi, n));
+  };
+  out.lvl = num(out.lvl, 1, 9999, 1);
+  out.xp = num(out.xp, 0, 1e12, 0);
+  out.cr = num(out.cr, 0, 1e12, 0);
+  out.sp = num(out.sp, 0, 1e9, 0);
+  out.best = num(out.best, 0, 100000, 0);
+  // `rev`/`ts` decide which copy wins when a save is merged back from the native
+  // Preferences store, so they are clamped too: an infinite revision would win
+  // every future merge.
+  out.rev = num(out.rev, 0, 1e9, 1);
+  out.ts = num(out.ts, 0, 8.64e15, Date.now());
   // Skill-tree ranks and loadout indices: a corrupt or hand-edited save must
   // never be able to inject NaN/Infinity into P.mx, S.dm or the crit roll.
   const RANKS = ['mx', 'spd', 'dm', 'rof', 'crit', 'vamp', 'regen', 'cb', 'xpb', 'hu', 'du', 'gu', 'sc', 'shadows', 'luck', 'mute'];
-  for (const k of RANKS) out[k] = Math.max(0, Math.min(999, Math.floor(Number(out[k]) || 0)));
+  for (const k of RANKS) out[k] = num(out[k], 0, 999, 0);
   // Control and comfort preferences. Clamped rather than trusted: a corrupt save
   // must not be able to hand ctlScale() a NaN (which would place every control at
   // NaN) or push the control size off the screen.
@@ -122,8 +137,9 @@ function sanitizeSV(s) {
   if (!out.pace || typeof out.pace !== 'object') out.pace = { times: {} };
   if (!out.pace.times || typeof out.pace.times !== 'object') out.pace.times = {};
   if (!out.asc || typeof out.asc !== 'object') out.asc = {};
-  out.runStreak = Math.max(0, Math.floor(Number(out.runStreak) || 0));
-  out.loginDays = Math.max(1, Math.min(10, Math.floor(Number(out.loginDays) || 1)));
+  out.runStreak = num(out.runStreak, 0, 10000, 0);
+  out.loginDays = num(out.loginDays, 1, 10, 1);
+  out.ap = num(out.ap, 0, 1e6, 0);
   return out;
 }
 
@@ -174,6 +190,29 @@ function ld() {
   }
 }
 
+// A save that quietly stops persisting is worse than one that fails loudly: the
+// player keeps earning for hours and finds nothing at the next launch. Anything
+// over this size is pruned before the write, and a write that still fails is
+// surfaced in the lobby tagline instead of being swallowed.
+const SAVE_MAX_BYTES = 512 * 1024;
+const PACE_KEEP = 80;
+let SAVE_FAIL_LOGGED = 0;
+
+function pruneSave() {
+  if (!SV || !SV.pace || !SV.pace.times) return false;
+  const keys = Object.keys(SV.pace.times);
+  if (keys.length <= PACE_KEEP) return false;
+  keys.sort((a, b) => Number(a) - Number(b));
+  const keep = {};
+  for (const k of keys.slice(-PACE_KEEP)) keep[k] = SV.pace.times[k];
+  SV.pace.times = keep;
+  return true;
+}
+
+function saveWarning() {
+  return (SV && SV.saveFail) ? ' \u2022 SAVE OFFLINE' : '';
+}
+
 function sv() {
   try {
     SV.lvl = Math.max(1, Math.floor(Number(SV.lvl) || 1));
@@ -181,17 +220,26 @@ function sv() {
     SV.xp = Math.max(0, Math.floor(Number(SV.xp) || 0));
     SV.cr = Math.max(0, Math.floor(Number(SV.cr) || 0));
     SV.sp = Math.max(0, Math.floor(Number(SV.sp) || 0));
-    const str = JSON.stringify(SV);
+    let str = JSON.stringify(SV);
+    if (str.length > SAVE_MAX_BYTES && pruneSave()) str = JSON.stringify(SV);
     // Real rolling backup: keep the previous good save as dzs_bak so a corrupt
     // write cannot take both slots down at once. It used to write the same
     // string to both keys, which made the "backup" useless.
     const prev = localStorage.getItem('dzs');
     if (prev && prev !== str) localStorage.setItem('dzs_bak', prev);
     localStorage.setItem('dzs', str);
+    if (SV.saveFail) { SV.saveFail = 0; SAVE_FAIL_LOGGED = 0; }
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
       window.Capacitor.Plugins.Preferences.set({ key: 'dzs', value: str }).catch(() => {});
     }
-  } catch (e) {}
+  } catch (e) {
+    SV.saveFail = 1;
+    if (!SAVE_FAIL_LOGGED) {
+      SAVE_FAIL_LOGGED = 1;
+      try { console.warn('[dead-zone] progress could not be saved:', e && e.message ? e.message : e); } catch (_) {}
+      if (typeof lobby === 'function') { try { lobby(); } catch (_) {} }
+    }
+  }
 }
 
 // Guns are unlocked by account rank rather than bought, so ownership is

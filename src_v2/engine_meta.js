@@ -1,4 +1,4 @@
-// DEAD ZONE v2.9.0 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.0.0 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -175,10 +175,6 @@ function renderBoonBar() {
 }
 
 // Plain-text fallback for the acquired-boon readout.
-function boonHudLine() {
-  return boonHudList().map(b => b.short + (b.st > 1 ? ' x' + b.st : '')).join('  ');
-}
-
 /* ================================================================== */
 /* WEAPON MASTERY                                                      */
 /* ================================================================== */

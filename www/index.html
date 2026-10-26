@@ -1822,24 +1822,44 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 // On-screen error overlay for Step 0 bug reproduction
 (function() {
+  // A throw inside a render or animation loop repeats up to 60x a second. The
+  // overlay used to append a fresh row for every occurrence, so one broken frame
+  // path buried the whole screen in red. Identical failures now share one row
+  // with a repeat counter, the list is capped, and a tap dismisses it.
+  const seen = new Map();
+  const MAX_ROWS = 12;
   function showError(msg, file, line, col, err) {
     console.error('[DeadZone Runtime Error]', msg, file, line, col, err);
+    const stack = (err && err.stack) ? err.stack : `${file}:${line}:${col}`;
     let box = document.getElementById('debug-err-overlay');
     if (!box) {
       box = document.createElement('div');
       box.id = 'debug-err-overlay';
       box.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45vh;overflow-y:auto;background:rgba(200,20,20,0.95);color:#fff;font-family:monospace;font-size:12px;padding:10px;z-index:999999;pointer-events:auto;border-bottom:2px solid #fff;white-space:pre-wrap;';
+      const head = document.createElement('div');
+      head.textContent = 'RUNTIME ERRORS - tap to dismiss';
+      head.style.cssText = 'font-weight:700;letter-spacing:.5px;opacity:.85;margin-bottom:6px;';
+      box.appendChild(head);
+      box.addEventListener('click', () => { box.remove(); seen.clear(); });
       if (document.body) {
         document.body.appendChild(box);
       } else {
         window.addEventListener('DOMContentLoaded', () => document.body && document.body.appendChild(box));
       }
     }
-    const stack = (err && err.stack) ? err.stack : `${file}:${line}:${col}`;
+    const key = `${msg}@${line}:${col}`;
+    const rec = seen.get(key);
+    if (rec) {
+      rec.n++;
+      rec.node.textContent = `[ERROR x${rec.n}] ${msg}\nAt: ${stack}`;
+      return;
+    }
     const p = document.createElement('div');
     p.style.cssText = 'margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.4);padding-bottom:4px;';
     p.textContent = `[ERROR] ${msg}\nAt: ${stack}`;
+    seen.set(key, { node: p, n: 1 });
     box.appendChild(p);
+    while (box.childElementCount > MAX_ROWS + 1) box.removeChild(box.children[1]);
   }
   window.onerror = function(msg, file, line, col, err) {
     showError(msg, file, line, col, err);
@@ -1898,7 +1918,43 @@ function rs() {
   C.height = H * DPR;
   X.resetTransform && X.resetTransform();
   X.scale(DPR, DPR);
+  gradReset();
 }
+
+// ---------------------------------------------------------------------------
+// Shared drawing helpers
+// ---------------------------------------------------------------------------
+
+// Viewport-sized vignettes, tints and glows were rebuilt from scratch on every
+// frame even though their geometry only changes when the canvas resizes, and the
+// colour stops of the animated ones only move by fractions of a percent. Cache by
+// key and the per-frame allocation disappears. The cache is dropped whenever the
+// canvas is resized, because a CanvasGradient is bound to the context and the
+// viewport size it was built for.
+const GRAD_CACHE = new Map();
+const GRAD_CACHE_MAX = 256;
+function grad(key, make) {
+  let g = GRAD_CACHE.get(key);
+  if (g === undefined) {
+    if (GRAD_CACHE.size >= GRAD_CACHE_MAX) GRAD_CACHE.clear();
+    g = make(X);
+    GRAD_CACHE.set(key, g);
+  }
+  return g;
+}
+function gradReset() { GRAD_CACHE.clear(); }
+
+// The engine draws through the single mutable `X` binding, so code that renders
+// into a scratch canvas has to point X at it and hand it back. Doing that by hand
+// means one early `return` outside the try block leaves the main loop drawing into
+// a 180x54 offscreen canvas, which is silent and very hard to trace. Route every
+// swap through here instead.
+function withCtx(cx, fn) {
+  const prev = X;
+  X = cx;
+  try { return fn(X); } finally { X = prev; }
+}
+
 addEventListener('resize', rs);
 rs();
 
@@ -2015,12 +2071,6 @@ function isGoreEnabled() {
   return (typeof SV !== 'undefined' && SV && SV.gore != null) ? Boolean(SV.gore) : true;
 }
 
-function getMaxDecals() {
-  if (QUALITY_SETTINGS.profile === 'low') return 60;
-  if (QUALITY_SETTINGS.profile === 'med') return 160;
-  return 300;
-}
-
 function getMaxParticles() {
   if (QUALITY_SETTINGS.profile === 'low') return 60;
   if (QUALITY_SETTINGS.profile === 'med') return 140;
@@ -2037,12 +2087,6 @@ function trimParticleBudget() {
   if (typeof F === 'undefined') return;
   const maxP = getMaxParticles();
   if (F.length > maxP) F.splice(0, F.length - maxP);
-}
-
-function getMaxBloodDrops() {
-  if (QUALITY_SETTINGS.profile === 'low') return 25;
-  if (QUALITY_SETTINGS.profile === 'med') return 60;
-  return 120;
 }
 
 // In-place array compaction. Array.prototype.filter() allocates a brand new
@@ -2147,13 +2191,13 @@ function sndPickup(type) {
   setTimeout(() => { snd(baseFreq * 1.5 * pitchMult, 0.07, 'sine', 0.05, 1.5); }, 45);
 }
 
-function sndTurretFire() {
-  noise(0.08, 0.07);
-  snd(260, 0.06, 'sawtooth', 0.05, 0.3);
-}
-
 function sfx(i) {
-  if (i == 2) noise(0.18, 0.12);
+  // The two starter sidearms used to share the generic fallback report, so the
+  // first guns the player ever fires sounded identical. A pistol is a short, dry
+  // crack; a revolver is a heavier, lower boom with more of a tail.
+  if (i == 0) { noise(0.05, 0.055); snd(430, 0.05, 'square', 0.05, 1.5); }
+  else if (i == 5) { noise(0.16, 0.15); snd(140, 0.17, 'sawtooth', 0.09, 0.45); }
+  else if (i == 2) noise(0.18, 0.12);
   else if (i == 7) noise(0.25, 0.14);
   else if (i == 9) snd(110, 0.3, 'sawtooth', 0.1, 0.3);
   else if (i == 8 || i == 11) snd(900, 0.12, 'sine', 0.06, 0.3);
@@ -2237,12 +2281,12 @@ const WEAP = [
   // `rng` is how far a round actually travels, in pixels: the projectile step
   // converts it to a lifetime via the muzzle velocity, so a pistol no longer
   // throws a slug the length of three screens while a sniper still reaches out.
-  { n: 'Pistol', d: 24, r: 0.32, sp: 0.02, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON', rng: 260 },
+  { n: 'Pistol', d: 20, r: 0.32, sp: 0.055, p: 1, c: 0, kb: 0.85, mag: 12, rl: 1.1, tier: 'COMMON', rng: 260 },
   { n: 'SMG', d: 9.5, r: 0.10, sp: 0.11, p: 1, c: 300, kb: 0.45, mag: 30, rl: 1.2, tier: 'UNCOMMON', rng: 240 },
   { n: 'Shotgun', d: 11, r: 0.62, sp: 0.24, p: 8, c: 500, kb: 0.6, mag: 8, rl: 1.5, tier: 'UNCOMMON', rng: 160 },
   { n: 'Rifle', d: 30, r: 0.20, sp: 0.02, p: 1, c: 700, kb: 0.95, mag: 25, rl: 1.3, tier: 'RARE', rng: 380 },
   { n: 'Minigun', d: 10, r: 0.075, sp: 0.16, p: 1, c: 1500, kb: 0.2, mag: 100, rl: 2.4, tier: 'EPIC', rng: 250 },
-  { n: 'Revolver', d: 68, r: 0.52, sp: 0.01, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.2, tier: 'COMMON', rng: 330 },
+  { n: 'Revolver', d: 68, r: 0.60, sp: 0.02, p: 1, c: 400, kb: 1.6, mag: 6, rl: 1.45, tier: 'COMMON', rng: 330 },
   { n: 'Assault', d: 16, r: 0.095, sp: 0.05, p: 1, c: 900, kb: 0.7, mag: 30, rl: 1.3, tier: 'RARE', rng: 350 },
   { n: 'Sniper', d: 195, r: 1.05, sp: 0, p: 1, c: 1200, pr: 3, rg: 1.15, kb: 2.2, mag: 5, rl: 1.9, tier: 'EPIC', rng: 1150 },
   { n: 'Plasma', d: 34, r: 0.14, sp: 0.025, p: 1, c: 2500, pr: 2, kb: 0.85, mag: 20, rl: 1.5, tier: 'LEGENDARY', rng: 430 },
@@ -2265,6 +2309,105 @@ const WEAP = [
 // reaches its rank. One new gun every rank or two, so the arsenal still opens
 // up over time without a shop to visit.
 const WEAP_RANK = [0,3,4,6,9,2,7,20,11,15,12,16,14,17,22,1,8,19,5,10,13,18];
+
+/* ---- Weapon tier policy ------------------------------------------------
+   One table decides what a tier is worth, so the armoury, the HUD and the
+   regression tests share a definition instead of each carrying its own idea of
+   what "EPIC" means. `dps` is *sustained* damage per second with reloads
+   included (the honest number in a survival arena, where every magazine ends in
+   a reload), `shot` is damage per trigger pull for a single-pellet weapon,
+   `mag`/`rl` are the magazine and reload windows, `spread` is the muzzle cone.
+   Bands are nested: every higher tier overlaps the one below it but reaches
+   further, so an upgrade is always an upgrade. */
+const TIER_POLICY = {
+  COMMON:    { dps: [45, 85],   shot: [8, 70],   mag: [6, 24],  rl: [0.9, 1.5], spread: [0, 0.14] },
+  UNCOMMON:  { dps: [65, 125],  shot: [8, 80],   mag: [6, 36],  rl: [1.0, 1.6], spread: [0, 0.25] },
+  RARE:      { dps: [90, 155],  shot: [12, 90],  mag: [5, 30],  rl: [1.1, 1.8], spread: [0, 0.30] },
+  EPIC:      { dps: [95, 185],  shot: [10, 200], mag: [5, 60],  rl: [1.2, 2.1], spread: [0, 0.35] },
+  LEGENDARY: { dps: [115, 200], shot: [13, 350], mag: [3, 50],  rl: [1.3, 2.5], spread: [0, 0.35] }
+};
+
+// Weapons that are defined by breaking their tier's band. Declaring them keeps
+// the validator honest - it still fails on accidental drift, but a deliberate
+// outlier is stated here instead of loosening the band for every other gun.
+const WEAP_TIER_EXCEPTIONS = {
+  4: { fields: ['mag', 'rl'], why: 'Minigun: the 100-round belt and its heavy 2.4s reload are the whole point of the gun' }
+};
+
+// Derived stats for a weapon index. Everything the player is shown about a gun
+// comes from here, so a change to WEAP can never leave the HUD stale.
+function weaponStats(i) {
+  const w = WEAP[i] || WEAP[0];
+  const mag = w.mag || 12;
+  const rl = w.rl || 1.2;
+  const rate = Math.max(0.02, w.r || 0.3);
+  const pellets = w.p || 1;
+  const shot = w.d * pellets;
+  const cycle = mag * rate + rl;
+  return {
+    tier: w.tier || 'COMMON',
+    pellets,
+    mag,
+    reload: rl,
+    rate,
+    spread: w.sp || 0,
+    shot,
+    dps: (mag * shot) / cycle
+  };
+}
+
+// The tier ladder itself: floors and ceilings must rise with the tier, so an
+// upgrade is always an upgrade. Returns [] when the ladder is sound.
+function tierLadderIssues() {
+  const order = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
+  const issues = [];
+  for (let i = 1; i < order.length; i++) {
+    const lo = TIER_POLICY[order[i - 1]], hi = TIER_POLICY[order[i]];
+    if (hi.dps[0] <= lo.dps[0]) issues.push(order[i] + ' dps floor ' + hi.dps[0] + ' does not exceed ' + order[i - 1] + ' ' + lo.dps[0]);
+    if (hi.dps[1] <= lo.dps[1]) issues.push(order[i] + ' dps ceiling ' + hi.dps[1] + ' does not exceed ' + order[i - 1] + ' ' + lo.dps[1]);
+    if (hi.shot[1] <= lo.shot[1]) issues.push(order[i] + ' shot ceiling ' + hi.shot[1] + ' does not exceed ' + order[i - 1] + ' ' + lo.shot[1]);
+  }
+  // The real table has to obey the ladder too: the weakest gun of a tier must
+  // out-perform the weakest gun of the tier below it.
+  const minDps = {};
+  WEAP.forEach((w, i) => {
+    const st = weaponStats(i);
+    minDps[st.tier] = (minDps[st.tier] == null) ? st.dps : Math.min(minDps[st.tier], st.dps);
+  });
+  for (let i = 1; i < order.length; i++) {
+    const a = minDps[order[i - 1]], b = minDps[order[i]];
+    if (a != null && b != null && b <= a) {
+      issues.push('weakest ' + order[i] + ' (' + Math.round(b * 10) / 10 + ' dps) is not stronger than the weakest ' + order[i - 1] + ' (' + Math.round(a * 10) / 10 + ' dps)');
+    }
+  }
+  return issues;
+}
+
+// Every weapon that falls outside its own tier's band. Used by the build-time
+// regression pass so a future stat edit cannot silently break the ladder.
+function weaponTierIssues() {
+  const issues = [];
+  const inBand = (v, b) => v >= b[0] - 1e-9 && v <= b[1] + 1e-9;
+  WEAP.forEach((w, i) => {
+    const st = weaponStats(i);
+    const pol = TIER_POLICY[st.tier];
+    if (!pol) { issues.push({ i, n: w.n, why: 'unknown tier ' + st.tier }); return; }
+    const fields = [
+      ['dps', Math.round(st.dps * 10) / 10],
+      ['shot', st.pellets > 1 ? 0 : w.d],
+      ['mag', st.mag],
+      ['rl', st.reload],
+      ['spread', st.spread]
+    ];
+    for (const [k, v] of fields) {
+      if (k === 'shot' && v === 0) continue;
+      const ex = WEAP_TIER_EXCEPTIONS[i];
+      if (ex && ex.fields.indexOf(k) !== -1) continue;
+      if (!inBand(v, pol[k])) issues.push({ i, n: w.n, tier: st.tier, why: k + ' ' + v + ' outside [' + pol[k] + ']' });
+    }
+  });
+  return issues;
+}
 
 
 const TIER_COLORS = {
@@ -3048,7 +3191,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v2.9.0 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.0.0 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -3127,15 +3270,30 @@ function sanitizeSV(s) {
     if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     out[k] = s[k];
   }
-  out.lvl = Math.max(1, Math.floor(Number(out.lvl) || 1));
-  out.xp = Math.max(0, Math.floor(Number(out.xp) || 0));
-  out.cr = Math.max(0, Math.floor(Number(out.cr) || 0));
-  out.sp = Math.max(0, Math.floor(Number(out.sp) || 0));
-  out.best = Math.max(0, Math.floor(Number(out.best) || 0));
+  // `Math.max(0, Math.floor(Number(v) || 0))` is not enough on its own: an edited
+  // save containing `Infinity` passes straight through it (Number(Infinity) is
+  // truthy, Math.floor keeps it, Math.max accepts it) and poisons every derived
+  // value from XP to the crit roll. Every counter goes through one clamp that
+  // rejects anything non-finite.
+  const num = (v, lo, hi, dflt) => {
+    const n = Math.floor(Number(v));
+    if (!isFinite(n)) return dflt;
+    return Math.max(lo, Math.min(hi, n));
+  };
+  out.lvl = num(out.lvl, 1, 9999, 1);
+  out.xp = num(out.xp, 0, 1e12, 0);
+  out.cr = num(out.cr, 0, 1e12, 0);
+  out.sp = num(out.sp, 0, 1e9, 0);
+  out.best = num(out.best, 0, 100000, 0);
+  // `rev`/`ts` decide which copy wins when a save is merged back from the native
+  // Preferences store, so they are clamped too: an infinite revision would win
+  // every future merge.
+  out.rev = num(out.rev, 0, 1e9, 1);
+  out.ts = num(out.ts, 0, 8.64e15, Date.now());
   // Skill-tree ranks and loadout indices: a corrupt or hand-edited save must
   // never be able to inject NaN/Infinity into P.mx, S.dm or the crit roll.
   const RANKS = ['mx', 'spd', 'dm', 'rof', 'crit', 'vamp', 'regen', 'cb', 'xpb', 'hu', 'du', 'gu', 'sc', 'shadows', 'luck', 'mute'];
-  for (const k of RANKS) out[k] = Math.max(0, Math.min(999, Math.floor(Number(out[k]) || 0)));
+  for (const k of RANKS) out[k] = num(out[k], 0, 999, 0);
   // Control and comfort preferences. Clamped rather than trusted: a corrupt save
   // must not be able to hand ctlScale() a NaN (which would place every control at
   // NaN) or push the control size off the screen.
@@ -3172,8 +3330,9 @@ function sanitizeSV(s) {
   if (!out.pace || typeof out.pace !== 'object') out.pace = { times: {} };
   if (!out.pace.times || typeof out.pace.times !== 'object') out.pace.times = {};
   if (!out.asc || typeof out.asc !== 'object') out.asc = {};
-  out.runStreak = Math.max(0, Math.floor(Number(out.runStreak) || 0));
-  out.loginDays = Math.max(1, Math.min(10, Math.floor(Number(out.loginDays) || 1)));
+  out.runStreak = num(out.runStreak, 0, 10000, 0);
+  out.loginDays = num(out.loginDays, 1, 10, 1);
+  out.ap = num(out.ap, 0, 1e6, 0);
   return out;
 }
 
@@ -3224,6 +3383,29 @@ function ld() {
   }
 }
 
+// A save that quietly stops persisting is worse than one that fails loudly: the
+// player keeps earning for hours and finds nothing at the next launch. Anything
+// over this size is pruned before the write, and a write that still fails is
+// surfaced in the lobby tagline instead of being swallowed.
+const SAVE_MAX_BYTES = 512 * 1024;
+const PACE_KEEP = 80;
+let SAVE_FAIL_LOGGED = 0;
+
+function pruneSave() {
+  if (!SV || !SV.pace || !SV.pace.times) return false;
+  const keys = Object.keys(SV.pace.times);
+  if (keys.length <= PACE_KEEP) return false;
+  keys.sort((a, b) => Number(a) - Number(b));
+  const keep = {};
+  for (const k of keys.slice(-PACE_KEEP)) keep[k] = SV.pace.times[k];
+  SV.pace.times = keep;
+  return true;
+}
+
+function saveWarning() {
+  return (SV && SV.saveFail) ? ' \u2022 SAVE OFFLINE' : '';
+}
+
 function sv() {
   try {
     SV.lvl = Math.max(1, Math.floor(Number(SV.lvl) || 1));
@@ -3231,17 +3413,26 @@ function sv() {
     SV.xp = Math.max(0, Math.floor(Number(SV.xp) || 0));
     SV.cr = Math.max(0, Math.floor(Number(SV.cr) || 0));
     SV.sp = Math.max(0, Math.floor(Number(SV.sp) || 0));
-    const str = JSON.stringify(SV);
+    let str = JSON.stringify(SV);
+    if (str.length > SAVE_MAX_BYTES && pruneSave()) str = JSON.stringify(SV);
     // Real rolling backup: keep the previous good save as dzs_bak so a corrupt
     // write cannot take both slots down at once. It used to write the same
     // string to both keys, which made the "backup" useless.
     const prev = localStorage.getItem('dzs');
     if (prev && prev !== str) localStorage.setItem('dzs_bak', prev);
     localStorage.setItem('dzs', str);
+    if (SV.saveFail) { SV.saveFail = 0; SAVE_FAIL_LOGGED = 0; }
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
       window.Capacitor.Plugins.Preferences.set({ key: 'dzs', value: str }).catch(() => {});
     }
-  } catch (e) {}
+  } catch (e) {
+    SV.saveFail = 1;
+    if (!SAVE_FAIL_LOGGED) {
+      SAVE_FAIL_LOGGED = 1;
+      try { console.warn('[dead-zone] progress could not be saved:', e && e.message ? e.message : e); } catch (_) {}
+      if (typeof lobby === 'function') { try { lobby(); } catch (_) {} }
+    }
+  }
 }
 
 // Guns are unlocked by account rank rather than bought, so ownership is
@@ -3687,56 +3878,6 @@ enrichMapData();
 let P_PROPS = [];
 let AMB_PARTICLES = [];
 
-function initMapArchitecture(curM) {
-  O = [];
-  P_PROPS = [];
-  HZ = [];
-  AMB_PARTICLES = [];
-
-  const mData = MAP_DATA[curM] || MAP_DATA[0];
-
-  // 1. Load 3D Obstacles into O
-  if (mData.walls) {
-    for (const w of mData.walls) {
-      O.push({
-        x: w.x, y: w.y, w: w.w, h: w.h,
-        t: w.t || 'building',
-        col: w.col || '#3a4234',
-        roof: w.roof || '#242a1e',
-        name: w.name || ''
-      });
-    }
-  }
-
-  // 2. Load Props
-  if (mData.props) {
-    for (const p of mData.props) {
-      P_PROPS.push({ ...p });
-    }
-  }
-
-  // 3. Load Hazards
-  if (mData.hazards) {
-    for (const h of mData.hazards) {
-      HZ.push({ x: h.x, y: h.y, r: h.r });
-    }
-  }
-
-  // 4. Initialize Ambient Weather Particles
-  const ambCount = getQualityProfile().ambientCount;
-  for (let i = 0; i < ambCount; i++) {
-    AMB_PARTICLES.push({
-      x: Math.random() * WS,
-      y: Math.random() * WS,
-      vx: (Math.random() - 0.5) * 20 + (curM === 2 ? 15 : (curM === 1 ? 40 : 0)),
-      vy: (Math.random() - 0.5) * 20 + (curM === 2 ? 35 : (curM === 4 ? -25 : 0)),
-      sz: 1.5 + Math.random() * 2.5,
-      alpha: 0.2 + Math.random() * 0.4,
-      rot: Math.random() * 6.28
-    });
-  }
-}
-
 function getCurMap() {
   return (typeof S !== 'undefined' && S && S.isEvent && S.evDef && S.evDef.map != null) ? S.evDef.map : (typeof SV !== 'undefined' && SV ? (SV.map || 0) : 0);
 }
@@ -3754,7 +3895,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v2.9.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.0.0 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -4090,22 +4231,6 @@ function claimRank(r) {
   lobby();
 }
 
-function toggleSkin(weapIdx) {
-  const owned = Object.keys(SKINS).filter(k => SKINS[k].wi === weapIdx && (SV.skins && SV.skins[k]));
-  if (!owned.length) return;
-  SV.eqSkin = SV.eqSkin || {};
-  const cur = SV.eqSkin[weapIdx];
-  if (!cur) {
-    SV.eqSkin[weapIdx] = owned[0];
-  } else {
-    const nextIdx = owned.indexOf(cur) + 1;
-    if (nextIdx >= owned.length) delete SV.eqSkin[weapIdx];
-    else SV.eqSkin[weapIdx] = owned[nextIdx];
-  }
-  sv();
-  lobby();
-}
-
 const LOBBY_REWARD_TABS = ['m', 'l', 'c', 's'];
 function switchLobbyRewards(t){
   if (LOBBY_REWARD_TABS.indexOf(t) < 0) t = 'm';
@@ -4148,32 +4273,32 @@ function skinIcon(skinKey) {
   const cv = document.createElement('canvas');
   cv.width = 180; cv.height = 54;
   const cx = cv.getContext('2d');
-  const prevX = X;
+  const wi = skinWeaponIndex(sk);
   SV.eqSkin = SV.eqSkin || {};
-  const origEq = SV.eqSkin[sk.wi];
-  X = cx;
+  const origEq = SV.eqSkin[wi];
   try {
-    X.save();
-    X.fillStyle = '#10140c';
-    X.fillRect(0, 0, 180, 54);
-    X.strokeStyle = 'rgba(255,255,255,0.04)';
-    X.lineWidth = 1;
-    for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
-    for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
-    const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
-    rg.addColorStop(0, sk.col + '33');
-    rg.addColorStop(1, 'rgba(0,0,0,0)');
-    X.fillStyle = rg;
-    X.fillRect(0, 0, 180, 54);
-    X.translate(26, 27);
-    X.scale(1.6, 1.6);
-    SV.eqSkin[sk.wi] = skinKey;
-    gun(sk.wi, 0);
-    X.restore();
+    withCtx(cx, () => {
+      X.save();
+      X.fillStyle = '#10140c';
+      X.fillRect(0, 0, 180, 54);
+      X.strokeStyle = 'rgba(255,255,255,0.04)';
+      X.lineWidth = 1;
+      for (let gx = 0; gx < 180; gx += 15) { X.beginPath(); X.moveTo(gx, 0); X.lineTo(gx, 54); X.stroke(); }
+      for (let gy = 0; gy < 54; gy += 15) { X.beginPath(); X.moveTo(0, gy); X.lineTo(180, gy); X.stroke(); }
+      const rg = X.createRadialGradient(90, 27, 8, 90, 27, 75);
+      rg.addColorStop(0, sk.col + '33');
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      X.fillStyle = rg;
+      X.fillRect(0, 0, 180, 54);
+      X.translate(26, 27);
+      X.scale(1.6, 1.6);
+      SV.eqSkin[wi] = skinKey;
+      gun(wi, 0);
+      X.restore();
+    });
   } finally {
-    // always hand the shared canvas context back, even if gun() throws
-    if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
-    X = prevX;
+    // gun() renders with the preview skin equipped, so the real one has to go back
+    if (origEq) SV.eqSkin[wi] = origEq; else delete SV.eqSkin[wi];
   }
   return SKI_CACHE[skinKey] = cv.toDataURL();
 }
@@ -4181,10 +4306,36 @@ function skinIcon(skinKey) {
 let TURNTABLE_SKIN = 'volt_railgun';
 let TURNTABLE_ROT = 0;
 let TURNTABLE_RAF = null;
+let TURNTABLE_ERR = 0;
+
+// A weapon or operative preview is decoration. If one definition is broken the
+// tab must stay usable, so the preview is allowed to fail once - loudly - and
+// then stops requesting frames instead of throwing on every one of them.
+function renderTurntable() {
+  try {
+    turntableFrame();
+  } catch (e) {
+    TURNTABLE_RAF = null;
+    if (!TURNTABLE_ERR) {
+      TURNTABLE_ERR = 1;
+      console.error('[Skins] turntable preview failed', e);
+    }
+  }
+}
+
+// Resolves a skin's weapon index to something drawable. A skin can legitimately
+// carry no weapon, or a stale index from an older build's arsenal.
+function skinWeaponIndex(sk) {
+  if (!sk) return 0;
+  const wi = Number(sk.wi);
+  if (!isFinite(wi) || wi < 0 || wi > WEAP.length - 1) return 0;
+  return wi | 0;
+}
 
 function inspectSkin(skinKey) {
   const sk = SKINS[skinKey]; if (!sk) return;
   TURNTABLE_SKIN = skinKey;
+  TURNTABLE_ERR = 0;
   const badge = $('st-badge'), title = $('st-title'), sub = $('st-sub'), desc = $('st-desc');
   const tier = sk.tier || 'RARE';
   const tierCols = { COMMON: '#94a3b8', RARE: '#38bdf8', EPIC: '#c084fc', LEGENDARY: '#f59e0b' };
@@ -4193,13 +4344,19 @@ function inspectSkin(skinKey) {
     badge.style.background = tierCols[tier] || '#38bdf8';
     badge.style.color = (tier === 'LEGENDARY' || tier === 'COMMON') ? '#18181b' : '#ffffff';
   }
-  if (title) title.textContent = sk.name.toUpperCase();
-  if (sub) sub.textContent = (sk.type === 'op' ? 'OPERATIVE CAMO' : ((WEAP[sk.wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH')) + ' • 360° TURNTABLE';
-  if (desc) desc.textContent = sk.desc;
+  if (title) title.textContent = String(sk.name || skinKey).toUpperCase();
+  if (sub) {
+    // The operative branch used to build a null weapon name and then uppercase it,
+    // so every op skin threw right here and took the whole preview down with it.
+    const isOp = sk.type === 'op';
+    const wName = String(isOp ? 'OPERATIVE' : ((WEAP[skinWeaponIndex(sk)] || {}).n || 'WEAPON')).toUpperCase();
+    sub.textContent = (isOp ? 'OPERATIVE CAMO' : (wName + ' FINISH')) + ' • 360° TURNTABLE';
+  }
+  if (desc) desc.textContent = sk.desc || '';
   renderTurntable();
 }
 
-function renderTurntable() {
+function turntableFrame() {
   const cv = $('skin-turntable-canvas');
   if (!cv) return;
   const cx = cv.getContext('2d');
@@ -4255,52 +4412,57 @@ function renderTurntable() {
   cx.translate(tw / 2, th / 2 + 6);
   const cosRot = Math.cos(TURNTABLE_ROT);
 
-  const prevX = X;
-  X = cx;
+  // The model draws through the shared X binding; withCtx hands it back even
+  // if a skin definition throws half way through the preview.
+  withCtx(cx, () => {
 
-  if (sk.type === 'op') {
-    // High-fidelity 4-layer operative turntable model
-    cx.scale(cosRot * 1.85, 1.85);
+    if (sk.type === 'op') {
+      // High-fidelity 4-layer operative turntable model
+      cx.scale(cosRot * 1.85, 1.85);
 
-    // Drop shadow
-    cx.fillStyle = 'rgba(0,0,0,0.42)';
-    cx.beginPath(); cx.ellipse(0, 13, 12, 5, 0, 0, 6.28); cx.fill();
+      // Drop shadow
+      cx.fillStyle = 'rgba(0,0,0,0.42)';
+      cx.beginPath(); cx.ellipse(0, 13, 12, 5, 0, 0, 6.28); cx.fill();
 
-    // Combat boots
-    cx.fillStyle = '#181b16';
-    cx.fillRect(-8, 5, 5.5, 9);
-    cx.fillRect(2.5, 5, 5.5, 9);
+      // Combat boots
+      cx.fillStyle = '#181b16';
+      cx.fillRect(-8, 5, 5.5, 9);
+      cx.fillRect(2.5, 5, 5.5, 9);
 
-    // Tactical gear backpack
-    cx.fillStyle = sk.pk || '#252e20';
-    cx.fillRect(-10, -8, 20, 13);
-    cx.strokeStyle = '#10140d'; cx.lineWidth = 1; cx.strokeRect(-10, -8, 20, 13);
+      // Tactical gear backpack
+      cx.fillStyle = sk.pk || '#252e20';
+      cx.fillRect(-10, -8, 20, 13);
+      cx.strokeStyle = '#10140d'; cx.lineWidth = 1; cx.strokeRect(-10, -8, 20, 13);
 
-    // Torso armor with camouflage accent
-    cx.fillStyle = sk.col;
-    cx.beginPath(); cx.roundRect(-8, -12, 16, 17, 3.5); cx.fill();
-    cx.strokeStyle = sk.ac || '#10140d'; cx.lineWidth = 1.6; cx.stroke();
+      // Torso armor with camouflage accent
+      cx.fillStyle = sk.col;
+      cx.beginPath(); cx.roundRect(-8, -12, 16, 17, 3.5); cx.fill();
+      cx.strokeStyle = sk.ac || '#10140d'; cx.lineWidth = 1.6; cx.stroke();
 
-    // Helmet & Visor
-    cx.fillStyle = sk.hm || '#1e293b';
-    cx.beginPath(); cx.arc(0, -15, 7.5, 0, 6.28); cx.fill();
-    cx.fillStyle = sk.vz || '#00e5ff';
-    cx.beginPath(); cx.roundRect(-4, -17, 8, 3.5, 1.5); cx.fill();
-    cx.fillStyle = 'rgba(255,255,255,0.7)';
-    cx.fillRect(-2, -16.5, 3, 1.5);
-  } else {
-    // High-resolution scaled weapon preview centered on turntable pedestal
-    cx.scale(cosRot * 2.35, 2.35);
-    cx.translate(-14, 0);
+      // Helmet & Visor
+      cx.fillStyle = sk.hm || '#1e293b';
+      cx.beginPath(); cx.arc(0, -15, 7.5, 0, 6.28); cx.fill();
+      cx.fillStyle = sk.vz || '#00e5ff';
+      cx.beginPath(); cx.roundRect(-4, -17, 8, 3.5, 1.5); cx.fill();
+      cx.fillStyle = 'rgba(255,255,255,0.7)';
+      cx.fillRect(-2, -16.5, 3, 1.5);
+    } else {
+      // High-resolution scaled weapon preview centered on turntable pedestal
+      cx.scale(cosRot * 2.35, 2.35);
+      cx.translate(-14, 0);
 
-    const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[sk.wi] : null;
-    SV.eqSkin = SV.eqSkin || {};
-    SV.eqSkin[sk.wi] = TURNTABLE_SKIN;
-    gun(sk.wi, 0);
-    if (origEq) SV.eqSkin[sk.wi] = origEq; else delete SV.eqSkin[sk.wi];
-  }
-
-  X = prevX;
+      const wi = skinWeaponIndex(sk);
+      const origEq = (typeof SV !== 'undefined' && SV && SV.eqSkin) ? SV.eqSkin[wi] : null;
+      SV.eqSkin = SV.eqSkin || {};
+      SV.eqSkin[wi] = TURNTABLE_SKIN;
+      try {
+        gun(wi, 0);
+      } finally {
+        // gun() renders with the preview skin equipped; put the real one back
+        if (origEq) SV.eqSkin[wi] = origEq; else delete SV.eqSkin[wi];
+      }
+    }
+  });
   cx.restore();
 
   // Specular reflection sweep across the pedestal
@@ -4322,6 +4484,7 @@ function renderTurntable() {
 
 function renderSkinsUI(){
   const el = $('skin-list'); if(!el) return;
+  if (typeof SV === 'undefined' || !SV) return;
   const sKeys = Object.keys(SKINS);
   const filtered = sKeys.filter(k => {
     const sk = SKINS[k];
@@ -4342,9 +4505,13 @@ function renderSkinsUI(){
   el.innerHTML = filtered.map(k => {
     const sk = SKINS[k];
     const isOp = sk.type === 'op';
+    // A definition can be incomplete (an event skin shipped without a colour or a
+    // description). Fall back instead of printing "undefined" into the card.
+    const skName = sk.name || k, skCol = sk.col || '#8fae4a', skDesc = sk.desc || '';
+    const wi = skinWeaponIndex(sk);
     const isOwned = Boolean(SV.skins && SV.skins[k]);
-    const isEquipped = isOp ? (SV.eqOpSkin === k) : Boolean(SV.eqSkin && SV.eqSkin[sk.wi] === k);
-    const subTitle = isOp ? 'OPERATIVE CAMO' : ((WEAP[sk.wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH');
+    const isEquipped = isOp ? (SV.eqOpSkin === k) : Boolean(SV.eqSkin && SV.eqSkin[wi] === k);
+    const subTitle = isOp ? 'OPERATIVE CAMO' : ((WEAP[wi]||{n:'WEAPON'}).n.toUpperCase() + ' FINISH');
     const previewSrc = isOp ? charSkinIcon(k) : skinIcon(k);
     const tier = sk.tier || 'RARE';
     const tCol = tierCols[tier] || '#38bdf8';
@@ -4370,22 +4537,22 @@ function renderSkinsUI(){
     }
 
     const flourish = (tier === 'EPIC' || tier === 'LEGENDARY');
-    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${sk.col};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${sk.col}66">
+    return `<div class="card skin-card${isEquipped ? ' equipped' : ''}" onclick="inspectSkin('${k}')" style="cursor:pointer;border:${cardBorder};border-left:5px solid ${skCol};box-shadow:${cardShadow};display:flex;flex-direction:column;gap:8px;background:${cardBg};--aura:${skCol}66">
       ${flourish ? '<div class="sk-pixel"></div><div class="sk-aura"></div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:8.5px;font-weight:900;padding:1px 5px;border-radius:3px;background:${tCol}22;color:${tCol};border:1px solid ${tCol}66">${tier}</span>
-            <b style="font-size:13.5px;color:${isEquipped?'#8fae4a':'#f0ece1'}">${sk.name}</b>
+            <b style="font-size:13.5px;color:${isEquipped?'#8fae4a':'#f0ece1'}">${skName}</b>
           </div>
-          <div style="font-size:10px;opacity:.75;color:${sk.col};font-weight:700;margin-top:2px">${subTitle}</div>
+          <div style="font-size:10px;opacity:.75;color:${skCol};font-weight:700;margin-top:2px">${subTitle}</div>
         </div>
         <span style="font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:4px;background:${isEquipped?'rgba(143,174,74,.25)':(isOwned?'rgba(143,174,74,.15)':'rgba(255,255,255,.08)')};color:${isEquipped?'#8fae4a':(isOwned?'#8fae4a':'#888')};border:1px solid ${isEquipped?'#8fae4a55':'transparent'}">${isEquipped?'EQUIPPED':(isOwned?'UNLOCKED':'LOCKED')}</span>
       </div>
-      <div style="background:radial-gradient(ellipse at center, rgba(35,42,30,.7) 0%, rgba(12,15,10,.95) 100%);border:1px solid ${sk.col}33;border-radius:6px;padding:6px;display:flex;justify-content:center;align-items:center;min-height:56px">
+      <div style="background:radial-gradient(ellipse at center, rgba(35,42,30,.7) 0%, rgba(12,15,10,.95) 100%);border:1px solid ${skCol}33;border-radius:6px;padding:6px;display:flex;justify-content:center;align-items:center;min-height:56px">
         <img src="${previewSrc}" style="width:100%;max-width:210px;height:52px;object-fit:contain">
       </div>
-      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${sk.desc}</div>
+      <div style="font-size:11px;opacity:.85;color:#d0cac0;line-height:1.35">${skDesc}</div>
       <div style="background:rgba(0,0,0,.35);padding:6px 8px;border-radius:6px;font-size:10px">
         <span style="opacity:.65">UNLOCK: </span>
         <span style="color:${isOwned?'#8fae4a':'#e0b83a'};font-weight:700">${sk.how || 'Special Event'}</span>
@@ -4408,7 +4575,7 @@ function renderSkinsUI(){
           <button onclick="event.stopPropagation();equipSkinDirect('${k}')" style="flex:1;min-height:34px;font-weight:700;border-color:${isEquipped?'#8fae4a':sk.col};background:${isEquipped?'rgba(143,174,74,.25)':'transparent'};color:${isEquipped?'#8fae4a':'#f0ece1'}">
             ${isEquipped ? 'EQUIPPED' : 'EQUIP SKIN'}
           </button>
-          ${isEquipped ? `<button onclick="event.stopPropagation();${isOp ? "unequipOpSkinDirect()" : "unequipSkinDirect("+sk.wi+")"}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
+          ${isEquipped ? `<button onclick="event.stopPropagation();${isOp ? "unequipOpSkinDirect()" : "unequipSkinDirect("+wi+")"}" style="min-height:34px;padding:0 12px;font-size:10px">DEFAULT</button>` : ''}
         ` : `
           <button disabled style="flex:1;min-height:34px;font-size:11px;opacity:.5">LOCKED</button>
         `}
@@ -4435,7 +4602,7 @@ function equipSkinDirect(skinId){
     SV.eqOpSkin = skinId;
   } else {
     SV.eqSkin = SV.eqSkin || {};
-    SV.eqSkin[sk.wi] = skinId;
+    SV.eqSkin[skinWeaponIndex(sk)] = skinId;
   }
   SV.rev = (SV.rev || 0) + 1;
   SV.ts = Date.now();
@@ -4697,14 +4864,6 @@ function spawnGroundDecal(x, y, vx, vy, r, col, rimCol, type) {
 }
 
 // Bakes or recycles oldest settled decals smoothly without permanent clutter
-function bakeDecalsToBackground(count) {
-  if (DEC.length > count) {
-    for (let i = 0; i < count; i++) {
-      if (DEC[i]) DEC[i].l = Math.min(DEC[i].l, 1.0);
-    }
-  }
-}
-
 // Spawns a bloody footprint when walking through blood
 function spawnFootprint(x, y, angle, side, col) {
   if (!isGoreEnabled()) return;
@@ -5549,7 +5708,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v2.9.0 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v1.0.0 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -5722,6 +5881,13 @@ function bodyFront(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV
   X.restore();
 }
 
+// Run clock for cosmetic animation inside the player/gun sprites. The lobby
+// draws these same sprites for skin previews long before begin() exists, and S
+// is null until then, so every animated detail has to survive a missing run.
+function runClock() {
+  return (typeof S !== 'undefined' && S && typeof S.t === 'number') ? S.t : 0;
+}
+
 // 4-LAYER GUN SPRITE RENDERING
 function gun(i, rc) {
   if (i == null || typeof i !== 'number' || i < 0 || i > WEAP.length - 1 || isNaN(i)) i = 0;
@@ -5806,7 +5972,7 @@ function gun(i, rc) {
     bx(10, 3, 6, 8, DK); q(14, -5, 3, 2, '#bbb'); q(50, -4, 4, 5, '#222'); q(18, -11, 2, 1, '#fff7');
   } else if (i === 4) {
     // 4: Heavy Minigun (6-Barrel Gatling)
-    const ph = fl ? (S.t || 0) * 45 : 0;
+    const ph = fl ? runClock() * 45 : 0;
     bx(-10, -5, 6, 10, DK);
     bx(-4, -9, 16, 18, '#555');
     for (let k = 0; k < 3; k++) q(-2 + k * 4, -9, 1, 18, '#0004');
@@ -5862,7 +6028,7 @@ function gun(i, rc) {
     ln(38, 2, 32, 11, '#111'); ln(41, 2, 47, 11, '#111'); bx(8, 3, 6, 6, DK);
   } else if (i === 8) {
     // 8: Plasma Cannon (Ionized Energy Blaster)
-    const a = 0.6 + Math.sin((S.t || 0) * 8) * 0.3;
+    const a = 0.6 + Math.sin(runClock() * 8) * 0.3;
     bx(0, -6, 22, 12, '#4b5563');
     for (let k = 0; k < 3; k++) q(3 + k * 6, -6, 2, 12, '#0004');
     bx(22, -6, 18, 2, '#6a7a8a');
@@ -5907,7 +6073,7 @@ function gun(i, rc) {
     bx(-6, -8, 14, 14, WD); pg([[-6, -8], [-14, -3], [-14, 5], [-6, 6]], DK);
     bx(8, -8, 20, 16, '#3a4234');
     for (let k = 0; k < 6; k++) {
-      const a = k * 1.047 + (fl ? (S.t || 0) * 20 : 0);
+      const a = k * 1.047 + (fl ? runClock() * 20 : 0);
       q(18 + Math.cos(a) * 5 - 2, Math.sin(a) * 5 - 2, 4, 4, '#1a1f16');
       q(18 + Math.cos(a) * 5 - 1, Math.sin(a) * 5 - 1, 2, 2, '#d9b84a');
     }
@@ -5915,7 +6081,7 @@ function gun(i, rc) {
     pg([[4, 6], [10, 6], [8, 14], [2, 14]], DK);
   } else if (i === 13) {
     // 13: Cryo Cannon (Liquid Nitrogen Projector)
-    const cGlow = 0.7 + Math.sin((S.t || 0) * 10) * 0.3;
+    const cGlow = 0.7 + Math.sin(runClock() * 10) * 0.3;
     bx(-6, -8, 18, 16, '#223242'); bx(12, -7, 28, 14, '#2e4254');
     X.fillStyle = '#8fe3ff'; X.globalAlpha = ga * cGlow;
     bx(14, -10, 22, 3, '#5ac8e8'); bx(14, 7, 22, 3, '#5ac8e8');
@@ -5928,7 +6094,7 @@ function gun(i, rc) {
     bx(-8, -9, 22, 18, '#141922'); bx(14, -7, 16, 14, '#1c2432');
     bx(30, -8, 44, 4, '#2a3548'); bx(30, 4, 44, 4, '#2a3548');
     bx(74, -9, 6, 18, '#111720');
-    const rGlow = 0.6 + Math.sin((S.t || 0) * 15) * 0.4;
+    const rGlow = 0.6 + Math.sin(runClock() * 15) * 0.4;
     X.fillStyle = '#00f0ff'; X.globalAlpha = ga * rGlow;
     for (let k = 0; k < 6; k++) q(32 + k * 7, -3, 3, 6, '#00f0ff');
     if (fl || Math.random() < 0.35) {
@@ -6032,7 +6198,7 @@ function gun(i, rc) {
       const L = (typeof ML !== 'undefined' && ML[i]) ? ML[i] : 34;
       const core = skDef.col || '#94a3b8';
       const dark = skDef.ac || '#1c1917';
-      const pulse = 0.7 + Math.sin(((typeof S !== 'undefined' && S) ? (S.t || 0) : 0) * 8) * 0.3;
+      const pulse = 0.7 + Math.sin(runClock() * 8) * 0.3;
       X.globalAlpha = ga * 0.5;
       X.fillStyle = core;
       X.fillRect(2, -4.5, L * 0.56, 9);
@@ -6149,7 +6315,7 @@ function resetCharacterIconCache() {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v2.9.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v1.0.0 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -7118,7 +7284,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v2.9.0 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v1.0.0 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -7496,7 +7662,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v2.9.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v1.0.0 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -7547,17 +7713,15 @@ function getLightSprite(col, soft) {
 /* GRADIENT CACHE                                                      */
 /* ------------------------------------------------------------------ */
 // Static prop lights keep their world position for the whole run, so their
-// gradients are built once instead of once per prop per frame.
-const GRAD_CACHE = new Map();
-
+// gradients are built once instead of once per prop per frame. The cache itself
+// lives in engine_core.js so every module shares one, and so the first rs() call
+// (which clears it) does not touch a map that is still in its temporal dead zone.
 function cachedRadialGradient(key, cx, cy, r0, r1, stops) {
-  let g = GRAD_CACHE.get(key);
-  if (!g) {
-    g = X.createRadialGradient(cx, cy, r0, cx, cy, r1);
-    for (const st of stops) g.addColorStop(st[0], st[1]);
-    GRAD_CACHE.set(key, g);
-  }
-  return g;
+  return grad('rad_' + key, g => {
+    const gr = g.createRadialGradient(cx, cy, r0, cx, cy, r1);
+    for (const st of stops) gr.addColorStop(st[0], st[1]);
+    return gr;
+  });
 }
 
 let MUZZLE_GLOW = null;
@@ -7569,17 +7733,6 @@ function muzzleGlowGradient() {
     MUZZLE_GLOW.addColorStop(1, 'rgba(255,240,190,0)');
   }
   return MUZZLE_GLOW;
-}
-
-let FLAME_MUZZLE_GLOW = null;
-function flameMuzzleGradient() {
-  if (!FLAME_MUZZLE_GLOW) {
-    FLAME_MUZZLE_GLOW = X.createRadialGradient(20, 0, 4, 20, 0, 46);
-    FLAME_MUZZLE_GLOW.addColorStop(0, 'rgba(255,220,120,0.85)');
-    FLAME_MUZZLE_GLOW.addColorStop(0.5, 'rgba(255,140,40,0.35)');
-    FLAME_MUZZLE_GLOW.addColorStop(1, 'rgba(255,120,20,0)');
-  }
-  return FLAME_MUZZLE_GLOW;
 }
 
 /* ------------------------------------------------------------------ */
@@ -8048,7 +8201,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v2.9.0 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v1.0.0 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -8063,6 +8216,7 @@ function bulletArchetype(wi) {
   if (w.ex) return 'rocket';
   if (w.n === 'Railgun') return 'rail';
   if (w.n === 'Sniper' || w.n === 'Crossbow') return 'heavy';
+  if (w.n === 'Revolver') return 'magnum';
   if (w.cl) return 'arc';
   if (w.fz) return 'cryo';
   if ((w.pr || 0) >= 2) return 'energy';
@@ -8138,7 +8292,9 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
   }
 
   // 3. Shockwave ring for heavy and critical impacts.
-  if (typeof RG !== 'undefined' && (tier >= 2 || isCrit)) {
+  // The revolver's magnum round is a punch, not an explosion: it keeps the ring
+  // only on a crit, where the extra emphasis is earned.
+  if (typeof RG !== 'undefined' && ((tier >= 2 && arch !== 'magnum') || isCrit)) {
     const rgb = isCrit ? '255,240,200' : hexToRgbTriplet(col);
     RG.push({ x, y, r: 4 + tier * 2, l: 0.2 + tier * 0.06, v: 420 + tier * 220, c: rgb });
   }
@@ -8166,6 +8322,21 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
     }
   } else if (arch === 'rocket' && tier >= 3) {
     if (typeof RG !== 'undefined') RG.push({ x, y, r: 6, l: 0.4, v: 520, c: '255,170,60' });
+  } else if (arch === 'magnum') {
+    // Small and sharp: a tight, fast spark fan along the impact axis with a
+    // short white core flash. A hand cannon should read as a hard punch, not a
+    // blast, so it deliberately gets no shockwave ring (see the ring gate above)
+    // and nothing beyond the shared dust puff.
+    for (let i = 0; i < 5; i++) {
+      const sa2 = a + Math.PI + (Math.random() - 0.5) * 0.55;
+      const sp2 = 190 + Math.random() * 200;
+      F.push({
+        x, y,
+        vx: Math.cos(sa2) * sp2, vy: Math.sin(sa2) * sp2,
+        l: 0.1 + Math.random() * 0.1, c: isCrit ? '#ffffff' : col, s: 1.4, fr: 1
+      });
+    }
+    F.push({ x, y, vx: 0, vy: 0, l: 0.09, c: '#fffdf0', s: 3.4 });
   }
 
   // 5. Hit-stop + screen punch, sized to the hit. HIT_STOP_TIMER was declared
@@ -8177,7 +8348,7 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
     HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, stop);
   }
   if (typeof QUALITY_SETTINGS !== 'undefined' && QUALITY_SETTINGS.screenShake) {
-    const punch = tier === 3 ? (isCrit ? 9 : 6.5) : tier === 2 ? (isCrit ? 5 : 3.4) : (isCrit ? 2.6 : 1.2);
+    const punch = (tier === 3 ? (isCrit ? 9 : 6.5) : tier === 2 ? (isCrit ? 5 : 3.4) : (isCrit ? 2.6 : 1.2)) * (arch === 'magnum' ? 0.72 : 1);
     addShake(punch);
   }
 }
@@ -8192,7 +8363,8 @@ function drawBulletDefault(b) {
   const w = (typeof WEAP !== 'undefined' && WEAP[wi]) ? WEAP[wi] : null;
   const arch = bulletArchetype(wi);
   const tier = damageTier(w ? w.d : (b.d || 10));
-  const heavy = arch === 'heavy' || arch === 'rail' || tier >= 2;
+  const magnum = arch === 'magnum';
+  const heavy = arch === 'heavy' || arch === 'rail' || magnum || tier >= 2;
   const hot = arch === 'energy' || arch === 'cryo' || arch === 'arc' || arch === 'rocket';
   const baseCol = b.c || bulletColourFor(wi, false);
   // A crit must be readable in flight, not just marginally fatter: it takes the
@@ -8206,13 +8378,20 @@ function drawBulletDefault(b) {
   // as far as a 240px/s flamer puff.
   const spd = Math.hypot(b.vx, b.vy) || 700;
   const vk = Math.max(0.55, Math.min(1.35, spd / 700));
+  // Hard pixel ceiling per archetype, independent of muzzle velocity. A trail
+  // measured only in time still smears with speed, which is what turned the
+  // revolver's 700px/s round into an 80px streak - longer than the gun that
+  // fired it. The cap is applied as distance/speed, so a fast round and a slow
+  // round of the same archetype smear the same readable distance.
+  const TRAIL_PX = { pellet: 15, flame: 22, tracer: 30, magnum: 26, energy: 34, cryo: 30, arc: 30, heavy: 52, rail: 72, rocket: 38 };
   const base = heavy ? 0.055 : (b.isCrit ? 0.042 : 0.030);
   // Trail time, not trail pixels. The old 0.13s ceiling multiplied by a 1.9
   // velocity factor smeared a 1050px/s slug across ~260px - longer than most
   // enemies are tall - which read as the bullet itself being stuck in the air.
   // Capping the time to 55ms and the velocity factor to 1.35 keeps the longest
   // tracer under ~80px while still scaling visibly with muzzle speed.
-  const tlen = Math.min(0.055, base * (1 + tier * 0.12) * vk);
+  const capPx = TRAIL_PX[arch] || (heavy ? 52 : 30);
+  const tlen = Math.min(0.055, base * (1 + tier * 0.12) * vk, capPx / spd);
   // Muzzle bloom: a fresh round stretches for ~45ms before it settles, which
   // reads as the round being spat out of the barrel rather than teleporting.
   const bloom = 1 + 1.15 * Math.max(0, 1 - ft / 0.045);
@@ -8225,16 +8404,16 @@ function drawBulletDefault(b) {
   if (heavy || hot) {
     // Outer bloom halo, then the coloured body, then a hot white core.
     X.globalCompositeOperation = 'lighter';
-    X.globalAlpha = heavy ? 0.32 : 0.22;
+    X.globalAlpha = magnum ? 0.26 : (heavy ? 0.32 : 0.22);
     X.strokeStyle = col;
-    X.lineWidth = heavy ? 14 + tier * 4 : 9 + tier * 2;
+    X.lineWidth = magnum ? 10 : (heavy ? 14 + tier * 4 : 9 + tier * 2);
     X.beginPath(); X.moveTo(tx, ty); X.lineTo(b.x, b.y); X.stroke();
     X.globalCompositeOperation = 'source-over';
   }
 
   X.globalAlpha = heavy ? 0.85 : 0.5;
   X.strokeStyle = col;
-  X.lineWidth = heavy ? 6.5 + tier * 1.6 : (b.isCrit ? 5 : 3);
+  X.lineWidth = magnum ? 5 : (heavy ? 6.5 + tier * 1.6 : (b.isCrit ? 5 : 3));
   X.beginPath(); X.moveTo(tx, ty); X.lineTo(b.x, b.y); X.stroke();
 
   X.globalAlpha = 1;
@@ -8298,6 +8477,16 @@ function drawBulletDefault(b) {
     X.fillStyle = '#eaf9ff';
     X.beginPath(); X.moveTo(5, 0); X.lineTo(0, -2.6); X.lineTo(-5, 0); X.lineTo(0, 2.6); X.closePath(); X.fill();
     X.strokeStyle = '#7fd4f0'; X.lineWidth = 0.9; X.stroke();
+  } else if (magnum) {
+    // Compact hand-cannon round: a stubby jacketed slug with a bright nose.
+    // Deliberately shorter and narrower than the heavy band so a revolver round
+    // never reads as a rifle or sniper slug.
+    X.fillStyle = '#2f2a22';
+    X.beginPath(); X.roundRect(-3.4, -2.5, 6.4, 5, 1.6); X.fill();
+    X.fillStyle = col;
+    X.beginPath(); X.roundRect(-2.6, -2.1, 5, 4.2, 1.5); X.fill();
+    X.fillStyle = b.isCrit ? '#fffdf0' : '#ffffff';
+    X.beginPath(); X.moveTo(2.2, -2.3); X.lineTo(4.6, 0); X.lineTo(2.2, 2.3); X.closePath(); X.fill();
   } else if (heavy) {
     X.fillStyle = col;
     X.beginPath(); X.roundRect(-4.5 - tier, -2.1 - tier * 0.25, 9 + tier * 2, 4.2 + tier * 0.5, 2.1); X.fill();
@@ -8321,10 +8510,11 @@ function drawBulletDefault(b) {
   X.restore();
 
   // Every archetype now carries a travelling light bloom, so a stream of SMG
-  // rounds genuinely lights the ground it crosses.
+  // rounds genuinely lights the ground it crosses. (The magnum's is clamped
+  // below so a sidearm cannot light the arena like a rocket.)
   X.globalCompositeOperation = 'lighter';
-  X.globalAlpha = heavy ? 0.55 : (hot ? 0.4 : 0.2);
-  const r = heavy ? 5 + tier * 2.4 : (hot ? 5.5 : 4);
+  X.globalAlpha = magnum ? 0.42 : (heavy ? 0.55 : (hot ? 0.4 : 0.2));
+  const r = magnum ? 5.5 : (heavy ? 5 + tier * 2.4 : (hot ? 5.5 : 4));
   X.drawImage(getLightSprite(col, true), b.x - r, b.y - r, r * 2, r * 2);
   X.globalCompositeOperation = 'source-over';
   X.globalAlpha = 1;
@@ -9262,9 +9452,13 @@ function drawPlayerGear() {
     const lamp = 0.1 + 0.05 * Math.sin((S.t || 0) * 6);
     X.globalCompositeOperation = 'lighter';
     X.globalAlpha = lamp;
-    const lg = X.createLinearGradient(10, 0, 150, 0);
-    lg.addColorStop(0, 'rgba(255,246,214,0.55)');
-    lg.addColorStop(1, 'rgba(255,246,214,0)');
+    // Fixed geometry, rebuilt every frame for nothing: cache it per context.
+    const lg = grad('lampCone', g => {
+      const gr = g.createLinearGradient(10, 0, 150, 0);
+      gr.addColorStop(0, 'rgba(255,246,214,0.55)');
+      gr.addColorStop(1, 'rgba(255,246,214,0)');
+      return gr;
+    });
     X.fillStyle = lg;
     X.beginPath();
     X.moveTo(9, -1.5);
@@ -9282,7 +9476,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v2.9.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v1.0.0 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -9668,7 +9862,7 @@ function renderPassives(cx, cy, W, H) {
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v2.9.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.0.0 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -9741,6 +9935,16 @@ function jKnob() { return 20 * ctlScale(); }
 // smallest control size, so a 360px-tall landscape screen still gets a
 // thumb-sized target; above that it scales with the viewport.
 function padUnit() { return Math.max(0.88, ctlScale()); }
+
+// HUD unit. The overlay chrome (radar, vitals, plates, trays) used to be pinned
+// to desktop pixel values, so on a 640x360 phone it crowded the arena and on a
+// tablet it looked undersized. It now scales with the shorter viewport edge,
+// clamped so text never drops below readable or grows into the play area. It is
+// deliberately separate from padUnit(), which also honours the player's control
+// size preference - the player can shrink the sticks without shrinking the HUD.
+function hudUnit() {
+  return Math.max(0.82, Math.min(1.15, Math.min(W, H) / 400));
+}
 
 // Drawn radius. FIRE is deliberately larger than everything else: it is the one
 // action a thumb should find without looking. PAUSE is smaller because it shares
@@ -10099,9 +10303,7 @@ function hurtP(dmg, srcX, srcY) {
   if (srcX != null && srcY != null) {
     const ang = Math.atan2(P.y - srcY, P.x - srcX);
     const impulse = Math.min(18, 4 + d * 0.4);
-    P.x += Math.cos(ang) * impulse;
-    P.y += Math.sin(ang) * impulse;
-    push(P, 13);
+    moveBody(P, 13, Math.cos(ang) * impulse, Math.sin(ang) * impulse);
   }
 
   // Screen shake scaled to damage (respecting shake toggle & reduced motion)
@@ -10204,6 +10406,11 @@ function init() {
       O.push({ x, y, w, h, k }); n++;
     }
   }
+
+  // Scenery that reads as solid (cars, crates, barrels, silos, cabins, logs...)
+  // becomes a real collider. Runs after the walls so props decorating a
+  // building can be recognised and skipped.
+  S.propColliders = addSolidPropColliders(mapDef);
 
   // Ground details
   for (let i = 0; i < 350; i++) {
@@ -10459,10 +10666,7 @@ function fire() {
     const critChance = Math.min(0.75, 0.04 * (SV.crit || 0) + (CL[SV.cls || 0] ? CL[SV.cls || 0].crit : 0) + (S.ct || 0));
     const isCrit = Math.random() < critChance;
     const critMult = isCrit ? (2 + (S.cdmg || 0)) : 1;
-    const rawDm = S.dm || 1;
-    const effDm = rawDm > 3.0 ? (3.0 + Math.sqrt(rawDm - 3.0) * 0.8) : rawDm;
-    const mastMult = (typeof masteryDamageMult === 'function') ? masteryDamageMult(P.cur) : 1;
-    const finalDmg = w.d * effDm * mastMult * (S.dd > 0 ? 2 : 1) * (1 + (S.bk || 0) * 0.35 * (1 - P.hp / P.mx)) * (S.oc && S.shots % Math.max(4, 12 - S.oc * 3) === 0 ? 3 : 1) * (S.fo && S.stl > 1 ? 1 + 0.4 * S.fo : 1) * critMult;
+    const finalDmg = baseShotDamage(P.cur) * (S.dd > 0 ? 2 : 1) * (1 + (S.bk || 0) * 0.35 * (1 - P.hp / P.mx)) * (S.oc && S.shots % Math.max(4, 12 - S.oc * 3) === 0 ? 3 : 1) * (S.fo && S.stl > 1 ? 1 + 0.4 * S.fo : 1) * critMult;
 
     const bSpeed = w.flm ? (360 + Math.random() * 70) : (w.rg > 1.2 ? 1050 : (w.sp === 0 ? 920 : 700));
     // Lifetime comes from a travel distance rather than a flat 0.7s. That flat
@@ -10501,6 +10705,18 @@ function fire() {
       l: 0.2, c: Math.random() < 0.5 ? '#ffcc00' : '#ff5500', s: 5
     });
   }
+}
+
+// The damage one non-critical shot from this weapon actually deals to an
+// unarmoured target: base damage after the run's damage perks and the account's
+// mastery bonus. fire() and the HUD both derive from this single expression, so
+// the number on the weapon card is the number that lands.
+function baseShotDamage(wi) {
+  const w = WEAP[wi] || WEAP[0];
+  const rawDm = (typeof S !== 'undefined' && S && S.dm) ? S.dm : 1;
+  const effDm = rawDm > 3.0 ? (3.0 + Math.sqrt(rawDm - 3.0) * 0.8) : rawDm;
+  const mastMult = (typeof masteryDamageMult === 'function') ? masteryDamageMult(wi) : 1;
+  return w.d * effDm * mastMult;
 }
 
 // CENTRALIZED DAMAGE PIPELINE
@@ -10787,7 +11003,78 @@ function boom(b, y0, r0, c0) {
   }
 }
 
-function push(z, r) {
+/* ------------------------------------------------------------------ */
+/* SOLID PROP COLLISION                                                */
+/* ------------------------------------------------------------------ */
+// The prop pass paints cars, crates, barrels, silos and cabins as scenery, but
+// none of them were ever registered as colliders, so the player walked straight
+// through objects that read as solid. The footprints below mirror the numbers
+// the renderers themselves use, so what blocks the player matches what is drawn.
+const PROP_SOLID = {
+  barrel: p => ({ w: (p.r || 15) * 2, h: (p.r || 15) * 2.3 }),
+  crate: p => ({ w: p.w || 34, h: p.h || 34 }),
+  dumpster: () => ({ w: 46, h: 30 }),
+  hay_bale: p => ({ w: (p.r || 21) * 2, h: (p.r || 21) * 2 }),
+  // Trees block at the trunk only: the canopy is overhead, not in the way.
+  pine: () => ({ w: 12, h: 12 }),
+  swamp_tree: () => ({ w: 12, h: 12 }),
+  charred_tree: () => ({ w: 12, h: 12 }),
+  slag_heap: p => ({ w: (p.r || 22) * 1.9, h: (p.r || 22) * 1.3 }),
+  cairn: () => ({ w: 28, h: 20 }),
+  log: p => ({ w: p.w || 64, h: p.h || 14, rot: true }),
+  planter_bed: p => ({ w: p.w || 70, h: p.h || 40 }),
+  server_rack: () => ({ w: 30, h: 38 }),
+  glass_partition: p => ({ w: p.w || 120, h: p.h || 16 }),
+  car: () => ({ w: 40, h: 24, rot: true }),
+  silo: p => ({ w: (p.r || 36) * 2, h: (p.r || 36) * 2 }),
+  windmill: () => ({ w: 32, h: 32 }),
+  farmhouse: p => ({ w: p.w || 140, h: p.h || 90 }),
+  cabin: p => ({ w: p.w || 120, h: p.h || 80 })
+};
+
+// Ground decals, lighting, foliage and anything the player is meant to cross
+// (boardwalks, puddles, ice, manholes, vines) deliberately stay walkable.
+function propColliderFor(pr) {
+  if (!pr) return null;
+  const spec = PROP_SOLID[pr.type] ? PROP_SOLID[pr.type](pr) : null;
+  if (!spec) return null;
+  let w = spec.w, h = spec.h;
+  if (spec.rot) {
+    const a = (pr.rot != null) ? pr.rot : (pr.a || 0);
+    const ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    const rw = w * ca + h * sa, rh = w * sa + h * ca;
+    w = rw; h = rh;
+  }
+  return { x: pr.x - w / 2, y: pr.y - h / 2, w, h };
+}
+
+function addSolidPropColliders(mapDef) {
+  if (!mapDef || !mapDef.props || !mapDef.props.length) return 0;
+  let added = 0;
+  for (const pr of mapDef.props) {
+    if (!pr || typeof pr.x !== 'number' || typeof pr.y !== 'number') continue;
+    const box = propColliderFor(pr);
+    if (!box || box.w < 8 || box.h < 8) continue;
+    // Leave the arena centre (deploy point) and the outer border clear so a
+    // scatter can never wall the player in on spawn.
+    if (Math.hypot(box.x + box.w / 2 - WS / 2, box.y + box.h / 2 - WS / 2) < 190) continue;
+    if (box.x < 24 || box.y < 24 || box.x + box.w > WS - 24 || box.y + box.h > WS - 24) continue;
+    // Props that decorate an authored building already sit inside that
+    // building's collider - never stack a second one on top of it.
+    const overlaps = O.some(o => box.x < o.x + o.w + 2 && box.x + box.w > o.x - 2 && box.y < o.y + o.h + 2 && box.y + box.h > o.y - 2);
+    if (overlaps) continue;
+    O.push({ x: box.x, y: box.y, w: box.w, h: box.h, k: 1, t: 'prop', prop: true, col: pr.col });
+    added++;
+  }
+  return added;
+}
+
+// Resolves a circular body out of every collider it overlaps. fromX/fromY are
+// the body's position before the move: when the body's centre has ended up
+// inside a box, that tells us which face it entered through, so a fast or deep
+// entry is pushed back out the way it came instead of being popped out of the
+// far side of a thin fence or log.
+function push(z, r, fromX, fromY) {
   if (!z || !isFinite(z.x) || !isFinite(z.y) || !O || !O.length) return;
   for (const o of O) {
     const cx = Math.max(o.x, Math.min(z.x, o.x + o.w));
@@ -10795,24 +11082,53 @@ function push(z, r) {
     const dx = z.x - cx;
     const dy = z.y - cy;
     const dSq = dx * dx + dy * dy;
+    if (dSq >= r * r) continue;
 
-    if (dSq < r * r) {
-      const d = Math.sqrt(dSq);
-      if (d > 0.001) {
-        z.x += (dx / d) * (r - d);
-        z.y += (dy / d) * (r - d);
-      } else {
-        const dl = z.x - o.x;
-        const dr = (o.x + o.w) - z.x;
-        const dt = z.y - o.y;
-        const db = (o.y + o.h) - z.y;
-        const minD = Math.min(dl, dr, dt, db);
-        if (minD === dl) z.x = o.x - r;
-        else if (minD === dr) z.x = o.x + o.w + r;
-        else if (minD === dt) z.y = o.y - r;
-        else z.y = o.y + o.h + r;
-      }
+    const d = Math.sqrt(dSq);
+    if (d > 0.001) {
+      z.x += (dx / d) * (r - d);
+      z.y += (dy / d) * (r - d);
+      continue;
     }
+
+    let outX = 0, outY = 0;
+    if (fromX != null && fromX <= o.x) outX = -1;
+    else if (fromX != null && fromX >= o.x + o.w) outX = 1;
+    else if (fromY != null && fromY <= o.y) outY = -1;
+    else if (fromY != null && fromY >= o.y + o.h) outY = 1;
+
+    if (outX < 0) z.x = o.x - r;
+    else if (outX > 0) z.x = o.x + o.w + r;
+    else if (outY < 0) z.y = o.y - r;
+    else if (outY > 0) z.y = o.y + o.h + r;
+    else {
+      const dl = z.x - o.x;
+      const dr = (o.x + o.w) - z.x;
+      const dup = z.y - o.y;
+      const db = (o.y + o.h) - z.y;
+      const minD = Math.min(dl, dr, dup, db);
+      if (minD === dl) z.x = o.x - r;
+      else if (minD === dr) z.x = o.x + o.w + r;
+      else if (minD === dup) z.y = o.y - r;
+      else z.y = o.y + o.h + r;
+    }
+  }
+}
+
+// Moves a body by (mx,my), axis-separated and sliced into steps small enough
+// that no collider can be cleared in a single jump. A dash covers ~15px in one
+// fixed update and the thinnest colliders are only 14-16px thick, so an
+// un-sliced move could pass clean through a fence, a log or a glass partition.
+function moveBody(z, r, mx, my) {
+  const len = Math.hypot(mx, my);
+  const n = Math.max(1, Math.min(8, Math.ceil(len / 6)));
+  for (let i = 0; i < n; i++) {
+    let fx = z.x, fy = z.y;
+    z.x += mx / n;
+    push(z, r, fx, fy);
+    fx = z.x; fy = z.y;
+    z.y += my / n;
+    push(z, r, fx, fy);
   }
 }
 
@@ -11230,10 +11546,7 @@ function update(dt) {
   }
 
   if (Math.hypot(vx, vy) > 0.1) P.st = (P.st || 0) + dt * 14;
-  P.x += vx * sp * dt;
-  push(P, 14);
-  P.y += vy * sp * dt;
-  push(P, 14);
+  moveBody(P, 14, vx * sp * dt, vy * sp * dt);
   sanitizePlayer();
 
   // Skill cooldowns
@@ -11761,207 +12074,6 @@ function update(dt) {
   }
 }
 
-// Weapon HUD. The old sliding chip row is gone: on a phone the chips sat under
-// the thumbs, so drags kept swapping guns, and a 20px cell cannot show what a
-// gun is anyway. The bottom-centre card now shows the equipped gun and, when
-// tapped, opens a preview sheet of every gun the account owns.
-function weaponHudRect() {
-  const bs = padUnit();
-  const w = Math.min(200, Math.max(146, Math.round(W * 0.22)));
-  const h = Math.round(52 * bs);
-  const [, , saB] = saInsets();
-  return { x: Math.round(W / 2 - w / 2), y: Math.round(H - h - 8 - saB), w, h };
-}
-
-// Fire-mode label, derived from the weapon's own cadence and pellet count. It
-// describes how the gun already behaves - no stat, rate or reload is changed by
-// it.
-function weaponMode(w) {
-  if (!w) return 'SEMI';
-  if (w.p > 1) return 'PUMP';
-  if (w.r <= 0.14) return 'AUTO';
-  if (w.r >= 0.5) return 'BOLT';
-  return 'SEMI';
-}
-
-// Fits a label into a pixel width: shrink a little, then ellipsise. Long weapon
-// names used to run straight through the ammunition readout.
-function fitLabel(txt, maxW, px, weight, family) {
-  const set = f => { X.font = weight + ' ' + f + 'px ' + family; };
-  set(px);
-  if (X.measureText(txt).width <= maxW) return txt;
-  const floor = px * 0.72;
-  for (let f = px - 0.5; f >= floor; f -= 0.5) {
-    set(f);
-    if (X.measureText(txt).width <= maxW) return txt;
-  }
-  set(floor);
-  let t = txt;
-  while (t.length > 2 && X.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1);
-  return t + '\u2026';
-}
-
-// True when the tap landed on the weapon card (the picker trigger).
-function weaponHudHit(x, y) {
-  const r = weaponHudRect();
-  return x >= r.x - 4 && x <= r.x + r.w + 4 && y >= r.y - 6 && y <= r.y + r.h + 6;
-}
-
-function drawWeaponHud() {
-  if (!P || !P.w) return;
-  const r = weaponHudRect();
-  const bs = padUnit();
-  const wDef = WEAP[P.cur] || WEAP[0];
-  const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[wDef.tier]) ? TIER_COLORS[wDef.tier] : '#8fae4a';
-  const reloading = !!P.reloading;
-  const magMax = wDef.mag || 12;
-  const ammo = (P.ammo != null ? P.ammo : magMax);
-  const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
-  const pad = Math.round(9 * bs);
-
-  X.save();
-  X.beginPath(); X.roundRect(r.x, r.y, r.w, r.h, 8);
-  X.fillStyle = 'rgba(14,18,13,0.90)'; X.fill();
-  X.strokeStyle = reloading ? '#ffd36b' : tcol + 'cc'; X.lineWidth = 1.5; X.stroke();
-  // Tier pip down the left edge so rarity still reads at a glance.
-  X.beginPath(); X.roundRect(r.x + 2.5, r.y + 5, 3, r.h - 10, 2);
-  X.fillStyle = tcol; X.fill();
-
-  // --- Columns: icon | flexible text | right-aligned ammo -------------------
-  // Every value is measured and placed inside the card, so the rows cannot
-  // collide no matter how long the weapon name or the magazine figure is.
-  const iconW = Math.round(32 * bs);
-  const icx = r.x + Math.round(5 * bs) + iconW / 2;
-  const icy = r.y + r.h * 0.42;
-  X.save();
-  X.translate(icx - 12 * 0.62 * bs, icy - 5 * 0.62 * bs);
-  X.scale(0.62 * bs, 0.62 * bs);
-  if (typeof gun === 'function') gun(P.cur, 0);
-  X.restore();
-
-  const ammoTxt = ammo + ' / ' + magMax;
-  const modeTxt = reloading ? 'RELOADING' : weaponMode(wDef);
-  X.font = `900 ${Math.round(15 * bs)}px Arial`;
-  const ammoW = X.measureText(ammoTxt).width;
-  X.font = `700 ${Math.round(9 * bs)}px Arial`;
-  const modeW = X.measureText(modeTxt).width;
-
-  const rx = r.x + r.w - pad;
-  const tx = icx + iconW / 2 + Math.round(7 * bs);
-  const nameMax = Math.max(24, rx - Math.max(ammoW, modeW) - Math.round(9 * bs) - tx);
-  const rowA = r.y + Math.round(17 * bs);
-  const rowB = r.y + Math.round(35 * bs);
-
-  X.textBaseline = 'middle'; X.textAlign = 'left';
-  X.fillStyle = tcol;
-  X.fillText(fitLabel((wDef.n || 'GUN').toUpperCase(), nameMax, Math.round(12 * bs), '900', 'Arial'), tx, rowA);
-  X.fillStyle = 'rgba(213,208,194,0.72)';
-  X.font = `700 ${Math.round(9 * bs)}px Arial`;
-  X.fillText('DMG ' + Math.round(wDef.d), tx, rowB);
-
-  X.textAlign = 'right';
-  X.fillStyle = reloading ? '#ffd36b' : (ammo <= Math.ceil(magMax * 0.25) ? '#ff5a3a' : '#efe9d6');
-  X.font = `900 ${Math.round(15 * bs)}px Arial`;
-  X.fillText(ammoTxt, rx, rowA);
-  X.fillStyle = reloading ? '#ffd36b' : 'rgba(213,208,194,0.62)';
-  X.font = `700 ${Math.round(9 * bs)}px Arial`;
-  X.fillText(modeTxt, rx, rowB);
-
-  // Tap-to-change affordance: two small chevrons under the weapon icon, so the
-  // card still reads as a control without a text label fighting the ammunition.
-  const sy = r.y + r.h - Math.round(8 * bs);
-  X.strokeStyle = 'rgba(213,208,194,0.45)'; X.lineWidth = 1.4; X.lineCap = 'round'; X.lineJoin = 'round';
-  X.beginPath();
-  X.moveTo(icx - 6, sy - 2.4); X.lineTo(icx - 2.6, sy); X.lineTo(icx - 6, sy + 2.4);
-  X.moveTo(icx + 6, sy - 2.4); X.lineTo(icx + 2.6, sy); X.lineTo(icx + 6, sy + 2.4);
-  X.stroke();
-
-  // Reload progress along the bottom edge, never over the ammunition readout.
-  if (prog > 0) {
-    X.beginPath(); X.roundRect(r.x + 6, r.y + r.h - 5, r.w - 12, 2.5, 1.5);
-    X.fillStyle = 'rgba(255,255,255,0.12)'; X.fill();
-    X.beginPath(); X.roundRect(r.x + 6, r.y + r.h - 5, Math.max(3, (r.w - 12) * prog), 2.5, 1.5);
-    X.fillStyle = '#ffd36b'; X.fill();
-  }
-  X.restore();
-  X.textBaseline = 'alphabetic';
-  X.textAlign = 'left';
-}
-
-/* ---- Owned-weapon picker -------------------------------------------- */
-// Opens from the weapon card. The run is held while it is up so the player is
-// not being eaten while they read, and resumes exactly as it was on close.
-function openGunPicker() {
-  if (!S || !P || P.hp <= 0) return false;
-  if (S.po || S.bd) return false;
-  const el = document.getElementById('gunpick');
-  if (!el) return false;
-  renderGunPicker();
-  el.classList.add('on');
-  S.gp = 1;
-  run = 0;
-  if (typeof snd === 'function') snd(520, 0.06, 'square', 0.03, 1.1);
-  return true;
-}
-
-function closeGunPicker() {
-  const el = document.getElementById('gunpick');
-  if (el) el.classList.remove('on');
-  if (S) S.gp = 0;
-  const lob = document.getElementById('start');
-  const inLobby = !!(lob && lob.classList.contains('on'));
-  if (!inLobby && P && P.hp > 0 && S && !S.po && !S.bd && !pendingNextWave) run = 1;
-}
-
-function pickWeapon(i) {
-  const ok = selectWeapon(i);
-  if (ok === false && P && P.cur === i) closeGunPicker();
-  else if (ok) closeGunPicker();
-  else renderGunPicker();
-}
-
-function gunTraitTags(w) {
-  const tags = [];
-  if (w.p > 1) tags.push(w.p + ' PELLETS');
-  if (w.pr) tags.push('PIERCE ' + w.pr);
-  if (w.cl) tags.push('CHAIN ' + w.cl);
-  if (w.ex) tags.push('EXPLOSIVE');
-  if (w.fz) tags.push('CRYO');
-  if (w.flm) tags.push('FLAME');
-  if (w.ls) tags.push('LIFESTEAL');
-  if (w.rng >= 800) tags.push('LONG RANGE');
-  else if (w.rng <= 120) tags.push('POINT BLANK');
-  return tags;
-}
-
-function renderGunPicker() {
-  const host = document.getElementById('gunpick-grid');
-  if (!host || !P) return;
-  const owned = [];
-  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
-  host.innerHTML = owned.map(i => {
-    const w = WEAP[i] || WEAP[0];
-    const cur = P.cur === i;
-    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
-    const mast = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
-    const skKey = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[i]) ? SV.eqSkin[i] : null;
-    const sk = (skKey && typeof SKINS !== 'undefined' && SKINS[skKey]) ? SKINS[skKey] : null;
-    const rps = w.r > 0 ? Math.round(60 / w.r) : 0;
-    const tags = gunTraitTags(w);
-    return `<button data-gun="${i}" class="gun-card${cur ? ' on' : ''}" style="--tc:${tcol}">
-      <span class="gc-top"><b>${w.n}</b><i class="gc-tier">${w.tier}</i></span>
-      <span class="gc-art"><img src="${typeof gunIcon === 'function' ? gunIcon(i) : ''}" alt=""></span>
-      <span class="gc-stats"><span>DMG <b>${Math.round(w.d)}</b></span><span>RPM <b>${rps}</b></span><span>MAG <b>${w.mag || 12}</b></span></span>
-      <span class="gc-tags">${tags.map(t => `<i>${t}</i>`).join('')}</span>
-      <span class="gc-foot">MASTERY LV${mast}${sk ? ' &bull; ' + sk.name : ''}${cur ? ' &bull; EQUIPPED' : ''}</span>
-    </button>`;
-  }).join('') || '<p style="opacity:.7;font-size:12px">No weapons unlocked yet.</p>';
-  host.onclick = e => {
-    const b = e.target.closest('button[data-gun]');
-    if (!b) return;
-    pickWeapon(parseInt(b.dataset.gun, 10));
-  };
-}
 
 // MAIN 2D RENDERING PIPELINE
 function draw() {
@@ -12471,587 +12583,6 @@ function draw() {
   renderHUD();
 }
 
-function renderHUD() {
-  const pad = 16;
-  const rx = pad + 28, ry = pad + 28;
-  const radarRad = 26;
-
-  // 1. Radar Background & Clipping Boundary
-  X.save();
-  X.fillStyle = '#0a0e08ee';
-  X.beginPath(); X.arc(rx, ry, radarRad, 0, 6.28); X.fill();
-  X.clip();
-
-  // 2. Tactical Grid Rings
-  X.strokeStyle = 'rgba(255,255,255,0.08)';
-  X.lineWidth = 1;
-  X.beginPath();
-  X.arc(rx, ry, 13, 0, 6.28);
-  X.arc(rx, ry, 22, 0, 6.28);
-  X.stroke();
-
-  // 3. Walls & Buildings from MAP_DATA / Obstacles O
-  X.fillStyle = 'rgba(74, 95, 60, 0.45)';
-  const curM = getCurMap();
-  const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[curM]) ? MAP_DATA[curM] : (MP[curM] || MP[0]);
-  const wallsList = (typeof O !== 'undefined' && O.length) ? O : (mapDef.walls || mapDef.obstacles || []);
-  for (const w of wallsList) {
-    const wx = rx + (w.x - P.x) / 24;
-    const wy = ry + (w.y - P.y) / 24;
-    const ww = Math.max(1.5, w.w / 24);
-    const wh = Math.max(1.5, w.h / 24);
-    if (Math.hypot(wx - rx, wy - ry) < radarRad + 10) {
-      X.fillRect(wx, wy, ww, wh);
-    }
-  }
-
-  // 4. World Bounds Boundary
-  const wLeft = rx + (0 - P.x) / 24;
-  const wTop = ry + (0 - P.y) / 24;
-  const wSize = (typeof WS !== 'undefined' ? WS : 2400) / 24;
-  X.strokeStyle = 'rgba(239, 68, 68, 0.4)';
-  X.lineWidth = 1.2;
-  X.strokeRect(wLeft, wTop, wSize, wSize);
-
-  // 5. Radar Sweep Line
-  const swpAng = (S ? S.t : 0) * 2.8;
-  X.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-  X.lineWidth = 1.4;
-  X.beginPath(); X.moveTo(rx, ry); X.lineTo(rx + Math.cos(swpAng) * radarRad, ry + Math.sin(swpAng) * radarRad); X.stroke();
-
-  // 6. Player Vision Cone
-  X.fillStyle = 'rgba(56, 189, 248, 0.12)';
-  X.beginPath();
-  X.moveTo(rx, ry);
-  X.arc(rx, ry, 20, P.a - 0.38, P.a + 0.38);
-  X.closePath();
-  X.fill();
-
-  // 7. Pickups & Relic Chests (CH & D)
-  for (const c of CH) {
-    const dx = (c.x - P.x) / 24, dy = (c.y - P.y) / 24;
-    const dist = Math.hypot(dx, dy);
-    const k = dist > (radarRad - 3) ? (radarRad - 3) / dist : 1;
-    X.fillStyle = '#ffd36b';
-    X.fillRect(rx + dx * k - 2, ry + dy * k - 2, 4, 4);
-  }
-  for (const d of D) {
-    const dx = (d.x - P.x) / 24, dy = (d.y - P.y) / 24;
-    if (dx * dx + dy * dy < radarRad * radarRad) {
-      X.fillStyle = d.k === 'h' ? '#ef4444' : (d.k === 'a' ? '#38bdf8' : (d.k === 'pu' ? '#c084fc' : (d.k === 'r' ? '#be8cff' : '#ffd36b')));
-      X.beginPath(); X.arc(rx + dx, ry + dy, 1.8, 0, 6.28); X.fill();
-    }
-  }
-
-  // 8. Zombie Radar Blips
-  for (const z of Z) {
-    if (z.dead) continue;
-    const dx = (z.x - P.x) / 24, dy = (z.y - P.y) / 24;
-    const distSq = dx * dx + dy * dy;
-
-    if (distSq < radarRad * radarRad) {
-      if (z.t === 'boss') {
-        const bRad = 3.5 + Math.sin((S ? S.t : 0) * 10) * 1.2;
-        X.fillStyle = 'rgba(239,68,68,0.45)';
-        X.beginPath(); X.arc(rx + dx, ry + dy, bRad + 2, 0, 6.28); X.fill();
-        X.fillStyle = '#ef4444';
-        X.beginPath();
-        X.moveTo(rx + dx, ry + dy - bRad);
-        X.lineTo(rx + dx + bRad, ry + dy);
-        X.lineTo(rx + dx, ry + dy + bRad);
-        X.lineTo(rx + dx - bRad, ry + dy);
-        X.closePath(); X.fill();
-      } else if (z.t === 'tank' || z.t === 'brute' || z.t === 'charger') {
-        X.fillStyle = '#f97316';
-        X.beginPath();
-        X.moveTo(rx + dx, ry + dy - 2.5);
-        X.lineTo(rx + dx + 2.5, ry + dy);
-        X.lineTo(rx + dx, ry + dy + 2.5);
-        X.lineTo(rx + dx - 2.5, ry + dy);
-        X.closePath(); X.fill();
-      } else if (z.t === 'exp' || z.t === 'exploder') {
-        X.fillStyle = Math.sin((S ? S.t : 0) * 12) > 0 ? '#facc15' : '#ef4444';
-        X.beginPath(); X.arc(rx + dx, ry + dy, 2.2, 0, 6.28); X.fill();
-      } else {
-        X.fillStyle = '#ff5a3a';
-        X.fillRect(rx + dx - 1.2, ry + dy - 1.2, 2.4, 2.4);
-      }
-    } else if (z.t === 'boss') {
-      // Off-screen boss directional pointer along radar rim
-      const bAng = Math.atan2(dy, dx);
-      X.fillStyle = '#ef4444';
-      X.beginPath();
-      X.moveTo(rx + Math.cos(bAng) * (radarRad - 2), ry + Math.sin(bAng) * (radarRad - 2));
-      X.lineTo(rx + Math.cos(bAng + 0.22) * (radarRad - 6), ry + Math.sin(bAng + 0.22) * (radarRad - 6));
-      X.lineTo(rx + Math.cos(bAng - 0.22) * (radarRad - 6), ry + Math.sin(bAng - 0.22) * (radarRad - 6));
-      X.closePath(); X.fill();
-    }
-  }
-
-  // 9. Central Player Directional Chevron
-  X.save();
-  X.translate(rx, ry);
-  X.rotate(P.a);
-  X.fillStyle = '#38bdf8';
-  X.beginPath();
-  X.moveTo(5, 0); X.lineTo(-3.5, -3.5); X.lineTo(-1.8, 0); X.lineTo(-3.5, 3.5);
-  X.closePath(); X.fill();
-  X.restore();
-
-  X.restore(); // Restore radar clipping
-
-  // 10. Mini-Radar Perimeter & Health Ring
-  X.lineWidth = 3.5; X.strokeStyle = '#141a12';
-  X.beginPath(); X.arc(rx, ry, 28, 0, 6.28); X.stroke();
-  X.strokeStyle = P.hp > 30 ? '#8fae4a' : '#d9453a';
-  X.beginPath(); X.arc(rx, ry, 28, -1.57, -1.57 + 6.28 * Math.max(0, P.hp) / P.mx); X.stroke();
-
-  // Wave readout + sector ascension badge + live ghost-pace chip
-  X.fillStyle = '#e8e4cf'; X.font = '900 13px Impact,Arial Black,sans-serif'; X.textAlign = 'left';
-  X.fillText('WAVE ' + (S ? S.wave : 1), rx + 36, ry - 8);
-  if (S && S.ascTier > 0) {
-    X.fillStyle = '#c084fc'; X.font = '900 9.5px Arial';
-    X.fillText('ASC ' + S.ascTier + '  BOUNTY x' + (S.ascMul || 1).toFixed(2), rx + 36 + X.measureText('WAVE ' + S.wave).width + 8, ry - 8);
-  }
-  const gdNow = (typeof ghostDelta === 'function') ? ghostDelta() : null;
-  if (gdNow != null && Math.abs(gdNow) >= 0.5) {
-    X.fillStyle = gdNow < 0 ? '#4ade80' : '#fb923c'; X.font = '900 9.5px Arial';
-    X.fillText((gdNow < 0 ? 'GHOST -' : 'GHOST +') + Math.abs(gdNow) + 's', rx + 36 + X.measureText('WAVE ' + (S ? S.wave : 1)).width + 8, ry + 4);
-  }
-
-  // Damage-chip health bar (yellow chip drains after the red bar)
-  {
-    const hpw = 122, hpx = rx + 36, hpy = ry + 8, hph = 7;
-    const hpf = Math.max(0, Math.min(1, P.hp / P.mx));
-    const chipf = Math.max(hpf, Math.min(1, (S && S.hpChip != null ? S.hpChip : P.hp) / P.mx));
-    X.fillStyle = 'rgba(6,9,6,0.82)';
-    X.beginPath(); X.roundRect(hpx - 2, hpy - 2, hpw + 4, hph + 4, 3); X.fill();
-    X.fillStyle = '#241412';
-    X.beginPath(); X.roundRect(hpx, hpy, hpw, hph, 2); X.fill();
-    if (chipf > hpf) {
-      X.fillStyle = '#ffd36b';
-      X.beginPath(); X.roundRect(hpx + hpw * hpf, hpy, hpw * (chipf - hpf), hph, 2); X.fill();
-    }
-    const hpCol = hpf > 0.6 ? '#8fae4a' : (hpf > 0.3 ? '#e0b83a' : '#d9453a');
-    X.fillStyle = hpCol;
-    X.beginPath(); X.roundRect(hpx, hpy, Math.max(1, hpw * hpf), hph, 2); X.fill();
-    X.strokeStyle = 'rgba(255,255,255,0.14)'; X.lineWidth = 1;
-    X.beginPath(); X.roundRect(hpx, hpy, hpw, hph, 2); X.stroke();
-    X.fillStyle = '#e8e4cf'; X.font = 'bold 9.5px Arial'; X.textAlign = 'left';
-    X.fillText('HP ' + Math.max(0, Math.round(P.hp)) + '/' + P.mx, hpx, hpy + hph + 11);
-    if (S && S.ar != null && S.ar < 0.999) {
-      X.fillStyle = '#94a3b8';
-      X.fillText('-ARMOR ' + Math.round((1 - S.ar) * 100) + '%', hpx + 74, hpy + hph + 11);
-    }
-    // Shield charges, if any
-    if (S && S.bc > 0) {
-      X.fillStyle = '#eab308'; X.font = '900 9.5px Arial';
-      X.fillText('SHIELD ' + S.bc + '/' + Math.max(S.bl || 0, S.bc), hpx, hpy + hph + 22);
-    }
-  }
-
-  // Active Powerups HUD with Circular Timer Rings & 3-Second Blink
-  const activePowerups = [];
-  if (S && typeof PU_DEFS !== 'undefined') {
-    for (const id in PU_DEFS) {
-      const pd = PU_DEFS[id];
-      if (pd.key && S[pd.key] > 0) activePowerups.push({ id, name: pd.tag, col: pd.col, time: S[pd.key], maxTime: pd.dur });
-    }
-  }
-
-  const pStartX = rx + 36;
-  const pStartY = ry + 26;
-  activePowerups.forEach((pu, idx) => {
-    // Blink in the final 3 seconds
-    if (pu.time < 3.0 && Math.sin(pu.time * 14) > 0.3) return;
-
-    const px = pStartX + idx * 32;
-    const py = pStartY;
-
-    // Background circle
-    X.fillStyle = '#111827dd';
-    X.beginPath(); X.arc(px, py, 11, 0, 6.28); X.fill();
-    X.strokeStyle = '#374151'; X.lineWidth = 1.2; X.stroke();
-
-    // Radial countdown timer ring
-    const pct = Math.max(0, Math.min(1, pu.time / pu.maxTime));
-    X.strokeStyle = pu.col;
-    X.lineWidth = 2.2;
-    X.beginPath();
-    X.arc(px, py, 11, -1.57, -1.57 + 6.28 * pct);
-    X.stroke();
-
-    // Shared vector glyph - the same art the collectable uses on the ground.
-    if (typeof puGlyph === 'function') {
-      puGlyph(pu.id, px, py, 0.82, pu.col);
-    } else {
-      X.fillStyle = pu.col;
-      X.font = '900 8px Impact'; X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText(pu.name.slice(0, 2), px, py + 0.5);
-    }
-  });
-
-  // Freeze Fullscreen Frost Vignette Effect
-  if (S && S.fz > 0) {
-    const fzAlpha = Math.min(0.35, S.fz * 0.1);
-    const fzVig = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8);
-    fzVig.addColorStop(0, 'rgba(56, 189, 248, 0)');
-    fzVig.addColorStop(1, `rgba(56, 189, 248, ${fzAlpha})`);
-    X.fillStyle = fzVig;
-    X.fillRect(0, 0, W, H);
-  }
-
-  // Nuke Blinding Whiteout Flash Effect. Capped well below full white and
-  // skipped entirely under reduced visual effects: a screen-filling white frame
-  // is the single most uncomfortable thing the game drew.
-  if (S && S.nukeFlash > 0 && !isFxReduced()) {
-    X.fillStyle = `rgba(255, 255, 255, ${Math.min(0.55, S.nukeFlash * 1.6)})`;
-    X.fillRect(0, 0, W, H);
-  }
-
-  // Cash, horde count and the live wave modifiers on one readable plate
-  {
-    const ty0 = 6;
-    const tw = 136, tx0 = W - 50 - insetR() - tw;
-    X.fillStyle = 'rgba(8,11,8,0.72)';
-    X.beginPath(); X.roundRect(tx0, ty0, tw, 40, 6); X.fill();
-    X.strokeStyle = 'rgba(255,255,255,0.10)'; X.lineWidth = 1;
-    X.beginPath(); X.roundRect(tx0, ty0, tw, 40, 6); X.stroke();
-    X.textAlign = 'right';
-    X.font = 'bold 15px Arial'; X.fillStyle = '#ffd36b';
-    X.fillText('$' + (S ? S.cash : 0), W - 56 - insetR(), 23);
-    X.font = 'bold 10.5px Arial'; X.fillStyle = '#e8e4cf';
-    X.fillText('HORDE ' + (Z.length + (S ? S.q.length : 0)), W - 56 - insetR(), 38);
-    if (S && S.wmList && S.wmList.length) {
-      X.textAlign = 'left'; X.font = '900 8.5px Arial';
-      let mx = tx0 + 8;
-      for (const m of S.wmList) {
-        X.fillStyle = m.col;
-        X.fillText(m.name, mx, 22);
-        mx += X.measureText(m.name).width + 6;
-      }
-    }
-    X.textAlign = 'right';
-  }
-
-  // Combo multiplier
-  if (typeof renderDirectorOverlay === 'function') renderDirectorOverlay(W, H);
-
-  // Equipped weapon card. Tapping it opens the owned-weapon picker.
-  drawWeaponHud();
-  X.textAlign = 'left';
-
-  // Screen-edge damage vignette. This is the low-health warning, so it stays
-  // readable under reduced effects - just softer and shorter.
-  if (HURT_VIGNETTE_TIMER > 0) {
-    const vAlpha = Math.min(isFxReduced() ? 0.26 : 0.5, HURT_VIGNETTE_TIMER * 1.6);
-    const vig = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.75);
-    vig.addColorStop(0, 'rgba(239,68,68,0)');
-    vig.addColorStop(1, `rgba(239,68,68,${vAlpha})`);
-    X.fillStyle = vig;
-    X.fillRect(0, 0, W, H);
-  }
-
-  // Boss health bar (top centre) while a boss is alive
-  const boss = Z.find(z => z.t === 'boss' && !z.dead);
-  if (boss) {
-    const bw = Math.min(420, W - 130), bx = W / 2 - bw / 2, by = 52;
-    const pctB = Math.max(0, Math.min(1, boss.hp / (boss.mh || 1)));
-    X.textBaseline = 'alphabetic';
-    X.fillStyle = 'rgba(10,12,8,0.78)';
-    X.beginPath(); X.roundRect(bx - 5, by - 5, bw + 10, 24, 6); X.fill();
-    X.strokeStyle = '#ef4444'; X.lineWidth = 1.5; X.stroke();
-    X.fillStyle = '#2a1010';
-    X.beginPath(); X.roundRect(bx, by, bw, 14, 4); X.fill();
-    const bg = X.createLinearGradient(bx, 0, bx + bw, 0);
-    bg.addColorStop(0, '#ef4444'); bg.addColorStop(1, '#ff9a3a');
-    X.fillStyle = bg;
-    X.beginPath(); X.roundRect(bx, by, Math.max(2, bw * pctB), 14, 4); X.fill();
-    X.fillStyle = '#f0ece1'; X.font = '900 11px Impact,Arial Black,sans-serif'; X.textAlign = 'center';
-    X.fillText((typeof BN !== 'undefined' && BN[boss.bv % 4] ? BN[boss.bv % 4] : 'BOSS') + '   ' + Math.max(0, Math.round(boss.hp)) + ' / ' + Math.round(boss.mh), W / 2, by + 11);
-  }
-
-  // Acquired perk tray (build readout) — top-right under the cash counter
-  if (S && S.pk) {
-    const names = Object.keys(S.pk).filter(k => S.pk[k] > 0);
-    if (names.length) {
-      const bw2 = 16, gap = 2, shown = names.slice(0, 16);
-      let sx0 = W - 50 - insetR() - shown.length * (bw2 + gap);
-      const ty = 58;
-      X.textAlign = 'left'; X.textBaseline = 'middle';
-      shown.forEach((name, i) => {
-        const pdef = PKS.find(p => p[0] === name) || PKS.find(p => p[0] === '\u2726 ' + name) || [];
-        const col = pdef[4] || '#8fae4a';
-        const x = sx0 + i * (bw2 + gap);
-        X.fillStyle = 'rgba(10,12,8,0.72)';
-        X.beginPath(); X.roundRect(x, ty - 8, bw2, bw2, 4); X.fill();
-        X.strokeStyle = col; X.lineWidth = 1.4; X.stroke();
-        X.fillStyle = col;
-        X.beginPath(); X.arc(x + 8, ty - 1.5, 3.2, 0, 6.28); X.fill();
-        if (S.pk[name] > 1) {
-          X.fillStyle = '#fff'; X.font = '900 8px Arial';
-          X.fillText(String(S.pk[name]), x + 9.5, ty + 6);
-        }
-      });
-      X.textBaseline = 'alphabetic';
-    }
-  }
-
-  // Run boons. These used to be a 9px green text string under the perk icons,
-  // which was unreadable on a phone and made the draft feel like it did nothing.
-  // They now get the same chip treatment as perks, coloured and stack-counted.
-  if (S && typeof boonHudList === 'function') {
-    const list = boonHudList();
-    if (list.length) {
-      const bw = 18, gap = 2, cap = 12;
-      const shown = list.slice(0, cap);
-      const extra = list.length - shown.length;
-      let sx0 = W - 50 - insetR() - (shown.length + (extra > 0 ? 1 : 0)) * (bw + gap);
-      const ty = 84;
-      X.textAlign = 'center'; X.textBaseline = 'middle';
-      shown.forEach((b, i) => {
-        const x = sx0 + i * (bw + gap);
-        X.fillStyle = 'rgba(10,12,8,0.74)';
-        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
-        X.strokeStyle = b.col; X.lineWidth = 1.4; X.stroke();
-        X.fillStyle = b.col; X.font = '900 8.5px Arial';
-        X.fillText(b.short.slice(0, 3).toUpperCase(), x + bw / 2, ty);
-        if (b.st > 1) {
-          X.fillStyle = 'rgba(8,10,6,0.9)';
-          X.beginPath(); X.arc(x + bw - 3, ty + 6, 6, 0, 6.28); X.fill();
-          X.fillStyle = '#fff'; X.font = '900 8px Arial';
-          X.fillText(String(b.st), x + bw - 3, ty + 6.2);
-        }
-      });
-      if (extra > 0) {
-        const x = sx0 + shown.length * (bw + gap);
-        X.fillStyle = 'rgba(10,12,8,0.74)';
-        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
-        X.strokeStyle = 'rgba(255,255,255,0.25)'; X.lineWidth = 1.2; X.stroke();
-        X.fillStyle = '#d5d0c2'; X.font = '900 8.5px Arial';
-        X.fillText('+' + extra, x + bw / 2, ty);
-      }
-      X.textAlign = 'left'; X.textBaseline = 'alphabetic';
-    }
-  }
-
-  // Virtual Joysticks, Action Buttons, and Combat Overlay
-  drawControls();
-}
-
-function drawControls() {
-  // 1. Out of bounds map border warnings
-  if (P && (P.x < 140 || P.x > WS - 140 || P.y < 140 || P.y > WS - 140)) {
-    // Out-of-bounds warning: a slow, low-amplitude breathe instead of the old
-    // 1.3Hz throb, which read as a flicker at the screen edge.
-    const oobAlpha = isFxReduced() ? 0.34 : 0.3 + 0.1 * Math.sin((S ? S.t : 0) * 3);
-    X.fillStyle = `rgba(239, 68, 68, ${oobAlpha})`;
-    if (P.x < 140) X.fillRect(0, 0, 8, H);
-    if (P.x > WS - 140) X.fillRect(W - 8, 0, 8, H);
-    if (P.y < 140) X.fillRect(0, 0, W, 8);
-    if (P.y > WS - 140) X.fillRect(0, H - 8, W, 8);
-  }
-
-  // 2. LEVEL UP banner
-  // Guarded on `run`: the banner used to keep painting while the boon draft or
-  // perk modal was up (run = 0), so a wave-clear read as "LEVEL UP!" + "BOON
-  // DRAFT" stacking. The banner belongs to live gameplay only.
-  if (run && S && S.lu > 0) {
-    X.save();
-    const luAlpha = Math.min(1, S.lu * 1.5);
-    X.globalAlpha = luAlpha;
-    X.fillStyle = '#ffd84a';
-    X.font = '900 24px Impact, Arial Black, sans-serif';
-    X.textAlign = 'center';
-    X.shadowColor = 'rgba(0,0,0,0.8)';
-    X.shadowBlur = 8;
-    X.fillText('LEVEL UP!', W / 2, H * 0.26);
-    X.restore();
-  }
-
-  // 3. Dual virtual joysticks. One base ring plus a smaller thumb indicator;
-  //    the MOVE/AIM label is only drawn while the stick is at rest, so nothing is
-  //    written under a moving finger.
-  const ctlAlpha = ctlPref().opacity;
-  const [lx, ly] = jPos('l');
-  const [rx, ry] = jPos('r');
-  const drawStick = (side) => {
-    const held = J[side];
-    const base = held ? [held.ox, held.oy] : (side === 'l' ? [lx, ly] : [rx, ry]);
-    const cur = held ? [held.x, held.y] : base;
-    const R = jRad(), kn = jKnob();
-    // White movement stick, warm-red aiming stick: the same disc either way, so
-    // the pair reads as one system and the colour tells the hands apart.
-    const acc = side === 'l' ? '232,236,224' : '255,118,84';
-    X.save();
-    X.globalAlpha = ctlAlpha;
-
-    // well: soft dark halo, translucent bowl, one bright ring, hairline inside
-    X.beginPath(); X.arc(base[0], base[1], R + 3.5, 0, 6.28);
-    X.fillStyle = 'rgba(0,0,0,0.18)'; X.fill();
-    X.beginPath(); X.arc(base[0], base[1], R, 0, 6.28);
-    X.fillStyle = held ? 'rgba(10,13,10,0.42)' : 'rgba(10,13,10,0.32)'; X.fill();
-    X.strokeStyle = 'rgba(' + acc + ',' + (held ? '0.75' : '0.5') + ')';
-    X.lineWidth = Math.max(2, 2.2 * ctlScale());
-    X.stroke();
-    X.strokeStyle = 'rgba(' + acc + ',0.14)'; X.lineWidth = 1;
-    X.beginPath(); X.arc(base[0], base[1], R - 5, 0, 6.28); X.stroke();
-
-    if (!held) {
-      // rest marks: four ticks on the cardinals, so the ring reads as a dial
-      X.strokeStyle = 'rgba(' + acc + ',0.34)'; X.lineWidth = 1.6;
-      for (let i = 0; i < 4; i++) {
-        const a = i * Math.PI / 2 - Math.PI / 2;
-        X.beginPath();
-        X.moveTo(base[0] + Math.cos(a) * (R - 13 * ctlScale()), base[1] + Math.sin(a) * (R - 13 * ctlScale()));
-        X.lineTo(base[0] + Math.cos(a) * (R - 4.5), base[1] + Math.sin(a) * (R - 4.5));
-        X.stroke();
-      }
-      X.fillStyle = 'rgba(' + acc + ',0.32)';
-      X.font = '900 ' + Math.round(10 * ctlScale()) + 'px Arial';
-      X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText(side === 'l' ? 'MOVE' : 'AIM', base[0], base[1] + R * 0.55);
-    }
-
-    // knob: dark disc, bright rim, and the role's own glyph inside
-    X.beginPath(); X.arc(cur[0], cur[1], kn, 0, 6.28);
-    X.fillStyle = held ? 'rgba(22,26,20,0.86)' : 'rgba(16,20,15,0.74)'; X.fill();
-    X.strokeStyle = 'rgba(' + acc + ',0.92)'; X.lineWidth = 2; X.stroke();
-    if (side === 'l') drawArrowCrossGlyph(cur[0], cur[1], kn * 1.15, 'rgba(' + acc + ',0.9)');
-    else drawCrosshairGlyph(cur[0], cur[1], kn * 1.5, 'rgba(' + acc + ',0.92)');
-    X.restore();
-  };
-  drawStick('l');
-  drawStick('r');
-
-  // 4. Combat-control pad. One lattice, one button size, icons instead of words:
-  //    fire, reload and the class abilities are drawn from the same geometry the
-  //    hit-test uses, so what a player sees is what the game reads.
-  const reloading = !!(P && P.reloading);
-  const noAmmo = !!(P && P.ammo != null && P.ammo <= 0);
-  const magMax = (P && WEAP[P.cur] && WEAP[P.cur].mag) || 12;
-  for (const b of BT) {
-    if (!btActive(b)) continue;
-    const pos = b.p();
-    const bx = pos[0], by = pos[1];
-    const r = btnRad(b);
-
-    if (b.fire) {
-      const held = fireHeld();
-      const dry = reloading || noAmmo;
-      // Held breathes gently instead of strobing, so continuous fire stays calm
-      // to look at while still being obviously "down".
-      const pulse = held ? 0.55 + 0.45 * Math.sin(perfNow() / 130) : 0;
-      X.save();
-      X.globalAlpha = ctlAlpha;
-      ctlDisc(bx, by, r,
-        dry ? 'rgba(150,104,80,0.62)' : held ? '#ffd7c2' : '#ff7a4a',
-        {
-          fill: held ? 'rgba(168,52,30,0.90)' : dry ? 'rgba(34,24,19,0.84)' : 'rgba(96,30,18,0.86)',
-          glow: dry ? null : held ? 'rgba(255,140,96,0.85)' : 'rgba(255,122,74,0.5)',
-          glowA: held ? 0.35 + 0.3 * pulse : 0.35,
-          ringW: held ? 3.2 : 2.4
-        });
-      X.fillStyle = dry ? 'rgba(214,186,170,0.6)' : '#fff3ea';
-      X.font = '900 ' + Math.round(15 * padUnit()) + 'px Impact, Arial Black, sans-serif';
-      X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText('FIRE', bx, by);
-      X.restore();
-      continue;
-    }
-
-    if (b.id === 'pause') {
-      X.save(); X.globalAlpha = ctlAlpha;
-      ctlDisc(bx, by, r, btFlash(b) > 0 ? '#c9e08a' : '#54663f', { ringW: 1.8, hi: 'rgba(255,255,255,0.07)' });
-      X.fillStyle = '#d5d0c2';
-      const bw = Math.max(3, r * 0.2), bh = r * 0.8;
-      X.fillRect(bx - r * 0.36 - bw / 2, by - bh / 2, bw, bh);
-      X.fillRect(bx + r * 0.36 - bw / 2, by - bh / 2, bw, bh);
-      X.restore();
-      continue;
-    }
-
-    if (b.id === 'reload') {
-      // Three readable states: idle/ready, reloading (amber + progress ring),
-      // and magazine already full (dimmed, so a wasted press is obvious before
-      // it happens). startReload() itself rejects overlapping requests.
-      const full = P && P.ammo != null && P.ammo >= magMax;
-      const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
-      const fl = btFlash(b);
-      X.save();
-      X.globalAlpha = ctlAlpha * (full && !reloading ? 0.55 : 1);
-      ctlDisc(bx, by, r,
-        fl > 0 ? '#fff3d0' : reloading ? '#ffd36b' : full ? 'rgba(96,106,84,0.55)' : '#8fae4a',
-        {
-          fill: reloading ? 'rgba(44,36,18,0.9)' : 'rgba(12,16,11,0.86)',
-          glow: reloading ? 'rgba(255,211,107,0.55)' : null
-        });
-      if (prog > 0) {
-        X.strokeStyle = '#ffd36b'; X.lineWidth = 3.2; X.lineCap = 'round';
-        X.beginPath(); X.arc(bx, by, r + 3.5, -1.5708, -1.5708 + 6.28 * prog); X.stroke();
-      }
-      drawReloadGlyph(bx, by, r * (1.02 + 0.06 * fl), reloading ? '#ffd36b' : full ? '#8a917e' : '#e6e2d2');
-      X.restore();
-      continue;
-    }
-
-    // Abilities: class glyph, cooldown ring, and the grenade's charge count.
-    const key = b.k;
-    const sk = (typeof SK !== 'undefined' && SK[key]) ? SK[key] : null;
-    const cdRatio = (sk && sk.cd > 0) ? Math.max(0, Math.min(1, sk.cd / (sk.max || 1))) : 0;
-    const charges = (key === 'gren') ? ((typeof S !== 'undefined' && S) ? (S.gr || 0) : 0) : null;
-    const unavail = (charges === 0);
-    const flc = btFlash(b);
-    X.save();
-    X.globalAlpha = ctlAlpha * (unavail ? 0.6 : 1);
-    ctlDisc(bx, by, r,
-      flc > 0 ? '#fff3d0' : unavail ? 'rgba(126,118,98,0.5)' : cdRatio > 0 ? 'rgba(122,134,104,0.62)' : '#8fae4a',
-      {
-        fill: cdRatio > 0 ? 'rgba(12,17,10,0.84)' : 'rgba(12,16,11,0.8)',
-        // A ready skill keeps a faint olive halo, so the eye finds what is
-        // available without any of it competing with the world behind it.
-        glow: (unavail || cdRatio > 0) ? null : 'rgba(143,174,74,0.42)',
-        glowA: 0.3
-      });
-    if (cdRatio > 0) {
-      // Cooldown reads as a ring refilling instead of a pie hiding the icon.
-      X.strokeStyle = 'rgba(196,212,158,0.75)'; X.lineWidth = 3; X.lineCap = 'round';
-      X.beginPath(); X.arc(bx, by, r - 3.5, -1.5708, -1.5708 + 6.28 * cdRatio); X.stroke();
-    }
-    drawSkillGlyph(X, key, bx, by, r * (1.26 + 0.08 * flc),
-      unavail ? '#8a917e' : cdRatio > 0 ? '#a6b78c' : '#e8f0d4');
-    if (charges != null) {
-      // Charge badge on the rim, in the reference's numeric-pip style.
-      const br = Math.max(8.5, r * 0.36);
-      const gx = bx + r * 0.68, gy = by + r * 0.68;
-      X.beginPath(); X.arc(gx, gy, br, 0, 6.28);
-      X.fillStyle = charges > 0 ? 'rgba(26,20,10,0.95)' : 'rgba(34,34,30,0.9)'; X.fill();
-      X.strokeStyle = charges > 0 ? '#ffb75a' : 'rgba(150,144,128,0.65)';
-      X.lineWidth = 1.6; X.stroke();
-      X.fillStyle = charges > 0 ? '#ffd9a0' : '#a8a396';
-      X.font = '900 ' + Math.round(br * 1.2) + 'px Arial';
-      X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText(String(charges), gx, gy + 0.5);
-    }
-    X.restore();
-  }
-
-  // 5. Activation rings: one short expanding ring per press, so an ability that
-  //    fires while the screen is busy still confirms that the tap landed.
-  if (BT_FX.length) {
-    const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    for (let i = BT_FX.length - 1; i >= 0; i--) {
-      const f = BT_FX[i];
-      const a = (nowMs - f.t0) / 320;
-      if (a >= 1) { BT_FX.splice(i, 1); continue; }
-      X.save();
-      X.globalAlpha = (1 - a) * 0.7 * ctlAlpha;
-      X.strokeStyle = f.col; X.lineWidth = 2;
-      X.beginPath(); X.arc(f.x, f.y, f.r + a * 14, 0, 6.28); X.stroke();
-      X.restore();
-    }
-  }
-}
 
 // MAIN ANIMATION LOOP
 function loop(t) {
@@ -13397,8 +12928,36 @@ function drawPlayerEntity() {
       X.lineTo(m + 18 + Math.random() * 8, 6);
       X.closePath(); X.fill();
       X.fillStyle = '#ffffff'; X.beginPath(); X.arc(m + 3, 0, 3.5, 0, 6.28); X.fill();
+    } else if (w.n === 'Revolver') {
+      // Revolver: a short, hard cone with a bright core plus the signature
+      // cylinder-gap side jets. Sharper and wider than the pistol star, but far
+      // shorter than a rifle flash, so it still reads as a hand cannon.
+      X.fillStyle = flColor;
+      X.beginPath();
+      X.moveTo(m, 0);
+      X.lineTo(m + 20, -13);
+      X.lineTo(m + 34, 0);
+      X.lineTo(m + 20, 13);
+      X.closePath(); X.fill();
+      X.fillStyle = '#fffdf0';
+      X.beginPath(); X.moveTo(m, -3.4); X.lineTo(m + 25, 0); X.lineTo(m, 3.4); X.closePath(); X.fill();
+      X.beginPath(); X.arc(m + 5, 0, 5.4, 0, 6.28); X.fill();
+      X.fillStyle = flColor;
+      X.beginPath(); X.moveTo(m - 5, -8); X.lineTo(m - 12, -15); X.lineTo(m - 8, -5); X.closePath(); X.fill();
+      X.beginPath(); X.moveTo(m - 5, 8); X.lineTo(m - 12, 15); X.lineTo(m - 8, 5); X.closePath(); X.fill();
+    } else if (w.n === 'Pistol' || w.n === 'Dual Pistols') {
+      // Pistol: a compact star, deliberately smaller than the rifle flash it
+      // used to share, so a sidearm never reads as a long gun.
+      X.fillStyle = flColor;
+      X.beginPath();
+      X.moveTo(m, 0);
+      X.lineTo(m + 11, -7); X.lineTo(m + 15, -1.6);
+      X.lineTo(m + 21, 0);
+      X.lineTo(m + 15, 1.6); X.lineTo(m + 11, 7);
+      X.closePath(); X.fill();
+      X.fillStyle = '#ffffff'; X.beginPath(); X.arc(m + 4, 0, 3.4, 0, 6.28); X.fill();
     } else {
-      // Pistol / Rifle: 4-pronged star flash
+      // Rifle: 4-pronged star flash
       X.fillStyle = flColor;
       X.beginPath();
       X.moveTo(m, 0);
@@ -13416,8 +12975,918 @@ function drawPlayerEntity() {
   X.restore();
 }
 
+/* === MODULE: engine_hud.js === */
+// DEAD ZONE - HUD & ON-SCREEN CONTROLS
+// Split out of engine_world.js, which had grown to four thousand lines carrying the
+// simulation, collision, weapons and the whole overlay. Everything here is a
+// top-level function declaration, so the bundle's single script scope keeps them
+// visible to the rest of the engine exactly as before, and the split is a pure
+// move: no line of behaviour changed.
+//
+// Reads the shared globals declared in engine_world.js (BT, BT_FX, ctlScale,
+// padUnit, saInsets, hudUnit) and the weapon/tier data in engine_data.js.
+
+// Weapon HUD. The old sliding chip row is gone: on a phone the chips sat under
+// the thumbs, so drags kept swapping guns, and a 20px cell cannot show what a
+// gun is anyway. The bottom-centre card now shows the equipped gun and, when
+// tapped, opens a preview sheet of every gun the account owns.
+function weaponHudRect() {
+  const bs = padUnit();
+  const w = Math.min(200, Math.max(146, Math.round(W * 0.22)));
+  const h = Math.round(52 * bs);
+  const [, , saB] = saInsets();
+  return { x: Math.round(W / 2 - w / 2), y: Math.round(H - h - 8 - saB), w, h };
+}
+
+// Fire-mode label, derived from the weapon's own cadence and pellet count. It
+// describes how the gun already behaves - no stat, rate or reload is changed by
+// it.
+function weaponMode(w) {
+  if (!w) return 'SEMI';
+  if (w.flm) return 'FLAME';
+  if (w.ex) return 'LAUNCH';
+  // A slow-cycling multi-pellet gun is a pump (Shotgun 0.62s, Arc Shotgun 0.65s,
+  // Glacier Breaker 0.72s); a tight burst (Burst Rifle 0.38s) is not. Reading the
+  // projectile step here mislabelled the Shotgun as BURST.
+  if (w.p > 1) return w.r >= 0.5 ? 'PUMP' : (w.p >= 3 ? 'BURST' : 'DUAL');
+  if (w.r <= 0.14) return 'AUTO';
+  if (w.r >= 0.5) return 'BOLT';
+  return 'SEMI';
+}
+
+// Fits a label into a pixel width: shrink a little, then ellipsise. Long weapon
+// names used to run straight through the ammunition readout.
+function fitLabel(txt, maxW, px, weight, family) {
+  const set = f => { X.font = weight + ' ' + f + 'px ' + family; };
+  set(px);
+  if (X.measureText(txt).width <= maxW) return txt;
+  const floor = px * 0.72;
+  for (let f = px - 0.5; f >= floor; f -= 0.5) {
+    set(f);
+    if (X.measureText(txt).width <= maxW) return txt;
+  }
+  set(floor);
+  let t = txt;
+  while (t.length > 2 && X.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1);
+  return t + '\u2026';
+}
+
+// True when the tap landed on the weapon card (the picker trigger).
+function weaponHudHit(x, y) {
+  const r = weaponHudRect();
+  return x >= r.x - 4 && x <= r.x + r.w + 4 && y >= r.y - 6 && y <= r.y + r.h + 6;
+}
+
+function drawWeaponHud() {
+  if (!P || !P.w) return;
+  const r = weaponHudRect();
+  const bs = padUnit();
+  const wDef = WEAP[P.cur] || WEAP[0];
+  const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[wDef.tier]) ? TIER_COLORS[wDef.tier] : '#8fae4a';
+  const reloading = !!P.reloading;
+  const magMax = wDef.mag || 12;
+  const ammo = (P.ammo != null ? P.ammo : magMax);
+  const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
+  const pad = Math.round(9 * bs);
+
+  X.save();
+  X.beginPath(); X.roundRect(r.x, r.y, r.w, r.h, 8);
+  X.fillStyle = 'rgba(14,18,13,0.90)'; X.fill();
+  X.strokeStyle = reloading ? '#ffd36b' : tcol + 'cc'; X.lineWidth = 1.5; X.stroke();
+  // Tier pip down the left edge so rarity still reads at a glance.
+  X.beginPath(); X.roundRect(r.x + 2.5, r.y + 5, 3, r.h - 10, 2);
+  X.fillStyle = tcol; X.fill();
+
+  // --- Columns: icon | flexible text | right-aligned ammo -------------------
+  // Every value is measured and placed inside the card, so the rows cannot
+  // collide no matter how long the weapon name or the magazine figure is.
+  const iconW = Math.round(32 * bs);
+  const icx = r.x + Math.round(5 * bs) + iconW / 2;
+  const icy = r.y + r.h * 0.42;
+  X.save();
+  X.translate(icx - 12 * 0.62 * bs, icy - 5 * 0.62 * bs);
+  X.scale(0.62 * bs, 0.62 * bs);
+  if (typeof gun === 'function') gun(P.cur, 0);
+  X.restore();
+
+  const ammoTxt = ammo + ' / ' + magMax;
+  const modeTxt = reloading ? 'RELOADING' : weaponMode(wDef);
+  X.font = `900 ${Math.round(15 * bs)}px Arial`;
+  const ammoW = X.measureText(ammoTxt).width;
+  X.font = `700 ${Math.round(9 * bs)}px Arial`;
+  const modeW = X.measureText(modeTxt).width;
+
+  const rx = r.x + r.w - pad;
+  const tx = icx + iconW / 2 + Math.round(7 * bs);
+  const nameMax = Math.max(24, rx - Math.max(ammoW, modeW) - Math.round(9 * bs) - tx);
+  const rowA = r.y + Math.round(17 * bs);
+  const rowB = r.y + Math.round(35 * bs);
+
+  X.textBaseline = 'middle'; X.textAlign = 'left';
+  X.fillStyle = tcol;
+  X.fillText(fitLabel((wDef.n || 'GUN').toUpperCase(), nameMax, Math.round(12 * bs), '900', 'Arial'), tx, rowA);
+  X.fillStyle = 'rgba(213,208,194,0.72)';
+  X.font = `700 ${Math.round(9 * bs)}px Arial`;
+  // Effective damage per trigger pull, not the raw table value: once damage
+  // perks and weapon mastery are in play, the card used to under-report the
+  // damage the player was actually dealing. Multi-projectile guns show the
+  // per-pull total plus the pellet count.
+  const st = (typeof weaponStats === 'function') ? weaponStats(P.cur) : null;
+  const perPull = Math.round(baseShotDamage(P.cur) * (st ? st.pellets : (wDef.p || 1)));
+  const dmgTxt = 'DMG ' + perPull + (st && st.pellets > 1 ? ' \u00d7' + st.pellets : '');
+  X.fillText(dmgTxt, tx, rowB);
+
+  X.textAlign = 'right';
+  X.fillStyle = reloading ? '#ffd36b' : (ammo <= Math.ceil(magMax * 0.25) ? '#ff5a3a' : '#efe9d6');
+  X.font = `900 ${Math.round(15 * bs)}px Arial`;
+  X.fillText(ammoTxt, rx, rowA);
+  X.fillStyle = reloading ? '#ffd36b' : 'rgba(213,208,194,0.62)';
+  X.font = `700 ${Math.round(9 * bs)}px Arial`;
+  X.fillText(modeTxt, rx, rowB);
+
+  // Tap-to-change affordance: two small chevrons under the weapon icon, so the
+  // card still reads as a control without a text label fighting the ammunition.
+  const sy = r.y + r.h - Math.round(8 * bs);
+  X.strokeStyle = 'rgba(213,208,194,0.45)'; X.lineWidth = 1.4; X.lineCap = 'round'; X.lineJoin = 'round';
+  X.beginPath();
+  X.moveTo(icx - 6, sy - 2.4); X.lineTo(icx - 2.6, sy); X.lineTo(icx - 6, sy + 2.4);
+  X.moveTo(icx + 6, sy - 2.4); X.lineTo(icx + 2.6, sy); X.lineTo(icx + 6, sy + 2.4);
+  X.stroke();
+
+  // Reload progress along the bottom edge, never over the ammunition readout.
+  if (prog > 0) {
+    X.beginPath(); X.roundRect(r.x + 6, r.y + r.h - 5, r.w - 12, 2.5, 1.5);
+    X.fillStyle = 'rgba(255,255,255,0.12)'; X.fill();
+    X.beginPath(); X.roundRect(r.x + 6, r.y + r.h - 5, Math.max(3, (r.w - 12) * prog), 2.5, 1.5);
+    X.fillStyle = '#ffd36b'; X.fill();
+  }
+  X.restore();
+  X.textBaseline = 'alphabetic';
+  X.textAlign = 'left';
+}
+
+/* ---- Owned-weapon picker -------------------------------------------- */
+// Opens from the weapon card. The run is held while it is up so the player is
+// not being eaten while they read, and resumes exactly as it was on close.
+function openGunPicker() {
+  if (!S || !P || P.hp <= 0) return false;
+  if (S.po || S.bd) return false;
+  const el = document.getElementById('gunpick');
+  if (!el) return false;
+  renderGunPicker();
+  el.classList.add('on');
+  S.gp = 1;
+  run = 0;
+  if (typeof snd === 'function') snd(520, 0.06, 'square', 0.03, 1.1);
+  return true;
+}
+
+function closeGunPicker() {
+  const el = document.getElementById('gunpick');
+  if (el) el.classList.remove('on');
+  if (S) S.gp = 0;
+  const lob = document.getElementById('start');
+  const inLobby = !!(lob && lob.classList.contains('on'));
+  if (!inLobby && P && P.hp > 0 && S && !S.po && !S.bd && !pendingNextWave) run = 1;
+}
+
+function pickWeapon(i) {
+  const ok = selectWeapon(i);
+  if (ok === false && P && P.cur === i) closeGunPicker();
+  else if (ok) closeGunPicker();
+  else renderGunPicker();
+}
+
+function gunTraitTags(w) {
+  const tags = [];
+  if (w.p > 1) tags.push(w.p + ' PELLETS');
+  if (w.pr) tags.push('PIERCE ' + w.pr);
+  if (w.cl) tags.push('CHAIN ' + w.cl);
+  if (w.ex) tags.push('EXPLOSIVE');
+  if (w.fz) tags.push('CRYO');
+  if (w.flm) tags.push('FLAME');
+  if (w.ls) tags.push('LIFESTEAL');
+  if (w.rng >= 800) tags.push('LONG RANGE');
+  else if (w.rng <= 120) tags.push('POINT BLANK');
+  return tags;
+}
+
+function renderGunPicker() {
+  const host = document.getElementById('gunpick-grid');
+  if (!host || !P) return;
+  const owned = [];
+  for (let i = 0; i < WEAP.length; i++) if (P.w && P.w[i]) owned.push(i);
+  host.innerHTML = owned.map(i => {
+    const w = WEAP[i] || WEAP[0];
+    const cur = P.cur === i;
+    const tcol = (typeof TIER_COLORS !== 'undefined' && TIER_COLORS[w.tier]) ? TIER_COLORS[w.tier] : '#8fae4a';
+    const mast = (typeof masteryLevel === 'function') ? masteryLevel(i) : 1;
+    const skKey = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[i]) ? SV.eqSkin[i] : null;
+    const sk = (skKey && typeof SKINS !== 'undefined' && SKINS[skKey]) ? SKINS[skKey] : null;
+    const rps = w.r > 0 ? Math.round(60 / w.r) : 0;
+    const tags = gunTraitTags(w);
+    return `<button data-gun="${i}" class="gun-card${cur ? ' on' : ''}" style="--tc:${tcol}">
+      <span class="gc-top"><b>${w.n}</b><i class="gc-tier">${w.tier}</i></span>
+      <span class="gc-art"><img src="${typeof gunIcon === 'function' ? gunIcon(i) : ''}" alt=""></span>
+      <span class="gc-stats"><span>DMG <b>${Math.round(w.d)}</b></span><span>RPM <b>${rps}</b></span><span>MAG <b>${w.mag || 12}</b></span></span>
+      <span class="gc-tags">${tags.map(t => `<i>${t}</i>`).join('')}</span>
+      <span class="gc-foot">MASTERY LV${mast}${sk ? ' &bull; ' + sk.name : ''}${cur ? ' &bull; EQUIPPED' : ''}</span>
+    </button>`;
+  }).join('') || '<p style="opacity:.7;font-size:12px">No weapons unlocked yet.</p>';
+  host.onclick = e => {
+    const b = e.target.closest('button[data-gun]');
+    if (!b) return;
+    pickWeapon(parseInt(b.dataset.gun, 10));
+  };
+}
+
+function renderHUD() {
+  // Every anchor in this overlay is derived from the HUD unit and the measured
+  // safe-area insets, so nothing is pinned to the physical screen edge (where a
+  // notch, a rounded corner or the camera cutout sits on a modern phone) and the
+  // whole block breathes proportionally on any landscape aspect ratio.
+  const u = hudUnit();
+  const saT = saInsets()[0], saL = saInsets()[3];
+  const pad = Math.round(14 * u);
+  const rx = pad + Math.round(28 * u) + saL;
+  const ry = pad + Math.round(28 * u) + saT;
+  const radarRad = Math.round(26 * u);
+  const colX = rx + Math.round(36 * u);              // left edge of the vitals column
+  const hpw = Math.round(Math.max(96, Math.min(150, W * 0.15)) * u);
+
+  // 1. Radar Background & Clipping Boundary
+  X.save();
+  X.fillStyle = '#0a0e08ee';
+  X.beginPath(); X.arc(rx, ry, radarRad, 0, 6.28); X.fill();
+  X.clip();
+
+  // 2. Tactical Grid Rings
+  X.strokeStyle = 'rgba(255,255,255,0.08)';
+  X.lineWidth = 1;
+  X.beginPath();
+  X.arc(rx, ry, 13 * u, 0, 6.28);
+  X.arc(rx, ry, 22 * u, 0, 6.28);
+  X.stroke();
+
+  // 3. Walls & Buildings from MAP_DATA / Obstacles O
+  X.fillStyle = 'rgba(74, 95, 60, 0.45)';
+  const curM = getCurMap();
+  const mapDef = (typeof MAP_DATA !== 'undefined' && MAP_DATA[curM]) ? MAP_DATA[curM] : (MP[curM] || MP[0]);
+  const wallsList = (typeof O !== 'undefined' && O.length) ? O : (mapDef.walls || mapDef.obstacles || []);
+  for (const w of wallsList) {
+    const wx = rx + (w.x - P.x) / 24;
+    const wy = ry + (w.y - P.y) / 24;
+    const ww = Math.max(1.5, w.w / 24);
+    const wh = Math.max(1.5, w.h / 24);
+    if (Math.hypot(wx - rx, wy - ry) < radarRad + 10) {
+      X.fillRect(wx, wy, ww, wh);
+    }
+  }
+
+  // 4. World Bounds Boundary
+  const wLeft = rx + (0 - P.x) / 24;
+  const wTop = ry + (0 - P.y) / 24;
+  const wSize = (typeof WS !== 'undefined' ? WS : 2400) / 24;
+  X.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+  X.lineWidth = 1.2;
+  X.strokeRect(wLeft, wTop, wSize, wSize);
+
+  // 5. Radar Sweep Line
+  const swpAng = (S ? S.t : 0) * 2.8;
+  X.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+  X.lineWidth = 1.4;
+  X.beginPath(); X.moveTo(rx, ry); X.lineTo(rx + Math.cos(swpAng) * radarRad, ry + Math.sin(swpAng) * radarRad); X.stroke();
+
+  // 6. Player Vision Cone
+  X.fillStyle = 'rgba(56, 189, 248, 0.12)';
+  X.beginPath();
+  X.moveTo(rx, ry);
+  X.arc(rx, ry, 20, P.a - 0.38, P.a + 0.38);
+  X.closePath();
+  X.fill();
+
+  // 7. Pickups & Relic Chests (CH & D)
+  for (const c of CH) {
+    const dx = (c.x - P.x) / 24, dy = (c.y - P.y) / 24;
+    const dist = Math.hypot(dx, dy);
+    const k = dist > (radarRad - 3) ? (radarRad - 3) / dist : 1;
+    X.fillStyle = '#ffd36b';
+    X.fillRect(rx + dx * k - 2, ry + dy * k - 2, 4, 4);
+  }
+  for (const d of D) {
+    const dx = (d.x - P.x) / 24, dy = (d.y - P.y) / 24;
+    if (dx * dx + dy * dy < radarRad * radarRad) {
+      X.fillStyle = d.k === 'h' ? '#ef4444' : (d.k === 'a' ? '#38bdf8' : (d.k === 'pu' ? '#c084fc' : (d.k === 'r' ? '#be8cff' : '#ffd36b')));
+      X.beginPath(); X.arc(rx + dx, ry + dy, 1.8, 0, 6.28); X.fill();
+    }
+  }
+
+  // 8. Zombie Radar Blips
+  for (const z of Z) {
+    if (z.dead) continue;
+    const dx = (z.x - P.x) / 24, dy = (z.y - P.y) / 24;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq < radarRad * radarRad) {
+      if (z.t === 'boss') {
+        const bRad = 3.5 + Math.sin((S ? S.t : 0) * 10) * 1.2;
+        X.fillStyle = 'rgba(239,68,68,0.45)';
+        X.beginPath(); X.arc(rx + dx, ry + dy, bRad + 2, 0, 6.28); X.fill();
+        X.fillStyle = '#ef4444';
+        X.beginPath();
+        X.moveTo(rx + dx, ry + dy - bRad);
+        X.lineTo(rx + dx + bRad, ry + dy);
+        X.lineTo(rx + dx, ry + dy + bRad);
+        X.lineTo(rx + dx - bRad, ry + dy);
+        X.closePath(); X.fill();
+      } else if (z.t === 'tank' || z.t === 'brute' || z.t === 'charger') {
+        X.fillStyle = '#f97316';
+        X.beginPath();
+        X.moveTo(rx + dx, ry + dy - 2.5);
+        X.lineTo(rx + dx + 2.5, ry + dy);
+        X.lineTo(rx + dx, ry + dy + 2.5);
+        X.lineTo(rx + dx - 2.5, ry + dy);
+        X.closePath(); X.fill();
+      } else if (z.t === 'exp' || z.t === 'exploder') {
+        X.fillStyle = Math.sin((S ? S.t : 0) * 12) > 0 ? '#facc15' : '#ef4444';
+        X.beginPath(); X.arc(rx + dx, ry + dy, 2.2, 0, 6.28); X.fill();
+      } else {
+        X.fillStyle = '#ff5a3a';
+        X.fillRect(rx + dx - 1.2, ry + dy - 1.2, 2.4, 2.4);
+      }
+    } else if (z.t === 'boss') {
+      // Off-screen boss directional pointer along radar rim
+      const bAng = Math.atan2(dy, dx);
+      X.fillStyle = '#ef4444';
+      X.beginPath();
+      X.moveTo(rx + Math.cos(bAng) * (radarRad - 2), ry + Math.sin(bAng) * (radarRad - 2));
+      X.lineTo(rx + Math.cos(bAng + 0.22) * (radarRad - 6), ry + Math.sin(bAng + 0.22) * (radarRad - 6));
+      X.lineTo(rx + Math.cos(bAng - 0.22) * (radarRad - 6), ry + Math.sin(bAng - 0.22) * (radarRad - 6));
+      X.closePath(); X.fill();
+    }
+  }
+
+  // 9. Central Player Directional Chevron
+  X.save();
+  X.translate(rx, ry);
+  X.rotate(P.a);
+  X.fillStyle = '#38bdf8';
+  X.beginPath();
+  X.moveTo(5, 0); X.lineTo(-3.5, -3.5); X.lineTo(-1.8, 0); X.lineTo(-3.5, 3.5);
+  X.closePath(); X.fill();
+  X.restore();
+
+  X.restore(); // Restore radar clipping
+
+  // 10. Mini-Radar Perimeter & Health Ring
+  const ringR = 28 * u;
+  X.lineWidth = Math.max(2.6, 3.5 * u); X.strokeStyle = '#141a12';
+  X.beginPath(); X.arc(rx, ry, ringR, 0, 6.28); X.stroke();
+  X.strokeStyle = P.hp > 30 ? '#8fae4a' : '#d9453a';
+  X.beginPath(); X.arc(rx, ry, ringR, -1.57, -1.57 + 6.28 * Math.max(0, P.hp) / P.mx); X.stroke();
+
+  // Wave readout + sector ascension badge + live ghost-pace chip
+  const waveTxt = 'WAVE ' + (S ? S.wave : 1);
+  X.fillStyle = '#e8e4cf'; X.font = '900 ' + Math.round(13 * u) + 'px Impact,Arial Black,sans-serif'; X.textAlign = 'left';
+  X.fillText(waveTxt, colX, ry - Math.round(8 * u));
+  const waveW = X.measureText(waveTxt).width;
+  if (S && S.ascTier > 0) {
+    X.fillStyle = '#c084fc'; X.font = '900 ' + Math.round(9.5 * u) + 'px Arial';
+    X.fillText('ASC ' + S.ascTier + '  BOUNTY x' + (S.ascMul || 1).toFixed(2), colX + waveW + Math.round(8 * u), ry - Math.round(8 * u));
+  }
+  const gdNow = (typeof ghostDelta === 'function') ? ghostDelta() : null;
+  if (gdNow != null && Math.abs(gdNow) >= 0.5) {
+    X.fillStyle = gdNow < 0 ? '#4ade80' : '#fb923c'; X.font = '900 ' + Math.round(9.5 * u) + 'px Arial';
+    X.fillText((gdNow < 0 ? 'GHOST -' : 'GHOST +') + Math.abs(gdNow) + 's', colX + waveW + Math.round(8 * u), ry + Math.round(4 * u));
+  }
+
+  // Damage-chip health bar (yellow chip drains after the red bar)
+  {
+    const hpx = colX, hpy = ry + Math.round(8 * u), hph = Math.round(7 * u);
+    const hpf = Math.max(0, Math.min(1, P.hp / P.mx));
+    const chipf = Math.max(hpf, Math.min(1, (S && S.hpChip != null ? S.hpChip : P.hp) / P.mx));
+    X.fillStyle = 'rgba(6,9,6,0.82)';
+    X.beginPath(); X.roundRect(hpx - 2, hpy - 2, hpw + 4, hph + 4, 3); X.fill();
+    X.fillStyle = '#241412';
+    X.beginPath(); X.roundRect(hpx, hpy, hpw, hph, 2); X.fill();
+    if (chipf > hpf) {
+      X.fillStyle = '#ffd36b';
+      X.beginPath(); X.roundRect(hpx + hpw * hpf, hpy, hpw * (chipf - hpf), hph, 2); X.fill();
+    }
+    const hpCol = hpf > 0.6 ? '#8fae4a' : (hpf > 0.3 ? '#e0b83a' : '#d9453a');
+    X.fillStyle = hpCol;
+    X.beginPath(); X.roundRect(hpx, hpy, Math.max(1, hpw * hpf), hph, 2); X.fill();
+    X.strokeStyle = 'rgba(255,255,255,0.14)'; X.lineWidth = 1;
+    X.beginPath(); X.roundRect(hpx, hpy, hpw, hph, 2); X.stroke();
+    const vitY = hpy + hph + Math.round(11 * u);
+    X.fillStyle = '#e8e4cf'; X.font = 'bold ' + Math.round(9.5 * u) + 'px Arial'; X.textAlign = 'left';
+    const hpTxt = 'HP ' + Math.max(0, Math.round(P.hp)) + '/' + P.mx;
+    X.fillText(hpTxt, hpx, vitY);
+    // Secondary vitals sit on the row below rather than sharing the HP line:
+    // measured text can grow past its column on a narrow screen and used to run
+    // into the HP readout.
+    const vit2Y = vitY + Math.round(12 * u);
+    let vit2X = hpx;
+    X.font = '900 ' + Math.round(9.5 * u) + 'px Arial';
+    if (S && S.ar != null && S.ar < 0.999) {
+      X.fillStyle = '#94a3b8';
+      const armTxt = '-ARMOR ' + Math.round((1 - S.ar) * 100) + '%';
+      X.fillText(armTxt, vit2X, vit2Y);
+      vit2X += X.measureText(armTxt).width + Math.round(8 * u);
+    }
+    if (S && S.bc > 0) {
+      X.fillStyle = '#eab308';
+      X.fillText('SHIELD ' + S.bc + '/' + Math.max(S.bl || 0, S.bc), vit2X, vit2Y);
+    }
+  }
+
+  // Active Powerups HUD with Circular Timer Rings & 3-Second Blink
+  const activePowerups = [];
+  if (S && typeof PU_DEFS !== 'undefined') {
+    for (const id in PU_DEFS) {
+      const pd = PU_DEFS[id];
+      if (pd.key && S[pd.key] > 0) activePowerups.push({ id, name: pd.tag, col: pd.col, time: S[pd.key], maxTime: pd.dur });
+    }
+  }
+
+  // Powerup timer rings used to sit at ry+26, directly on top of the HP, armour
+  // and shield readouts. They now start below the whole vitals block, and the
+  // count is capped by the space actually available before the arena centre.
+  const pStartX = colX;
+  const pStartY = ry + Math.round(54 * u);
+  const puPitch = Math.round(32 * u);
+  const puRad = 11 * u;
+  const puMax = Math.max(1, Math.floor((W * 0.46 - pStartX) / puPitch));
+  activePowerups.slice(0, puMax).forEach((pu, idx) => {
+    // Blink in the final 3 seconds
+    if (pu.time < 3.0 && Math.sin(pu.time * 14) > 0.3) return;
+
+    const px = pStartX + idx * puPitch;
+    const py = pStartY;
+
+    // Background circle
+    X.fillStyle = '#111827dd';
+    X.beginPath(); X.arc(px, py, puRad, 0, 6.28); X.fill();
+    X.strokeStyle = '#374151'; X.lineWidth = 1.2; X.stroke();
+
+    // Radial countdown timer ring
+    const pct = Math.max(0, Math.min(1, pu.time / pu.maxTime));
+    X.strokeStyle = pu.col;
+    X.lineWidth = 2.2;
+    X.beginPath();
+    X.arc(px, py, puRad, -1.57, -1.57 + 6.28 * pct);
+    X.stroke();
+
+    // Shared vector glyph - the same art the collectable uses on the ground.
+    if (typeof puGlyph === 'function') {
+      puGlyph(pu.id, px, py, 0.82, pu.col);
+    } else {
+      X.fillStyle = pu.col;
+      X.font = '900 8px Impact'; X.textAlign = 'center'; X.textBaseline = 'middle';
+      X.fillText(pu.name.slice(0, 2), px, py + 0.5);
+    }
+  });
+
+  // Freeze Fullscreen Frost Vignette Effect
+  if (S && S.fz > 0) {
+    const fzAlpha = Math.min(0.35, S.fz * 0.1);
+    const fzVig = grad('fzVig' + W + 'x' + H + '_' + fzAlpha.toFixed(2), g => {
+      const gr = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8);
+      gr.addColorStop(0, 'rgba(56, 189, 248, 0)');
+      gr.addColorStop(1, `rgba(56, 189, 248, ${fzAlpha})`);
+      return gr;
+    });
+    X.fillStyle = fzVig;
+    X.fillRect(0, 0, W, H);
+  }
+
+  // Nuke Blinding Whiteout Flash Effect. Capped well below full white and
+  // skipped entirely under reduced visual effects: a screen-filling white frame
+  // is the single most uncomfortable thing the game drew.
+  if (S && S.nukeFlash > 0 && !isFxReduced()) {
+    X.fillStyle = `rgba(255, 255, 255, ${Math.min(0.55, S.nukeFlash * 1.6)})`;
+    X.fillRect(0, 0, W, H);
+  }
+
+  // Boss lane, computed before the right-hand plates so the modifier row and the
+  // perk/boon trays can be capped against it. The bar itself is still drawn after
+  // the arena-side overlays so it keeps sitting above them.
+  const boss = Z.find(z => z.t === 'boss' && !z.dead);
+  let bx = 0, bw = 0;
+  {
+    const laneL = rx + ringR + Math.round(10 * u);
+    const laneR = W - Math.round(50 * u) - insetR() - Math.round(6 * u);
+    if (boss) {
+      bw = Math.max(140, Math.min(Math.round(420 * u), laneR - laneL));
+      bx = Math.max(laneL, W / 2 - bw / 2);
+    }
+  }
+
+  // Cash and horde count on one measured plate. The live wave modifiers used to
+  // be printed inside the same plate as the right-aligned cash readout, so a long
+  // modifier list ran straight through the money. The plate is now measured from
+  // its content and the modifiers get their own row beneath it.
+  const topRightEdge = W - Math.round(50 * u) - insetR();
+  let stackY = Math.round(6 * u) + saT;
+  {
+    const ty0 = stackY;
+    const cashTxt = '$' + (S ? S.cash : 0);
+    const hordeTxt = 'HORDE ' + (Z.length + (S ? S.q.length : 0));
+    X.font = 'bold ' + Math.round(15 * u) + 'px Arial';
+    const cashW = X.measureText(cashTxt).width;
+    X.font = 'bold ' + Math.round(10.5 * u) + 'px Arial';
+    const hordeW = X.measureText(hordeTxt).width;
+    const tw = Math.round(Math.max(136 * u, Math.max(cashW, hordeW) + 32 * u));
+    const th = Math.round(40 * u);
+    const tx0 = topRightEdge - tw;
+    X.fillStyle = 'rgba(8,11,8,0.72)';
+    X.beginPath(); X.roundRect(tx0, ty0, tw, th, 6); X.fill();
+    X.strokeStyle = 'rgba(255,255,255,0.10)'; X.lineWidth = 1;
+    X.beginPath(); X.roundRect(tx0, ty0, tw, th, 6); X.stroke();
+    X.textAlign = 'right';
+    X.font = 'bold ' + Math.round(15 * u) + 'px Arial'; X.fillStyle = '#ffd36b';
+    X.fillText(cashTxt, topRightEdge - Math.round(6 * u), ty0 + Math.round(17 * u));
+    X.font = 'bold ' + Math.round(10.5 * u) + 'px Arial'; X.fillStyle = '#e8e4cf';
+    X.fillText(hordeTxt, topRightEdge - Math.round(6 * u), ty0 + Math.round(32 * u));
+    stackY = ty0 + th;
+  }
+  if (S && S.wmList && S.wmList.length) {
+    const my = stackY + Math.round(12 * u);
+    X.font = '900 ' + Math.round(8.5 * u) + 'px Arial';
+    const chips = [];
+    for (const m of S.wmList) chips.push({ t: m.name, c: m.col, w: X.measureText(m.name).width });
+    // Right-aligned, so without a left limit a long modifier list ran across the
+    // boss health bar (and the vitals on a narrow screen). Chips that do not fit
+    // are dropped behind a +n counter instead of overprinting them.
+    const mLimit = boss ? (bx + bw + Math.round(10 * u)) : (colX + hpw + Math.round(14 * u));
+    let mx = topRightEdge, dropped = 0;
+    for (let i = chips.length - 1; i >= 0; i--) {
+      const next = mx - chips[i].w;
+      if (next < mLimit) { dropped = i + 1; break; }
+      chips[i].x = next;
+      mx = next - Math.round(6 * u);
+    }
+    X.textAlign = 'left';
+    for (const c of chips) if (c.x != null) { X.fillStyle = c.c; X.fillText(c.t, c.x, my); }
+    if (dropped > 0) {
+      // Right-aligned into the gap left of the last drawn chip, so the counter cannot
+      // print over its text (it did, by 83px2 at 1024x576).
+      X.textAlign = 'right'; X.fillStyle = '#d5d0c2';
+      X.fillText('+' + dropped, mx, my);
+      X.textAlign = 'left';
+    }
+    stackY = my;
+  }
+  X.textAlign = 'right';
+
+  // Combo multiplier
+  if (typeof renderDirectorOverlay === 'function') renderDirectorOverlay(W, H);
+
+  // Equipped weapon card. Tapping it opens the owned-weapon picker.
+  drawWeaponHud();
+  X.textAlign = 'left';
+
+  // Screen-edge damage vignette. This is the low-health warning, so it stays
+  // readable under reduced effects - just softer and shorter.
+  if (HURT_VIGNETTE_TIMER > 0) {
+    const vAlpha = Math.min(isFxReduced() ? 0.26 : 0.5, HURT_VIGNETTE_TIMER * 1.6);
+    const vig = grad('hurtVig' + W + 'x' + H + '_' + vAlpha.toFixed(2), g => {
+      const gr = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.75);
+      gr.addColorStop(0, 'rgba(239,68,68,0)');
+      gr.addColorStop(1, `rgba(239,68,68,${vAlpha})`);
+      return gr;
+    });
+    X.fillStyle = vig;
+    X.fillRect(0, 0, W, H);
+  }
+
+  // Boss health bar (top centre), occupying the lane reserved for it above.
+  if (boss) {
+    const by = Math.round(52 * u) + saT;
+    const pctB = Math.max(0, Math.min(1, boss.hp / (boss.mh || 1)));
+    X.textBaseline = 'alphabetic';
+    X.fillStyle = 'rgba(10,12,8,0.78)';
+    X.beginPath(); X.roundRect(bx - 5, by - 5, bw + 10, 24, 6); X.fill();
+    X.strokeStyle = '#ef4444'; X.lineWidth = 1.5; X.stroke();
+    X.fillStyle = '#2a1010';
+    X.beginPath(); X.roundRect(bx, by, bw, 14, 4); X.fill();
+    const bg = grad('bossBar' + bx + '_' + bw, g => {
+      const gr = g.createLinearGradient(bx, 0, bx + bw, 0);
+      gr.addColorStop(0, '#ef4444'); gr.addColorStop(1, '#ff9a3a');
+      return gr;
+    });
+    X.fillStyle = bg;
+    X.beginPath(); X.roundRect(bx, by, Math.max(2, bw * pctB), 14, 4); X.fill();
+    X.fillStyle = '#f0ece1'; X.font = '900 ' + Math.round(11 * u) + 'px Impact,Arial Black,sans-serif'; X.textAlign = 'center';
+    X.fillText((typeof BN !== 'undefined' && BN[boss.bv % 4] ? BN[boss.bv % 4] : 'BOSS') + '   ' + Math.max(0, Math.round(boss.hp)) + ' / ' + Math.round(boss.mh), bx + bw / 2, by + 11);
+  }
+
+  // Width the right-hand trays may use. They are drawn after the boss bar, so an
+  // uncapped tray would paint straight over a live boss's health - the one readout
+  // a player cannot afford to lose. Capped to the lane left of the boss bar when
+  // one is up, and to a third of the screen otherwise.
+  const trayMax = boss
+    ? Math.max(36, topRightEdge - (bx + bw) - Math.round(10 * u))
+    : Math.max(36, W * 0.30);
+
+  // Acquired perk tray (build readout) — top-right under the cash counter
+  if (S && S.pk) {
+    const names = Object.keys(S.pk).filter(k => S.pk[k] > 0);
+    if (names.length) {
+      const bw2 = Math.round(16 * u), gap = Math.round(2 * u);
+      const fit = Math.max(1, Math.floor(trayMax / (bw2 + gap)));
+      const shown = names.slice(0, Math.min(16, fit));
+      const extraP = names.length - shown.length;
+      let sx0 = topRightEdge - (shown.length + (extraP > 0 ? 1 : 0)) * (bw2 + gap);
+      const ty = stackY + Math.round(18 * u);
+      X.textAlign = 'left'; X.textBaseline = 'middle';
+      shown.forEach((name, i) => {
+        const pdef = PKS.find(p => p[0] === name) || PKS.find(p => p[0] === '\u2726 ' + name) || [];
+        const col = pdef[4] || '#8fae4a';
+        const x = sx0 + i * (bw2 + gap);
+        X.fillStyle = 'rgba(10,12,8,0.72)';
+        X.beginPath(); X.roundRect(x, ty - 8, bw2, bw2, 4); X.fill();
+        X.strokeStyle = col; X.lineWidth = 1.4; X.stroke();
+        X.fillStyle = col;
+        X.beginPath(); X.arc(x + 8, ty - 1.5, 3.2, 0, 6.28); X.fill();
+        if (S.pk[name] > 1) {
+          X.fillStyle = '#fff'; X.font = '900 8px Arial';
+          X.fillText(String(S.pk[name]), x + 9.5, ty + 6);
+        }
+      });
+      if (extraP > 0) {
+        const x = sx0 + shown.length * (bw2 + gap);
+        X.fillStyle = 'rgba(10,12,8,0.72)';
+        X.beginPath(); X.roundRect(x, ty - 8, bw2, bw2, 4); X.fill();
+        X.strokeStyle = 'rgba(255,255,255,0.25)'; X.lineWidth = 1.2; X.stroke();
+        X.fillStyle = '#d5d0c2'; X.font = '900 8px Arial'; X.textAlign = 'center';
+        X.fillText('+' + extraP, x + bw2 / 2, ty + 6);
+        X.textAlign = 'left';
+      }
+      X.textBaseline = 'alphabetic';
+    }
+  }
+
+  // Run boons. These used to be a 9px green text string under the perk icons,
+  // which was unreadable on a phone and made the draft feel like it did nothing.
+  // They now get the same chip treatment as perks, coloured and stack-counted.
+  if (S && typeof boonHudList === 'function') {
+    const list = boonHudList();
+    if (list.length) {
+      const bw = Math.round(18 * u), gap = Math.round(2 * u);
+      const cap = Math.max(1, Math.min(12, Math.floor(trayMax / (bw + gap))));
+      const shown = list.slice(0, cap);
+      const extra = list.length - shown.length;
+      let sx0 = topRightEdge - (shown.length + (extra > 0 ? 1 : 0)) * (bw + gap);
+      const ty = stackY + Math.round(44 * u);
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      shown.forEach((b, i) => {
+        const x = sx0 + i * (bw + gap);
+        X.fillStyle = 'rgba(10,12,8,0.74)';
+        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
+        X.strokeStyle = b.col; X.lineWidth = 1.4; X.stroke();
+        X.fillStyle = b.col; X.font = '900 8.5px Arial';
+        X.fillText(b.short.slice(0, 3).toUpperCase(), x + bw / 2, ty);
+        if (b.st > 1) {
+          X.fillStyle = 'rgba(8,10,6,0.9)';
+          X.beginPath(); X.arc(x + bw - 3, ty + 6, 6, 0, 6.28); X.fill();
+          X.fillStyle = '#fff'; X.font = '900 8px Arial';
+          X.fillText(String(b.st), x + bw - 3, ty + 6.2);
+        }
+      });
+      if (extra > 0) {
+        const x = sx0 + shown.length * (bw + gap);
+        X.fillStyle = 'rgba(10,12,8,0.74)';
+        X.beginPath(); X.roundRect(x, ty - 9, bw, bw, 4); X.fill();
+        X.strokeStyle = 'rgba(255,255,255,0.25)'; X.lineWidth = 1.2; X.stroke();
+        X.fillStyle = '#d5d0c2'; X.font = '900 8.5px Arial';
+        X.fillText('+' + extra, x + bw / 2, ty);
+      }
+      X.textAlign = 'left'; X.textBaseline = 'alphabetic';
+    }
+  }
+
+  // Virtual Joysticks, Action Buttons, and Combat Overlay
+  drawControls();
+}
+
+function drawControls() {
+  // 1. Out of bounds map border warnings
+  if (P && (P.x < 140 || P.x > WS - 140 || P.y < 140 || P.y > WS - 140)) {
+    // Out-of-bounds warning: a slow, low-amplitude breathe instead of the old
+    // 1.3Hz throb, which read as a flicker at the screen edge.
+    const oobAlpha = isFxReduced() ? 0.34 : 0.3 + 0.1 * Math.sin((S ? S.t : 0) * 3);
+    X.fillStyle = `rgba(239, 68, 68, ${oobAlpha})`;
+    if (P.x < 140) X.fillRect(0, 0, 8, H);
+    if (P.x > WS - 140) X.fillRect(W - 8, 0, 8, H);
+    if (P.y < 140) X.fillRect(0, 0, W, 8);
+    if (P.y > WS - 140) X.fillRect(0, H - 8, W, 8);
+  }
+
+  // 2. LEVEL UP banner
+  // Guarded on `run`: the banner used to keep painting while the boon draft or
+  // perk modal was up (run = 0), so a wave-clear read as "LEVEL UP!" + "BOON
+  // DRAFT" stacking. The banner belongs to live gameplay only.
+  if (run && S && S.lu > 0) {
+    X.save();
+    const luAlpha = Math.min(1, S.lu * 1.5);
+    X.globalAlpha = luAlpha;
+    X.fillStyle = '#ffd84a';
+    X.font = '900 24px Impact, Arial Black, sans-serif';
+    X.textAlign = 'center';
+    X.shadowColor = 'rgba(0,0,0,0.8)';
+    X.shadowBlur = 8;
+    X.fillText('LEVEL UP!', W / 2, H * 0.26);
+    X.restore();
+  }
+
+  // 3. Dual virtual joysticks. One base ring plus a smaller thumb indicator;
+  //    the MOVE/AIM label is only drawn while the stick is at rest, so nothing is
+  //    written under a moving finger.
+  const ctlAlpha = ctlPref().opacity;
+  const [lx, ly] = jPos('l');
+  const [rx, ry] = jPos('r');
+  const drawStick = (side) => {
+    const held = J[side];
+    const base = held ? [held.ox, held.oy] : (side === 'l' ? [lx, ly] : [rx, ry]);
+    const cur = held ? [held.x, held.y] : base;
+    const R = jRad(), kn = jKnob();
+    // White movement stick, warm-red aiming stick: the same disc either way, so
+    // the pair reads as one system and the colour tells the hands apart.
+    const acc = side === 'l' ? '232,236,224' : '255,118,84';
+    X.save();
+    X.globalAlpha = ctlAlpha;
+
+    // well: soft dark halo, translucent bowl, one bright ring, hairline inside
+    X.beginPath(); X.arc(base[0], base[1], R + 3.5, 0, 6.28);
+    X.fillStyle = 'rgba(0,0,0,0.18)'; X.fill();
+    X.beginPath(); X.arc(base[0], base[1], R, 0, 6.28);
+    X.fillStyle = held ? 'rgba(10,13,10,0.42)' : 'rgba(10,13,10,0.32)'; X.fill();
+    X.strokeStyle = 'rgba(' + acc + ',' + (held ? '0.75' : '0.5') + ')';
+    X.lineWidth = Math.max(2, 2.2 * ctlScale());
+    X.stroke();
+    X.strokeStyle = 'rgba(' + acc + ',0.14)'; X.lineWidth = 1;
+    X.beginPath(); X.arc(base[0], base[1], R - 5, 0, 6.28); X.stroke();
+
+    if (!held) {
+      // rest marks: four ticks on the cardinals, so the ring reads as a dial
+      X.strokeStyle = 'rgba(' + acc + ',0.34)'; X.lineWidth = 1.6;
+      for (let i = 0; i < 4; i++) {
+        const a = i * Math.PI / 2 - Math.PI / 2;
+        X.beginPath();
+        X.moveTo(base[0] + Math.cos(a) * (R - 13 * ctlScale()), base[1] + Math.sin(a) * (R - 13 * ctlScale()));
+        X.lineTo(base[0] + Math.cos(a) * (R - 4.5), base[1] + Math.sin(a) * (R - 4.5));
+        X.stroke();
+      }
+      X.fillStyle = 'rgba(' + acc + ',0.32)';
+      X.font = '900 ' + Math.round(10 * ctlScale()) + 'px Arial';
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      X.fillText(side === 'l' ? 'MOVE' : 'AIM', base[0], base[1] + R * 0.55);
+    }
+
+    // knob: dark disc, bright rim, and the role's own glyph inside
+    X.beginPath(); X.arc(cur[0], cur[1], kn, 0, 6.28);
+    X.fillStyle = held ? 'rgba(22,26,20,0.86)' : 'rgba(16,20,15,0.74)'; X.fill();
+    X.strokeStyle = 'rgba(' + acc + ',0.92)'; X.lineWidth = 2; X.stroke();
+    if (side === 'l') drawArrowCrossGlyph(cur[0], cur[1], kn * 1.15, 'rgba(' + acc + ',0.9)');
+    else drawCrosshairGlyph(cur[0], cur[1], kn * 1.5, 'rgba(' + acc + ',0.92)');
+    X.restore();
+  };
+  drawStick('l');
+  drawStick('r');
+
+  // 4. Combat-control pad. One lattice, one button size, icons instead of words:
+  //    fire, reload and the class abilities are drawn from the same geometry the
+  //    hit-test uses, so what a player sees is what the game reads.
+  const reloading = !!(P && P.reloading);
+  const noAmmo = !!(P && P.ammo != null && P.ammo <= 0);
+  const magMax = (P && WEAP[P.cur] && WEAP[P.cur].mag) || 12;
+  for (const b of BT) {
+    if (!btActive(b)) continue;
+    const pos = b.p();
+    const bx = pos[0], by = pos[1];
+    const r = btnRad(b);
+
+    if (b.fire) {
+      const held = fireHeld();
+      const dry = reloading || noAmmo;
+      // Held breathes gently instead of strobing, so continuous fire stays calm
+      // to look at while still being obviously "down".
+      const pulse = held ? 0.55 + 0.45 * Math.sin(perfNow() / 130) : 0;
+      X.save();
+      X.globalAlpha = ctlAlpha;
+      ctlDisc(bx, by, r,
+        dry ? 'rgba(150,104,80,0.62)' : held ? '#ffd7c2' : '#ff7a4a',
+        {
+          fill: held ? 'rgba(168,52,30,0.90)' : dry ? 'rgba(34,24,19,0.84)' : 'rgba(96,30,18,0.86)',
+          glow: dry ? null : held ? 'rgba(255,140,96,0.85)' : 'rgba(255,122,74,0.5)',
+          glowA: held ? 0.35 + 0.3 * pulse : 0.35,
+          ringW: held ? 3.2 : 2.4
+        });
+      X.fillStyle = dry ? 'rgba(214,186,170,0.6)' : '#fff3ea';
+      X.font = '900 ' + Math.round(15 * padUnit()) + 'px Impact, Arial Black, sans-serif';
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      X.fillText('FIRE', bx, by);
+      X.restore();
+      continue;
+    }
+
+    if (b.id === 'pause') {
+      X.save(); X.globalAlpha = ctlAlpha;
+      ctlDisc(bx, by, r, btFlash(b) > 0 ? '#c9e08a' : '#54663f', { ringW: 1.8, hi: 'rgba(255,255,255,0.07)' });
+      X.fillStyle = '#d5d0c2';
+      const bw = Math.max(3, r * 0.2), bh = r * 0.8;
+      X.fillRect(bx - r * 0.36 - bw / 2, by - bh / 2, bw, bh);
+      X.fillRect(bx + r * 0.36 - bw / 2, by - bh / 2, bw, bh);
+      X.restore();
+      continue;
+    }
+
+    if (b.id === 'reload') {
+      // Three readable states: idle/ready, reloading (amber + progress ring),
+      // and magazine already full (dimmed, so a wasted press is obvious before
+      // it happens). startReload() itself rejects overlapping requests.
+      const full = P && P.ammo != null && P.ammo >= magMax;
+      const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
+      const fl = btFlash(b);
+      X.save();
+      X.globalAlpha = ctlAlpha * (full && !reloading ? 0.55 : 1);
+      ctlDisc(bx, by, r,
+        fl > 0 ? '#fff3d0' : reloading ? '#ffd36b' : full ? 'rgba(96,106,84,0.55)' : '#8fae4a',
+        {
+          fill: reloading ? 'rgba(44,36,18,0.9)' : 'rgba(12,16,11,0.86)',
+          glow: reloading ? 'rgba(255,211,107,0.55)' : null
+        });
+      if (prog > 0) {
+        X.strokeStyle = '#ffd36b'; X.lineWidth = 3.2; X.lineCap = 'round';
+        X.beginPath(); X.arc(bx, by, r + 3.5, -1.5708, -1.5708 + 6.28 * prog); X.stroke();
+      }
+      drawReloadGlyph(bx, by, r * (1.02 + 0.06 * fl), reloading ? '#ffd36b' : full ? '#8a917e' : '#e6e2d2');
+      X.restore();
+      continue;
+    }
+
+    // Abilities: class glyph, cooldown ring, and the grenade's charge count.
+    const key = b.k;
+    const sk = (typeof SK !== 'undefined' && SK[key]) ? SK[key] : null;
+    const cdRatio = (sk && sk.cd > 0) ? Math.max(0, Math.min(1, sk.cd / (sk.max || 1))) : 0;
+    const charges = (key === 'gren') ? ((typeof S !== 'undefined' && S) ? (S.gr || 0) : 0) : null;
+    const unavail = (charges === 0);
+    const flc = btFlash(b);
+    X.save();
+    X.globalAlpha = ctlAlpha * (unavail ? 0.6 : 1);
+    ctlDisc(bx, by, r,
+      flc > 0 ? '#fff3d0' : unavail ? 'rgba(126,118,98,0.5)' : cdRatio > 0 ? 'rgba(122,134,104,0.62)' : '#8fae4a',
+      {
+        fill: cdRatio > 0 ? 'rgba(12,17,10,0.84)' : 'rgba(12,16,11,0.8)',
+        // A ready skill keeps a faint olive halo, so the eye finds what is
+        // available without any of it competing with the world behind it.
+        glow: (unavail || cdRatio > 0) ? null : 'rgba(143,174,74,0.42)',
+        glowA: 0.3
+      });
+    if (cdRatio > 0) {
+      // Cooldown reads as a ring refilling instead of a pie hiding the icon.
+      X.strokeStyle = 'rgba(196,212,158,0.75)'; X.lineWidth = 3; X.lineCap = 'round';
+      X.beginPath(); X.arc(bx, by, r - 3.5, -1.5708, -1.5708 + 6.28 * cdRatio); X.stroke();
+    }
+    drawSkillGlyph(X, key, bx, by, r * (1.26 + 0.08 * flc),
+      unavail ? '#8a917e' : cdRatio > 0 ? '#a6b78c' : '#e8f0d4');
+    if (charges != null) {
+      // Charge badge on the rim, in the reference's numeric-pip style.
+      const br = Math.max(8.5, r * 0.36);
+      const gx = bx + r * 0.68, gy = by + r * 0.68;
+      X.beginPath(); X.arc(gx, gy, br, 0, 6.28);
+      X.fillStyle = charges > 0 ? 'rgba(26,20,10,0.95)' : 'rgba(34,34,30,0.9)'; X.fill();
+      X.strokeStyle = charges > 0 ? '#ffb75a' : 'rgba(150,144,128,0.65)';
+      X.lineWidth = 1.6; X.stroke();
+      X.fillStyle = charges > 0 ? '#ffd9a0' : '#a8a396';
+      X.font = '900 ' + Math.round(br * 1.2) + 'px Arial';
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      X.fillText(String(charges), gx, gy + 0.5);
+    }
+    X.restore();
+  }
+
+  // 5. Activation rings: one short expanding ring per press, so an ability that
+  //    fires while the screen is busy still confirms that the tap landed.
+  if (BT_FX.length) {
+    const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    for (let i = BT_FX.length - 1; i >= 0; i--) {
+      const f = BT_FX[i];
+      const a = (nowMs - f.t0) / 320;
+      if (a >= 1) { BT_FX.splice(i, 1); continue; }
+      X.save();
+      X.globalAlpha = (1 - a) * 0.7 * ctlAlpha;
+      X.strokeStyle = f.col; X.lineWidth = 2;
+      X.beginPath(); X.arc(f.x, f.y, f.r + a * 14, 0, 6.28); X.stroke();
+      X.restore();
+    }
+  }
+}
+
+
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v2.9.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v1.0.0 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -13862,7 +14331,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v2.9.0 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.0.0 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -14039,10 +14508,6 @@ function renderBoonBar() {
 }
 
 // Plain-text fallback for the acquired-boon readout.
-function boonHudLine() {
-  return boonHudList().map(b => b.short + (b.st > 1 ? ' x' + b.st : '')).join('  ');
-}
-
 /* ================================================================== */
 /* WEAPON MASTERY                                                      */
 /* ================================================================== */
@@ -14314,7 +14779,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v2.9.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v1.0.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 // Announcer queue (screen-space banners).
 //
@@ -14503,8 +14968,11 @@ function renderDirectorOverlay(W, H) {
     const sev = 1 - (P.hp / P.mx) / 0.3;
     const beat = Math.max(0, Math.sin(FX_HEART * 6.28 * 1)) ;
     const a = (0.14 + sev * 0.22) * (0.5 + beat * 0.5);
-    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
-    g.addColorStop(0, 'rgba(160,0,0,0)'); g.addColorStop(1, 'rgba(160,0,0,' + a + ')');
+    const g = grad('heartbeat' + W + 'x' + H + '_' + a.toFixed(2), c => {
+      const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+      gr.addColorStop(0, 'rgba(160,0,0,0)'); gr.addColorStop(1, 'rgba(160,0,0,' + a.toFixed(2) + ')');
+      return gr;
+    });
     X.fillStyle = g; X.fillRect(0, 0, W, H);
   }
 
@@ -14516,8 +14984,12 @@ function renderDirectorOverlay(W, H) {
   // Aegis shield / adrenaline screen-edge glow
   if (S.sh2 > 0 || S.adr > 0) {
     const col = S.sh2 > 0 ? '234,179,8' : '34,211,238';
-    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.72);
-    g.addColorStop(0, 'rgba(' + col + ',0)'); g.addColorStop(1, 'rgba(' + col + ',' + (0.10 + Math.sin(t * 6) * 0.03) + ')');
+    const edgeA = 0.10 + Math.sin(t * 6) * 0.03;
+    const g = grad('aegis' + W + 'x' + H + '_' + col + '_' + edgeA.toFixed(2), c => {
+      const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.72);
+      gr.addColorStop(0, 'rgba(' + col + ',0)'); gr.addColorStop(1, 'rgba(' + col + ',' + edgeA.toFixed(2) + ')');
+      return gr;
+    });
     X.fillStyle = g; X.fillRect(0, 0, W, H);
   }
 
@@ -14549,9 +15021,12 @@ function renderDirectorOverlay(W, H) {
     const pulse = 0.86 + Math.sin(t * (5 + Math.min(4, S.cmb * 0.06))) * 0.14;
     const kick = Math.min(0.14, (S.cmbKick || 0) * 0.30);
     const a = base * pulse + kick;
-    const g = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.78);
-    g.addColorStop(0, 'rgba(' + col + ',0)');
-    g.addColorStop(1, 'rgba(' + col + ',' + a.toFixed(3) + ')');
+    const g = grad('combo' + W + 'x' + H + '_' + col + '_' + a.toFixed(2), c => {
+      const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.78);
+      gr.addColorStop(0, 'rgba(' + col + ',0)');
+      gr.addColorStop(1, 'rgba(' + col + ',' + a.toFixed(2) + ')');
+      return gr;
+    });
     X.save(); X.fillStyle = g; X.fillRect(0, 0, W, H); X.restore();
   }
 
@@ -14757,7 +15232,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v2.9.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.0.0 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -15935,7 +16410,7 @@ function showDeployScreen(title, sub, kicker, onReady) {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v2.9.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.0.0 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 const playBtn = document.getElementById('play');
 if (playBtn) playBtn.onclick = begin;
@@ -16005,7 +16480,7 @@ if (lobBtn) {
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '2.12.1';
+const GAME_VERSION = '1.0.0';
 
 ld();
 init();
@@ -16013,7 +16488,7 @@ init();
 // frame, so a player who turned shake off does not see it once more on launch.
 applyVisualSettings();
 lobby();
-{ const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION; }
+{ const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION + (typeof saveWarning === 'function' ? saveWarning() : ''); }
 initGameAssets();
 
 const resBtn = document.getElementById('resume');
