@@ -444,7 +444,7 @@ function hurtP(dmg, srcX, srcY) {
     const scaledShake = Math.min(24, Math.max(4, Math.round(d * 0.55)));
     addShake(scaledShake);
   }
-  if (typeof snd === 'function') snd(110, 0.2, 'sawtooth', 0.08, 0.5);
+  if (typeof snd === 'function') snd(110, 0.2, 'sawtooth', 0.08, 0.5, 1);
   if (typeof txt === 'function') txt(P.x, P.y - 20, '-' + d, '#ff5a3a');
 }
 
@@ -565,6 +565,19 @@ function init() {
   }
 }
 
+// One authority for how many enemies may be alive at once. The spawn queue used
+// to check `Z.length < 55` while each summon had its own 42/44 check, and the
+// summon queue itself had no check at all, so a late wave could sit at 55 bodies
+// with everything still pouring in. 55 simultaneously animated zombies is past
+// what a mid-range phone holds at 60 fps, and that is what the "overwhelming
+// hordes by wave 30-35" report and the continuous late-game load actually were.
+// The ceiling ramps with the wave so early waves stay quiet and late waves stay
+// busy without flooding the arena.
+function maxAlive() {
+  const w = (S && S.wave) || 1;
+  return Math.round(Math.min(34, 22 + w * 0.4));
+}
+
 function startWave() {
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
@@ -578,12 +591,16 @@ function startWave() {
   S.wave++;
   S.bn = 2;
   S.ev = (S.wave % 3 === 0 && S.wave % 5 !== 0) ? 1 : 0;
-  if (typeof snd === 'function') snd(200, 0.4, 'sawtooth', 0.08, 0.5);
+  if (typeof snd === 'function') snd(200, 0.4, 'sawtooth', 0.08, 0.5, 1);
   S.q = [];
   S.cash = (S.cash || 0) + (S.stCash || 0); // 'Starting Cash' stat upgrade: +$50 per wave
 
   const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
-  const n = (6 + S.wave * 4) * densityMult;
+  // Per-wave body count. This was `6 + wave * 4`, i.e. 146 bodies by wave 35 on
+  // top of a 55-alive ceiling: the wave became a spawn hose rather than a fight.
+  // The count still grows with the wave (so late waves are longer and worth more
+  // cash) but slower, and maxAlive() throttles how much of it can be on screen.
+  const n = (6 + S.wave * 3) * densityMult;
 
   // Each sector declares its own roster (MP[].enemies). Previously that list was
   // only ever printed on the lobby map card - the wave actually spawned from one
@@ -646,18 +663,18 @@ function bossPhaseBreak(z, n) {
   // real low-end plus a noise chest.
   if (typeof snd === 'function') {
     if (bv === 0) {
-      snd(185, 0.55, 'sawtooth', 0.09, 0.3);
-      if (typeof noise === 'function') noise(0.34, 0.1);
-      setTimeout(() => snd(92, 0.5, 'square', 0.07, 0.45), 110);
+      snd(185, 0.55, 'sawtooth', 0.09, 0.3, 1);
+      if (typeof noise === 'function') noise(0.34, 0.1, 1);
+      setTimeout(() => snd(92, 0.5, 'square', 0.07, 0.45, 1), 110);
     } else if (bv === 1) {
-      snd(300, 0.5, 'triangle', 0.08, 3.1);
-      setTimeout(() => snd(210, 0.45, 'sine', 0.06, 2.4), 140);
+      snd(300, 0.5, 'triangle', 0.08, 3.1, 1);
+      setTimeout(() => snd(210, 0.45, 'sine', 0.06, 2.4, 1), 140);
     } else if (bv === 2) {
-      snd(240, 0.6, 'sawtooth', 0.07, 2.6);
-      if (typeof noise === 'function') noise(0.4, 0.13);
+      snd(240, 0.6, 'sawtooth', 0.07, 2.6, 1);
+      if (typeof noise === 'function') noise(0.4, 0.13, 1);
     } else {
-      snd(260, 0.3, 'square', 0.08, 0.7);
-      setTimeout(() => snd(130, 0.5, 'square', 0.09, 0.6), 90);
+      snd(260, 0.3, 'square', 0.08, 0.7, 1);
+      setTimeout(() => snd(130, 0.5, 'square', 0.09, 0.6, 1), 90);
     }
   }
   addShake(11);
@@ -726,6 +743,16 @@ function spawn(t) {
 
   const zh = (MP[curM] && MP[curM].zh) ? MP[curM].zh : 1;
   const sc = waveHpScale * zh * (S.zc || 1) * (1 + 0.07 * (S.ascTier || 0));
+  // Bosses rode that same curve, which put a wave-35 boss at ~57,000 HP while a
+  // stacked build was deleting 670 HP ordinary zombies on contact: the fight was
+  // long rather than hard, and it is the "50,000 HP boss that took forever" from
+  // the report. The curve is compressed for bosses only (a boss is a damage
+  // check, not a health sponge), which flattens time-to-kill across the whole
+  // run instead of letting it grow with depth: ~6,200 HP at wave 5, ~11,000 at
+  // 25, ~21,600 at 35 - roughly 25-35s of sustained fire from the weapon and
+  // damage level a build has by then, and the two 1.1s phase windows on top.
+  // Ordinary and elite durability are untouched.
+  const scUse = (t === 'boss') ? Math.pow(sc, 0.60) : sc;
 
   const baseElChance = (S && S.isEvent && S.evDef && S.evDef.id === 'elite_hunt') ? 0.24 : 0.06;
   const elBonus = S.wave > 25 ? Math.min(0.25, (S.wave - 25) * 0.02) : (S.wave > 15 ? (S.wave - 15) * 0.008 : 0);
@@ -735,8 +762,8 @@ function spawn(t) {
 
   Z.push({
     x, y, t,
-    hp: T.hp * sc * (el ? 3.5 : 1),
-    mh: T.hp * sc * (el ? 3.5 : 1),
+    hp: T.hp * scUse * (el ? 3.5 : 1),
+    mh: T.hp * scUse * (el ? 3.5 : 1),
     hit: 0, cd: 0, el, flinch: 0,
     animOffset: Math.random() * 6.28,
     bv: t === 'boss' ? ((S.wave / 5 | 0) - 1) % 4 : 0,
@@ -752,9 +779,9 @@ function spawn(t) {
     const bvv = ((S.wave / 5 | 0) - 1) % 4;
     if (typeof announce === 'function') announce((typeof BN !== 'undefined' && BN[bvv]) ? BN[bvv] : 'BOSS', '#ff5a3a', 'heavy signature inbound', 1.6);
     if (typeof snd === 'function') {
-      snd(bvv === 0 ? 118 : 210, 0.7, 'sawtooth', 0.08, 2.6);
-      if (typeof noise === 'function') noise(0.5, 0.09);
-      setTimeout(() => snd(bvv === 0 ? 74 : 160, 0.6, 'square', 0.08, 0.5), 150);
+      snd(bvv === 0 ? 118 : 210, 0.7, 'sawtooth', 0.08, 2.6, 1);
+      if (typeof noise === 'function') noise(0.5, 0.09, 1);
+      setTimeout(() => snd(bvv === 0 ? 74 : 160, 0.6, 'square', 0.08, 0.5, 1), 150);
     }
     addShake(7);
   }
@@ -947,6 +974,17 @@ function damageZ(z, rawDmg, src, isCrit, hitAngle, wi) {
   return false;
 }
 
+// Payout growth with depth. A wave-35 walker has ~11x the health of a wave-1
+// walker and paid exactly the same, so a deep run earned its credits from raw
+// kill volume: the hardest, riskiest waves were the least rewarding per minute,
+// which is backwards for a run the player has already invested half an hour in.
+// Kills only, capped at +50%, and it deliberately does not touch shop prices or
+// the wave-clear award - deep runs should pay better, not everything pay more.
+function depthCash() {
+  const w = (S && S.wave) || 1;
+  return 1 + Math.min(0.5, w * 0.015);
+}
+
 // CENTRALIZED DEATH PIPELINE
 function killZ(z, src, hitAngle, isCrit, wi) {
   if (!z || z.dead) return;
@@ -1093,7 +1131,7 @@ function killZ(z, src, hitAngle, isCrit, wi) {
   // Cash drop with arc pop physics
   const curM = getCurMap();
   const cm = (MP[curM] && MP[curM].cm) ? MP[curM].cm : 1;
-  const cashVal = Math.round(T.c * (S.ev ? 1.5 : 1) * cm * (S.cm || 1) * (z.el ? 4 : 1) * (S.wmCash || 1) * (S.ascMul || 1) * (1 + (typeof runStreakBonus === 'function' ? runStreakBonus() : 0)) * (typeof comboCashMult === 'function' ? comboCashMult() : 1));
+  const cashVal = Math.round(T.c * (S.ev ? 1.5 : 1) * cm * depthCash() * (S.cm || 1) * (z.el ? 4 : 1) * (S.wmCash || 1) * (S.ascMul || 1) * (1 + (typeof runStreakBonus === 'function' ? runStreakBonus() : 0)) * (typeof comboCashMult === 'function' ? comboCashMult() : 1));
   if (typeof spawnDrop === 'function') {
     spawnDrop(z.x, z.y, 'c', cashVal);
   }
@@ -1470,25 +1508,48 @@ function gainXP(amt) {
   }
   if (leveled) {
     S.lu = 2.0; // Flash LEVEL UP text
-    if (typeof snd === 'function') snd(650, 0.4, 'triangle', 0.08, 2.0);
+    if (typeof snd === 'function') snd(650, 0.4, 'triangle', 0.08, 2.0, 1);
   }
 }
 
+// Banks the part of the run that has not been banked yet — never the whole run
+// twice. This is called mid-run by autoSave() (visibilitychange, pagehide,
+// Capacitor appStateChange), so the old "credit S.cash once then latch committed"
+// paid out only the snapshot taken at the first backgrounding and silently
+// dropped everything earned afterwards: the death screen promised the full
+// S.cash, the lobby received the first snapshot. Banking the delta instead keeps
+// the 1:1 rule, is safe to call any number of times, and still never duplicates a
+// credit if two settlements land in the same frame. In-run spending (the reroll
+// button) lowers S.cash, and a lower figure is deliberately not refunded.
 function commitXP() {
-  if (!S || S.committed) return;
-  S.committed = true;
+  if (!S) return 0;
+  let credited = 0;
   if (typeof SV !== 'undefined') {
-    SV.cr = (SV.cr || 0) + (S.cash || 0);
-    SV.kills = (SV.kills || 0) + (S.kills || 0);
+    const cash = Math.max(0, S.cash || 0);
+    const kills = Math.max(0, S.kills || 0);
+    if (cash > (S.bankedCash || 0)) {
+      credited = cash - (S.bankedCash || 0);
+      SV.cr = (SV.cr || 0) + credited;
+      S.bankedCash = cash;
+    }
+    if (kills > (S.bankedKills || 0)) {
+      SV.kills = (SV.kills || 0) + (kills - (S.bankedKills || 0));
+      S.bankedKills = kills;
+    }
   }
-  // Lifetime stats, achievements, ascension and ghost pace all settle exactly once.
-  if (typeof settleRun === 'function') settleRun();
+  S.committed = 1;
+  return credited;
 }
 
+// Run end (death, ABORT, event completion). Only here do the lifetime stats
+// settle: autoSave() calls commitXP() mid-run, and settling from there was
+// banking a half-finished run — lt.runs, lt.waves, the sector record, ascension
+// and the ghost pace were all written from the numbers at the first backgrounding.
 function saveBest() {
   if (typeof SV === 'undefined' || !S) return;
   commitXP();
   if (S.wave > 0) SV.best = Math.max(SV.best || 0, S.wave);
+  if (typeof settleRun === 'function') settleRun();
   if (typeof sv === 'function') sv();
 }
 
@@ -1810,13 +1871,20 @@ function update(dt) {
   // Firing check
   if (firing && P.cd <= 0) fire();
 
-  // Wave spawn queue
+  // Wave spawn queue. maxAlive() is the ceiling; a queued boss is allowed two
+  // slots over it so a scheduled boss can never be parked behind a wall of
+  // trash (it is one entity, and it is the wave's headline).
   if (S && S.q && S.q.length) {
     S.sp -= dt;
     const densityMult = (S && S.isEvent && S.evDef && S.evDef.id === 'heavy_metal') ? 2 : 1;
-    if (S.sp <= 0 && Z.length < 55) {
+    const bossHead = S.q[0] === 'boss';
+    if (S.sp <= 0 && Z.length < maxAlive() + (bossHead ? 2 : 0)) {
       spawn(S.q.shift());
-      S.sp = Math.max(0.15, (1.0 - S.wave * 0.055) * (S.spMul || 1) / densityMult);
+      // Spawn pacing. The old curve hit its 0.15s floor by wave 16 - 6.7 bodies a
+      // second, which refilled the arena to the ceiling the instant it dropped,
+      // and it is what kept the audio and the particles saturated. The floor is
+      // 0.30s now and the slope gentler, so late waves stay dense but breathe.
+      S.sp = Math.max(0.30, (1.0 - S.wave * 0.03) * (S.spMul || 1) / densityMult);
     }
   }
 
@@ -1921,7 +1989,7 @@ function update(dt) {
         }
       } else if (z.t === 'necromancer') {
         z.nw = (z.nw != null ? z.nw : 5) - dt;
-        if (z.nw <= 0 && Z.length < 42) {
+        if (z.nw <= 0 && Z.length < maxAlive()) {
           z.nw = 8.5;
           const hpS = ZT.walk.hp * (1 + S.wave * 0.07);
           for (let k = 0; k < 2; k++) {
@@ -2071,7 +2139,7 @@ function update(dt) {
         }
       } else if (bv === 1) {
         // NECROMANCER - raises a pair of walkers on a timer.
-        if (z.bw <= 0 && Z.length < 44) {
+        if (z.bw <= 0 && Z.length < maxAlive()) {
           z.bw = 7.0;
           const hpS = ZT.walk.hp * (1 + S.wave * 0.07) * 1.4;
           for (let k = 0; k < 2; k++) {
@@ -2098,7 +2166,7 @@ function update(dt) {
               l: Math.min(1.7, dd / asp), r: 6, dmg: 14
             });
           }
-          if (Z.length < 44 && (z.bd = (z.bd || 0) + 1) % 2 === 0) {
+          if (Z.length < maxAlive() && (z.bd = (z.bd || 0) + 1) % 2 === 0) {
             for (let k = 0; k < 2; k++) {
               const an = Math.random() * 6.28;
               const hpS = ZT.crawler.hp * (1 + S.wave * 0.07);
@@ -2204,8 +2272,15 @@ function update(dt) {
   }
 
   // Flush necromancer summons gathered during the update loop (never mutate Z
-  // while iterating it).
-  if (SUMQ.length) { for (const q of SUMQ) Z.push(q); SUMQ.length = 0; }
+  // while iterating it). Summoners push without knowing the live count, so the
+  // cap is enforced here as well, with a few slots of headroom - a brood that
+  // arrives after the arena is already full is exactly the "the wave will not
+  // stop coming" feeling, and it is the cheapest place to refuse it.
+  if (SUMQ.length) {
+    const room = Math.max(0, maxAlive() + 4 - Z.length);
+    for (let i = 0; i < SUMQ.length && i < room; i++) Z.push(SUMQ[i]);
+    SUMQ.length = 0;
+  }
 
   // Update dying zombies, debris & effects
   if (typeof updateDyingZombies === 'function') updateDyingZombies(dt);

@@ -13,7 +13,13 @@ if (!fs.existsSync(bundle)) {
 const js = fs.readFileSync(path.join(__dirname, 'regression-harness.js'), 'utf8');
 const hud = '<div id="mout" style="position:fixed;left:0;top:0;width:100%;height:100%;z-index:99999;' +
   'background:#04120a;color:#7ee787;font:11px/1.35 monospace;white-space:pre;overflow:auto;padding:8px;box-sizing:border-box"></div>';
-const html = fs.readFileSync(bundle, 'utf8').replace('</body>', hud + '\n<script>\n' + js + '\n</script>\n</body>');
+// The replacement MUST be a function. With a plain string replacement, `$'` inside
+// the harness source is a special pattern - it expands to "everything after the
+// match" - so any assertion that prints a dollar amount (e.g. `'$' + SV.cr`) spliced
+// the rest of the page (</html>) into the middle of the harness and the browser
+// refused the whole page with "Uncaught SyntaxError: Invalid or unexpected token".
+// A function replacement is taken literally.
+const html = fs.readFileSync(bundle, 'utf8').replace('</body>', () => hud + '\n<script>\n' + js + '\n</script>\n</body>');
 
 const outDir = path.join(ROOT, '.agent_tmp');
 fs.mkdirSync(outDir, { recursive: true });

@@ -431,10 +431,16 @@ function runStreakBonus() {
 }
 
 /* ================================================================== */
-/* RUN SETTLEMENT (called once, from commitXP)                         */
+/* RUN SETTLEMENT (called once per run, from saveBest)                  */
 /* ================================================================== */
 function settleRun() {
   if (typeof SV === 'undefined' || !S) return;
+  // One settlement per run whatever calls it. saveBest() is reached from death,
+  // from ABORT and from an event completion, and a second call used to be
+  // prevented only by commitXP's `committed` latch — which autoSave() had
+  // already tripped mid-run, so the run-end stats were never written at all.
+  if (S.settled) return;
+  S.settled = 1;
   const lt = SV.lt = SV.lt || {};
   lt.kills = (lt.kills || 0) + (S.kills || 0);
   lt.elites = (lt.elites || 0) + (S.eliteKills || 0);

@@ -307,8 +307,30 @@ function updateFPSMonitor(dt) {
   }
 }
 
-// Audio Engine with Chained Pitch Shifting
+// Audio Engine with Chained Pitch Shifting.
+//
+// Every cue is a raw oscillator or noise source, and there was no ceiling, no
+// limiter and no repeat filtering: by wave 30-35 dozens of kills, impacts,
+// chain-lightning zaps and explosions a second were stacking straight onto
+// destination(). On a phone speaker that clipped into a continuous buzz - the
+// "phone vibrates all the time" half of the report, since nothing in the game
+// calls the vibrator at all - and building a fresh Math.random() noise buffer on
+// every call burned CPU on exactly the frames that were already the heaviest.
+// Voices now run through one limiter bus, the concurrent count is capped, repeats
+// of the same cue family inside one frame collapse into a single hit, and the
+// noise buffer is generated once and reused.
 let AC = null;
+let SFX_BUS = null;
+let AC_VOICES = 0;
+const SFX_VOICE_MAX = 14;      // simultaneous voices before a new cue is refused
+const SFX_CRITICAL_SLACK = 6;  // critical cues may exceed the ceiling by this much
+const SFX_REPEAT_GAP = 0.045;  // seconds between repeats of the same cue family
+const SFX_LAST = Object.create(null);
+const NOISE_BUF = { b: null };
+// Counters the tests read (tools/test-logic.js). `dropped` is a diagnostic, not a
+// failure: it is the throttle doing its job during a busy frame.
+const AC_STATS = { calls: 0, played: 0, dropped: 0, peak: 0, bufs: 0 };
+
 function ac() {
   if (!AC) {
     try {
@@ -322,8 +344,52 @@ function ac() {
   return AC;
 }
 
-function snd(f, d, t, v, s) {
+// Master bus: gain -> limiter -> destination. The ratio is deliberately brutal
+// (12:1) because its job is only to stop stacked voices clipping; a single cue at
+// normal volume passes through untouched.
+function sfxBus() {
+  if (SFX_BUS) return SFX_BUS;
+  const g = AC.createGain();
+  g.gain.value = 0.9;
+  let tail = g;
+  try {
+    const comp = AC.createDynamicsCompressor();
+    comp.threshold.value = -12;
+    comp.knee.value = 12;
+    comp.ratio.value = 12;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.16;
+    g.connect(comp);
+    tail = comp;
+  } catch (e) { /* no compressor: the cap alone still protects the speaker */ }
+  tail.connect(AC.destination);
+  SFX_BUS = g;
+  return g;
+}
+
+// Same-frequency, same-waveform repeats inside SFX_REPEAT_GAP are one sound. This
+// is what turns a twelve-kill frame into a single thud-with-texture instead of
+// twelve stacked low oscillators.
+function sfxRepeatBlocked(f, t) {
+  const key = (t || 'square') + ':' + Math.round(f / 60);
+  const now = AC.currentTime;
+  if (now - (SFX_LAST[key] || -9) < SFX_REPEAT_GAP) return true;
+  SFX_LAST[key] = now;
+  return false;
+}
+
+// pri = 1 marks a cue the player must not miss (boss entrance and phase break,
+// player hurt, level up, wave start, announcements). Those skip the repeat filter
+// and may run a little past the ceiling; everything else is ambient texture.
+function sndVoiceBudget(pri) {
+  return pri ? SFX_VOICE_MAX + SFX_CRITICAL_SLACK : SFX_VOICE_MAX;
+}
+
+function snd(f, d, t, v, s, pri) {
+  AC_STATS.calls++;
   if (MUTE || !ac()) return;
+  if (AC_VOICES >= sndVoiceBudget(pri)) { AC_STATS.dropped++; return; }
+  if (!pri && sfxRepeatBlocked(f, t)) { AC_STATS.dropped++; return; }
   try {
     const n = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = t || 'square';
@@ -332,26 +398,50 @@ function snd(f, d, t, v, s) {
     g.gain.setValueAtTime(v || 0.05, n);
     g.gain.exponentialRampToValueAtTime(0.001, n + d);
     o.connect(g);
-    g.connect(AC.destination);
+    g.connect(sfxBus());
+    // Account for the voice while it actually sounds, so the ceiling tracks what
+    // is audible instead of every cue the frame ever asked for.
+    AC_VOICES++;
+    o.onended = () => { AC_VOICES = Math.max(0, AC_VOICES - 1); };
     o.start();
     o.stop(n + d);
-  } catch (e) {}
+    AC_STATS.played++;
+    if (AC_VOICES > AC_STATS.peak) AC_STATS.peak = AC_VOICES;
+  } catch (e) { AC_VOICES = Math.max(0, AC_VOICES - 1); }
 }
 
-function noise(d, v) {
+// One second of white noise, built once. The old version generated and envelope-
+// multiplied sampleRate*d samples per call, i.e. up to 24k Math.random() per
+// explosion; playback offset + a gain ramp reproduce the same percussive shape.
+function noiseBuf() {
+  if (NOISE_BUF.b) return NOISE_BUF.b;
+  const len = Math.max(1, Math.floor(AC.sampleRate * 1.0));
+  const b = AC.createBuffer(1, len, AC.sampleRate), c = b.getChannelData(0);
+  for (let i = 0; i < len; i++) c[i] = Math.random() * 2 - 1;
+  NOISE_BUF.b = b;
+  AC_STATS.bufs++;
+  return b;
+}
+
+function noise(d, v, pri) {
+  AC_STATS.calls++;
   if (MUTE || !ac()) return;
+  if (AC_VOICES >= sndVoiceBudget(pri)) { AC_STATS.dropped++; return; }
   try {
-    const n = AC.currentTime, len = Math.floor(AC.sampleRate * d);
-    if (len < 1) return;
-    const b = AC.createBuffer(1, len, AC.sampleRate), c = b.getChannelData(0);
-    for (let i = 0; i < len; i++) c[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    const s = AC.createBufferSource(), g = AC.createGain();
-    s.buffer = b;
-    g.gain.value = v || 0.08;
-    s.connect(g);
-    g.connect(AC.destination);
-    s.start();
-  } catch (e) {}
+    const n = AC.currentTime;
+    const src = AC.createBufferSource(), g = AC.createGain();
+    src.buffer = noiseBuf();
+    src.playbackRate.value = 0.9 + Math.random() * 0.25;
+    g.gain.setValueAtTime(v || 0.08, n);
+    g.gain.exponentialRampToValueAtTime(0.001, n + d);
+    src.connect(g);
+    g.connect(sfxBus());
+    AC_VOICES++;
+    src.onended = () => { AC_VOICES = Math.max(0, AC_VOICES - 1); };
+    src.start(n, Math.random() * Math.max(0, 1 - d), d);
+    AC_STATS.played++;
+    if (AC_VOICES > AC_STATS.peak) AC_STATS.peak = AC_VOICES;
+  } catch (e) { AC_VOICES = Math.max(0, AC_VOICES - 1); }
 }
 
 let LAST_PICKUP_TIME = 0;

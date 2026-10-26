@@ -10,6 +10,21 @@
 // Deflector Ring (both in engine_world.hurtP), Shadow Step and Second Wind.
 
 let METEOR = [];   // incoming meteor strikes (Meteor skill + Meteor Rain perk)
+
+// Damage multiplier for automatic sources (auras, orbiting blades, homing
+// missiles, sky lightning, soul blasts, meteor rain, shadow step).
+//
+// They used to read the same S.dm the guns do. S.dm compounds multiplicatively
+// across perk stacks and class bonuses, so by wave 30-35 the auras alone were
+// out-damaging the weapon: the report's "zombies died automatically while the
+// player stood still" was Storm Caller plus Immolation plus the orbiting blades
+// all scaling on a multiplier the player had built for their gun. Passives still
+// grow with every damage upgrade - at half the rate, and capped - so a passive
+// build stays useful without ever being a full replacement for shooting.
+function pdmg() {
+  const dm = (typeof S !== 'undefined' && S && isFinite(S.dm)) ? S.dm : 1;
+  return Math.min(3.0, 1 + (dm - 1) * 0.5);
+}
 let AMISS = [];    // arcane homing missiles (Arcane Missiles perk)
 let SOULW = [];    // expanding soul-blast rings (Soul Harvest perk)
 
@@ -181,7 +196,7 @@ function passiveOnKill(z) {
     const need = Math.max(4, 9 - S.so);
     if (S.soC >= need) {
       S.soC = 0;
-      soulBlast(P.x, P.y, 70 * S.dm, 210);
+      soulBlast(P.x, P.y, 70 * pdmg(), 210);
     }
   }
 }
@@ -254,7 +269,7 @@ function updatePassives(dt) {
       const dx = z.x - P.x, dy = z.y - P.y;
       if (dx * dx + dy * dy < 900) {
         z.sdT = 0.35;
-        damageZ(z, 55 * S.dm, 'shadowstep', false);
+        damageZ(z, 55 * pdmg(), 'shadowstep', false);
         if (typeof burst === 'function') burst(z.x, z.y, '#9a7aff', 6, 2.4, 110, 1);
       }
     }
@@ -272,7 +287,7 @@ function updatePassives(dt) {
         const dx = z.x - ox, dy = z.y - oy;
         if (dx * dx + dy * dy < 400) {
           z.obT = drone ? 0.45 : 0.32;
-          damageZ(z, (drone ? 16 : 26) * S.dm, drone ? 'nanoswarm' : 'blade', false);
+          damageZ(z, (drone ? 16 : 26) * pdmg(), drone ? 'nanoswarm' : 'blade', false);
         }
       }
     }
@@ -289,7 +304,7 @@ function updatePassives(dt) {
         AMISS.push({
           x: P.x + Math.cos(a) * 12, y: P.y + Math.sin(a) * 12,
           vx: Math.cos(a) * 250, vy: Math.sin(a) * 250,
-          l: 2.2, dmg: 34 * S.dm, tgt: start
+          l: 2.2, dmg: 34 * pdmg(), tgt: start
         });
       }
     }
@@ -323,7 +338,7 @@ function updatePassives(dt) {
     if (S.mtT <= 0) {
       S.mtT = Math.max(1.2, 4.2 / S.mt);
       const tg = nearestZombie(P.x, P.y, 560);
-      if (tg) meteorStrike(tg.x, tg.y, 150 * S.dm, 0.6, 130);
+      if (tg) meteorStrike(tg.x, tg.y, 150 * pdmg(), 0.6, 130);
     }
   }
 
@@ -335,9 +350,9 @@ function updatePassives(dt) {
       const tg = nearestZombie(P.x, P.y, 520);
       if (tg) {
         if (typeof ARCS !== 'undefined') ARCS.push({ x1: tg.x, y1: tg.y - 300, x2: tg.x, y2: tg.y, l: 0.2, maxL: 0.2, seed: Math.random() * 999 });
-        damageZ(tg, 65 * S.dm, 'storm', false);
+        damageZ(tg, 65 * pdmg(), 'storm', false);
         if (typeof burst === 'function') burst(tg.x, tg.y, '#9be7ff', 8, 2.6, 110, 1);
-        if (typeof chainLightning === 'function') chainLightning(tg, { cl: 2, d: 65 * S.dm, h: [tg], wi: (P.cur || 0) });
+        if (typeof chainLightning === 'function') chainLightning(tg, { cl: 2, d: 65 * pdmg(), h: [tg], wi: (P.cur || 0) });
         if (typeof snd === 'function') snd(1100, 0.16, 'sawtooth', 0.06, 0.2);
       }
     }

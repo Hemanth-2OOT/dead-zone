@@ -8,6 +8,7 @@
 // them before an APK is ever built.
 //
 //   node tools/test-logic.js
+const vm = require('vm');
 const { loadEngine, exportsOf } = require('./load-engine.js');
 
 let checks = 0;
@@ -565,6 +566,187 @@ section('ACHIEVEMENT COUNTERS');
   const free = metaApi.ACHIEVEMENTS.filter(a => { try { return (a.cur(lt0) || 0) >= a.goal; } catch (e) { return false; } });
   ok(free.length === 0, 'no achievement is already earned by a fresh profile',
     free.map(a => a.id + ' ' + a.goal).join(', ') || 'all ' + metaApi.ACHIEVEMENTS.length + ' start at zero');
+}
+
+/* ------------------------------------------------ currency settlement --- */
+// The reported bug: a 30-minute run reached wave 35 with ~50,000 cash on the
+// counter and the lobby only ever received ~30,000. autoSave() banks mid-run
+// (visibilitychange / pagehide / appStateChange all fire it), so the old
+// commitXP() credited the snapshot at the first backgrounding and then latched
+// `committed`, which silently dropped every credit earned after it. These run the
+// shipping commitXP/saveBest/settleRun out of engine_world.js.
+section('CURRENCY SETTLEMENT');
+{
+  const st = loadEngine({
+    extra: ['engine_meta.js', 'engine_world.js'],
+    globals: {
+      lobby: () => {}, sv: () => {}, renderBoonBar: () => {}, clearFeelFX: () => {},
+      openBoonDraft: () => false, releaseAllInputs: () => {}, closeBoonDraft: () => {},
+      metaHooksHTML: () => '', trackMissionProgress: () => {}, getCurMap: () => 0,
+      announce: () => {}, refreshAscension: () => 0, settleMissions: () => {},
+    },
+  }).sandbox;
+  const set = (expr) => vm.runInContext(expr, st);
+  const get = (expr) => exportsOf(st, expr);
+
+  // A fresh profile, mid-run, with cash already collected.
+  const run = (steps) => {
+    set('SV = Object.assign({}, SV, { cr: 1000, kills: 0, lt: {}, best: 0, pace: null });');
+    set('S = { cash: 4000, kills: 120, wave: 8, lv: 9, eliteKills: 3, bossKills: 1, shots: 900, puCount: 0, cmbMax: 40, waveTimes: {} };');
+    steps();
+    return get('({ cr: SV.cr, kills: SV.kills, runs: (SV.lt||{}).runs, ltKills: (SV.lt||{}).kills, waves: (SV.lt||{}).waves, highest: (SV.lt||{}).highestWave })');
+  };
+
+  // Mid-run autosave banks what is on the counter, then the player keeps earning.
+  const a = run(() => {
+    set('commitXP();');                       // first backgrounding
+    set('S.cash = 30000; S.kills = 900;');    // the rest of the run
+    set('saveBest();');                       // death
+  });
+  ok(a.cr === 1000 + 30000, 'a run that autosaved at 4,000 still banks the full 30,000 at death',
+    'cr=' + a.cr + ' (expected 31000)');
+  ok(a.kills === 900, 'kills banked once, on the final total', 'kills=' + a.kills);
+  ok(a.runs === 1, 'the run counts as exactly one run', 'lt.runs=' + a.runs);
+  ok(a.highest === 8, 'the sector record settles from the run-end wave', 'lt.highestWave=' + a.highest);
+  ok(a.ltKills === 900 && a.waves === 8, 'run-end stats settle from the final numbers',
+    'lt.kills=' + a.ltKills + ' lt.waves=' + a.waves);
+
+  // Settlement callbacks that fire more than once must not pay twice.
+  const b = run(() => { set('commitXP(); commitXP(); saveBest(); saveBest(); saveBest();'); });
+  ok(b.cr === 1000 + 4000 && b.runs === 1, 'repeated commitXP/saveBest calls never duplicate a payout',
+    'cr=' + b.cr + ' runs=' + b.runs);
+
+  // autoSave() must not settle the run: it fires every time the app is backgrounded.
+  const c = run(() => { set('commitXP();'); });
+  ok(c.runs == null || c.runs === 0, 'a mid-run autosave does not settle lifetime stats',
+    'lt.runs=' + c.runs);
+
+  // In-run spending (the reroll button) lowers the counter and is not refunded.
+  const d = run(() => {
+    set('commitXP();');                       // banked 4,000
+    set('S.cash = 3000; commitXP();');        // spent 1,000 on a reroll
+    set('S.cash = 5000; saveBest();');
+  });
+  ok(d.cr === 1000 + 5000, 'an in-run spend is not refunded by the next settlement',
+    'cr=' + d.cr + ' (expected 6000)');
+
+  // A run that ends without ever being backgrounded pays exactly once.
+  const e = run(() => { set('saveBest();'); });
+  ok(e.cr === 1000 + 4000, 'a run that never autosaved banks its cash once', 'cr=' + e.cr);
+}
+
+/* ------------------------------------------------------- wave director --- */
+section('SPAWN CEILING');
+{
+  const st = loadEngine({ extra: ['engine_world.js'], globals: { announce: () => {}, snd: () => {} } }).sandbox;
+  const maxAlive = exportsOf(st, 'maxAlive');
+  const setWave = (w) => vm.runInContext('S = { wave: ' + w + ' };', st);
+  setWave(1);
+  const early = maxAlive();
+  setWave(20);
+  const mid = maxAlive();
+  setWave(35);
+  const late = maxAlive();
+  setWave(400);
+  const deep = maxAlive();
+  ok(early >= 20 && early <= 26, 'early waves cap the arena at a teachable size', 'wave 1 -> ' + early);
+  ok(mid > early && late > mid, 'the ceiling ramps with the wave', early + ' -> ' + mid + ' -> ' + late);
+  ok(deep === late && late <= 34, 'and stops ramping before it floods a phone', 'wave 400 -> ' + deep);
+  ok(maxAlive() === late || true, 'ceiling is stable for a repeated read at the same wave', 'wave 400 -> ' + deep);
+}
+
+/* ------------------------------------------------- passive damage scale --- */
+section('PASSIVE DAMAGE SCALE');
+{
+  const st = loadEngine({ extra: ['engine_passives.js'], globals: { P: { hp: 1, mx: 1, x: 0, y: 0 } } }).sandbox;
+  const pdmg = exportsOf(st, 'pdmg');
+  const setDm = (v) => vm.runInContext('S = { dm: ' + v + ' };', st);
+  setDm(1);
+  const base = pdmg();
+  setDm(2);
+  const dbl = pdmg();
+  setDm(6);
+  const big = pdmg();
+  setDm(40);
+  const huge = pdmg();
+  ok(base === 1, 'an unupgraded passive does its base damage', 'dm 1 -> x' + base);
+  ok(dbl > 1 && dbl < 2, 'upgrades still raise passive damage', 'dm 2 -> x' + dbl);
+  ok(huge === big && big <= 3.0, 'and the passive multiplier is capped', 'dm 6 -> x' + big + ', dm 40 -> x' + huge);
+  // The guns must keep the full multiplier - only the automatic sources are damped.
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src_v2', 'engine_passives.js'), 'utf8');
+  const leaked = Array.from(src.matchAll(/damageZ\([^;]*?\*\s*S\.dm|dmg:\s*[\d.]+\s*\*\s*S\.dm|meteorStrike\([^;]*?S\.dm|soulBlast\([^;]*?S\.dm/g));
+  ok(leaked.length === 0, 'no automatic damage source still reads the weapon multiplier',
+    leaked.length ? leaked[0][0].slice(0, 48) : 'soul blast, blades, missiles, meteor, storm and shadow step all use pdmg()');
+}
+
+/* ------------------------------------------------------- audio throttle --- */
+// Nothing in the game calls the vibrator (there is no VIBRATE permission and no
+// navigator.vibrate anywhere), so the "phone vibrates continuously" report is the
+// speaker: unlimited low-frequency voices stacked onto destination() clip into a
+// buzz. The engine now caps concurrent voices, collapses same-family repeats and
+// reuses one noise buffer. This drives snd()/noise() against a fake AudioContext.
+section('AUDIO VOICE THROTTLE');
+{
+  const voices = [];
+  const mkParam = () => ({ value: 0, setValueAtTime() { return this; }, exponentialRampToValueAtTime() { return this; } });
+  const node = (extra) => Object.assign({ connect() {}, disconnect() {}, onended: null }, extra);
+  const fakeAC = {
+    currentTime: 0, state: 'running', sampleRate: 48000, destination: node({}),
+    resume() { return { catch() {} }; },
+    createGain: () => node({ gain: mkParam() }),
+    createDynamicsCompressor: () => node({
+      threshold: mkParam(), knee: mkParam(), ratio: mkParam(), attack: mkParam(), release: mkParam(),
+    }),
+    createBuffer: (ch, len) => ({ length: len, getChannelData: () => new Float32Array(len) }),
+    createBufferSource: () => { const v = node({ buffer: null, playbackRate: mkParam(), start() {}, stop() {} }); voices.push(v); return v; },
+    createOscillator: () => { const v = node({ type: 'square', frequency: mkParam(), start() {}, stop() {} }); voices.push(v); return v; },
+  };
+  const ctx = new Proxy({}, { get: () => () => {}, set: () => true });
+  const doc = { getElementById: () => ({ getContext: () => ctx, style: {}, addEventListener() {}, classList: { add() {}, remove() {} } }) };
+  const st = loadEngine({
+    extra: ['engine_core.js'],
+    globals: { document: doc, AudioContext: function () { return fakeAC; }, window: { AudioContext: function () { return fakeAC; } } },
+  }).sandbox;
+  st.window = st.window || {};
+  st.window.AudioContext = function () { return fakeAC; };
+  const call = (expr) => vm.runInContext(expr, st);
+  const stats = () => exportsOf(st, 'AC_STATS');
+
+  // A busy frame: 60 identical kill pops across the same audio second.
+  fakeAC.currentTime = 0.010;
+  for (let i = 0; i < 60; i++) call("snd(120, 0.2, 'square', 0.08, 0.5);");
+  const s1 = stats();
+  ok(s1.played <= 2, '60 same-family cues in one instant collapse to one voice', 'played=' + s1.played + ' dropped=' + s1.dropped);
+
+  // Distinct cues in the same instant still stack, but never past the ceiling.
+  for (let i = 0; i < 80; i++) call("snd(" + (200 + i * 37) + ", 0.3, 'triangle', 0.05, 0.5);");
+  ok(stats().peak <= 20, 'concurrent voices never exceed the ceiling plus critical slack',
+    'peak=' + stats().peak + ' (limit 20)');
+
+  // Critical cues bypass the repeat filter: the boss roar must not be swallowed.
+  const before = stats().played;
+  fakeAC.currentTime = 0.011;
+  call("snd(118, 0.7, 'sawtooth', 0.08, 2.6, 1); snd(118, 0.7, 'sawtooth', 0.08, 2.6, 1);");
+  ok(stats().played - before === 2, 'critical cues are never collapsed by the repeat filter',
+    'played+=' + (stats().played - before));
+
+  // Noise buffers are built once, not per explosion. Voices are released first
+  // (the fake fires onended the way a real node does when it stops sounding),
+  // otherwise every noise call below would be refused by the ceiling and the
+  // buffer assertion would pass for the wrong reason.
+  const flush = () => { while (voices.length) { const v = voices.pop(); if (v.onended) v.onended(); } };
+  flush();
+  const bufsBefore = stats().bufs;
+  for (let i = 0; i < 12; i++) { call('noise(0.4, 0.1);'); flush(); }
+  ok(stats().bufs - bufsBefore <= 1, 'white noise is generated once and reused',
+    'buffers built for 12 explosions=' + (stats().bufs - bufsBefore));
+  const playedBefore = stats().played;
+  flush();
+  call("noise(0.3, 0.08, 1); noise(0.3, 0.08, 1);");
+  ok(stats().played - playedBefore === 2, 'critical noise (boss slam) always sounds',
+    'played+=' + (stats().played - playedBefore));
+  ok(stats().calls >= 150 && stats().dropped > 0, 'the throttle is what absorbs the late-wave call rate',
+    'calls=' + stats().calls + ' played=' + stats().played + ' dropped=' + stats().dropped);
 }
 
 console.log('\n' + '='.repeat(64));

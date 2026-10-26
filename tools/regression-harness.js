@@ -1138,6 +1138,103 @@
     lobby();
     tab(0);
 
+    /* ---------- RUN ECONOMY & LATE-WAVE LOAD ----------
+       The reported bug: ~50,000 collected over a 30-minute run that reached wave
+       35, but only ~30,000 in the lobby afterwards. autoSave() banks mid-run
+       (visibilitychange / pagehide / appStateChange all call it), and the old
+       commitXP() credited the counter at the first backgrounding and then latched
+       `committed`, so everything earned after it was silently dropped. These
+       assertions drive the shipping commitXP/saveBest/settleRun/ld path. */
+    section('RUN ECONOMY & LATE-WAVE LOAD');
+    var ecoSv = JSON.stringify(SV), ecoDzs = localStorage.getItem('dzs'), ecoBak = localStorage.getItem('dzs_bak');
+    // Start from an empty slot as well as an empty profile: autoSave()/sv() can pull
+    // the stored save back through ld() mid-section, and a stored save carries its
+    // own sector (SV.map), lifetime counters and ascension tier - which would make
+    // every number below depend on whatever earlier sections left in localStorage.
+    localStorage.removeItem('dzs'); localStorage.removeItem('dzs_bak');
+    // `lt` gets its own object: the SV template's lifetime block is a shared literal,
+    // so earlier sections' settled runs would otherwise show up in these counters.
+    SV = sanitizeSV(Object.assign({ v: 3, lvl: 1, cr: 1000, map: 0, lt: {}, own: WEAP.map(function (_, i) { return i ? 0 : 1; }) }));
+    S = {
+      cash: 4000, kills: 120, wave: 8, lv: 2, eliteKills: 0, bossKills: 0,
+      shots: 100, puCount: 0, cmbMax: 10, waveTimes: {}, q: []
+    };
+    autoSave();                                     // the player backgrounds the app
+    var midBank = SV.cr;
+    ok(midBank === 5000, 'a mid-run autosave banks the counter without ending the run', '$' + midBank);
+    S.cash = 50000; S.kills = 1400; S.wave = 35; S.bossKills = 3; S.eliteKills = 12;
+    saveBest();                                     // death
+    ok(SV.cr === 51000, 'a run that banked 4,000 in the middle still banks the rest at death', '$' + SV.cr);
+    var ecoPaid = SV.cr;
+    saveBest(); saveBest(); commitXP();
+    ok(SV.cr === ecoPaid, 'game-over callbacks that fire again cannot pay twice', '$' + SV.cr);
+    ok((SV.lt.runs | 0) === 1, 'the run settles exactly once', 'lt.runs=' + SV.lt.runs);
+    ok((SV.lt.highestWave | 0) === 35, 'the saved record is the run-end wave', 'lt.highestWave=' + SV.lt.highestWave);
+    sv();
+    var ecoWritten = SV.cr;
+    SV.cr = 0; ld();
+    ok(SV.cr === ecoWritten, 'reopening the game reads back the same balance', '$' + SV.cr);
+    lobby();
+    await sleep(900);
+    var crDom = document.getElementById('cr');
+    var crShown = crDom ? parseInt(String(crDom.textContent).replace(/[^0-9]/g, ''), 10) : NaN;
+    ok(crShown === ecoWritten, 'the lobby balance shows the settled total right away', crDom ? crDom.textContent : 'no #cr');
+
+    // Late-wave load: the arena ceiling and the spawn pace it is fed at.
+    try { if (!S || !P || P.hp <= 0) begin(); } catch (e) {}
+    S.wave = 34;
+    S.q = []; S.sp = 0; S.zc = 1; Z.length = 0;
+    for (var qi = 0; qi < 400; qi++) S.q.push('walk');
+    P.mx = 1e9; P.hp = 1e9;
+    var dsMute = MUTE; MUTE = 1;
+    var cap = maxAlive(), maxSeen = 0, spawned = 0, simSecs = 15, simFrames = 900;
+    for (var lf = 0; lf < simFrames; lf++) {
+      if (S.q.length < 30) S.q.push('walk');
+      var zb = Z.length;
+      update(1 / 60);
+      if (Z.length > zb) spawned += Z.length - zb;
+      if (Z.length > maxSeen) maxSeen = Z.length;
+      P.hp = P.mx;
+    }
+    var spawnRate = spawned / simSecs;
+    ok(maxSeen <= cap + 2, 'a wave-35 arena never exceeds the configured ceiling', maxSeen + ' alive, ceiling ' + cap);
+    ok(spawnRate <= 4.2, 'spawn pacing holds the documented floor', spawnRate.toFixed(2) + ' bodies/s (0.30s floor)');
+    ok(spawned > 0 && Z.length > 0, 'and the wave still feeds a full arena', spawned + ' spawned, ' + Z.length + ' alive');
+    log('wave-35 load over ' + simSecs + 's: peak ' + maxSeen + ' alive, ' + spawned + ' spawned, ' + spawnRate.toFixed(2) + '/s');
+
+    // Boss durability at depth and the passive ceiling on automatic damage.
+    Z.length = 0; S.q.length = 0; S.wave = 35;
+    spawn('walk');
+    var walkHp = Math.round(Z[Z.length - 1].mh);
+    Z.length = 0;
+    spawn('boss');
+    var bossHp = Math.round(Z[Z.length - 1].mh);
+    var buildDm = 3.5;                              // Power Shot x6 (1.2^6 = 2.99) + a class bonus
+    S.dm = buildDm;
+    var bestWi = 0, bestDps = 0;
+    WEAP.forEach(function (w, i) { var d = weaponStats(i).dps; if (d > bestDps) { bestDps = d; bestWi = i; } });
+    var ttk = bossHp / (bestDps * buildDm);
+    ok(bossHp >= 18000 && bossHp <= 26000, 'a wave-35 boss is a damage check, not a health sponge', bossHp + ' HP');
+    ok(bossHp <= walkHp * 45, 'boss durability is a readable multiple of the horde', 'x' + (bossHp / walkHp).toFixed(1) + ' a walker (' + walkHp + ' HP)');
+    ok(ttk >= 18 && ttk <= 45, 'time-to-kill lands in the intended band', ttk.toFixed(0) + 's with ' + WEAP[bestWi].n + ' at damage x' + buildDm);
+    var stormHit = 65 * pdmg(), bladesHit = 26 * pdmg(), soulHit = 70 * pdmg();
+    ok(walkHp / stormHit >= 4, 'one sky-lightning strike cannot clear a late walker', Math.ceil(walkHp / stormHit) + ' strikes per walker');
+    ok(walkHp / bladesHit >= 8, 'orbiting blades need real time per kill', Math.ceil(walkHp / bladesHit) + ' blade hits per walker (one hit per 0.32s)');
+    ok(walkHp / soulHit >= 3.5, 'a soul-harvest blast is a chunk, not a wipe', Math.ceil(walkHp / soulHit) + ' blasts per walker');
+    log('passive hit vs wave-35 walker: storm ' + Math.round(stormHit) + ', blade ' + Math.round(bladesHit) + ', soul ' + Math.round(soulHit) + ' of ' + walkHp + ' HP');
+
+    // restore
+    Z.length = 0; S.q.length = 0; F.length = 0; RG.length = 0; DEC.length = 0; B.length = 0;
+    S.dd = 0; S.fz = 0; S.sh2 = 0; S.mgTime = 0; S.adr = 0; S.dark = 0;
+    S.wave = 34;
+    if (P) { P.mx = 100; P.hp = 100; }
+    MUTE = dsMute;
+    SV = sanitizeSV(JSON.parse(ecoSv));
+    if (ecoDzs === null) localStorage.removeItem('dzs'); else localStorage.setItem('dzs', ecoDzs);
+    if (ecoBak === null) localStorage.removeItem('dzs_bak'); else localStorage.setItem('dzs_bak', ecoBak);
+    lobby();
+    tab(0);
+
     section('PERF / DRAW PATH');
     var gcount = 0, gp = CanvasRenderingContext2D.prototype;
     ['createRadialGradient', 'createLinearGradient'].forEach(function (k) {

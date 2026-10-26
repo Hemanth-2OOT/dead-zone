@@ -761,3 +761,58 @@ future fast-forward has to handle.
   Verified on the published APK: `com.deadzone.game`, versionCode 5, versionName 2.0.1, minSdk 22,
   targetSdk 34, signer `CN=Dead Zone, OU=Games, O=Hemanth, C=IN` cert SHA-256 `5f8a8bbc…52e6` — the
   same identity as v1.0.0–v1.1.0, verified v1+v2+v3 by `apksigner`.
+
+## v2.0.2 notes (economy, spawning, passive damage, late-wave load)
+
+* **The currency bug was an autosave latch, not a lost reward.** `commitXP()` (engine_world.js) used
+  to credit `S.cash` to `SV.cr` and then set `S.committed = 1`, refusing to run again for the rest of
+  the run. But `autoSave()` (visibilitychange / pagehide / Capacitor `appStateChange`) calls
+  `commitXP()` **mid-run**, so the run paid out only the counter value at the *first* interruption
+  and silently dropped everything earned after it — the reported "collected ~50,000, lobby went up
+  ~30,000". It is now delta banking (`S.bankedCash` / `S.bankedKills`, returns the credited amount)
+  and is idempotent: any number of mid-run saves is safe, and nothing is paid twice.
+  `saveBest()` = `commitXP()` → best-wave update → `settleRun()` → `sv()`.
+* **Settlement is now guarded on `S` (`S.settled`), not on `commitXP`'s latch.** The once-per-run
+  guarantee for lifetime stats used to come from the `committed` flag — which the mid-run autosave had
+  already tripped — so `lt.runs`, `lt.waves`, the sector record and ascension progress were never
+  written at all. `settleRun()` in engine_meta.js now returns early if `S.settled`.
+* **One spawn ceiling for every spawner: `maxAlive()`** (engine_world.js, `min(34, 22 + wave*0.4)`).
+  The old literal was `Z.length < 55` in the wave queue only, and every summoner used its own number
+  (42/44) or none at all — the summon queue (`SUMQ` flush) pushed **unbounded** bodies into `Z`. The
+  ceiling is now used by the wave queue, the necromancer/brute/crawler summon gates and the `SUMQ`
+  flush, with `+2` slots reserved so a scheduled boss is never parked behind trash. Spawn pacing floor
+  went `0.15s → 0.30s` and the per-wave body count `6 + wave*4 → 6 + wave*3`.
+* **Passive damage reads `pdmg()`, never `S.dm`.** Every automatic source (soul blast, blades, homing
+  missiles, meteor, storm, chain lightning, shadow step) used the same damage multiplier as the guns,
+  which compounds with every damage upgrade — by wave 30-35 the auras out-damaged the weapon and the
+  arena cleared itself with the player standing still. `pdmg()` = `min(3.0, 1 + (S.dm - 1) * 0.5)`.
+  **If you add a passive that damages enemies, use `pdmg()`, not `S.dm`.**
+* **Boss HP uses a damped curve** (`scUse = Math.pow(sc, 0.60)` for `t === 'boss'` only, in `spawn()`).
+  A wave-35 boss was ~57,000 HP (~86x a wave-35 walker) and TTK grew with depth; it is now ~21,600
+  (~32x) and TTK stays ~25-35s. Ordinary and elite durability, affixes, phase breaks and the boss
+  schedule are untouched.
+* **There is no vibration API in the game** (no `navigator.vibrate`, no VIBRATE permission). The
+  reported "continuous phone vibration" at high waves was the *speaker*: every cue was a raw
+  oscillator with no ceiling, no limiter and no repeat filtering, so dozens of low-frequency voices
+  stacked on the audio output and clipped into a buzz. engine_core.js now has a limiter bus, a
+  14-voice ceiling with 6 slots of critical slack, a 45 ms same-family repeat filter, a single cached
+  noise buffer and `AC_STATS` counters. `snd(f,d,t,v,s,pri)` / `noise(d,v,pri)` take a priority flag;
+  boss entrance, phase break, player hit and level-up pass `1` and are never dropped. Measured in the
+  headless harness: ~0.7 ms/frame vs ~2.3-2.5 ms/frame for a late-wave cue rate.
+* **Depth cash**: kills pay `cm * depthCash()` (`1 + min(0.5, wave*0.015)`). A wave-35 walker has ~11x
+  the health of a wave-1 walker for the same payout, so the deepest waves were the worst per minute.
+  Kills only — shop prices, upgrade costs and the wave-clear award are unchanged.
+* **`tools/make-harness-page.js` must use a function replacement.** `bundle.replace('</body>', hud + js)`
+  treats `$'` in the harness source as the "everything after the match" pattern, so any assertion
+  printing a dollar amount (`'$' + SV.cr`) spliced `</html>` into the middle of the harness and the
+  browser rejected the whole page with `Uncaught SyntaxError: Invalid or unexpected token` — the game
+  still booted, so it looked like the harness had simply stopped. It is now
+  `.replace('</body>', () => …)`.
+* **Harness sections must not inherit the profile.** `SV.lt` is a shared literal in the persistence
+  template, so a section that only replaces `SV` inherits lifetime counters settled by earlier
+  sections (`lt.runs=3`, `lt.highestWave=36`), and `SV.map` carries the sector (`zh`) into every
+  spawn measurement. The RUN ECONOMY section now clears `dzs`/`dzs_bak` and passes its own `lt: {}`,
+  `map: 0`.
+* v2.0.2 verification: `npm test` (31 audit checks + 106 logic assertions) and the browser harness
+  **247 assertions, 0 failures, 0 errors** (was 231). APK: versionCode 6, versionName 2.0.2, same
+  signing identity as v1.0.0-v2.0.1.
