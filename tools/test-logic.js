@@ -29,6 +29,22 @@ const api = exportsOf(sandbox, `({
   storage: localStorage
 })`);
 
+// A second sandbox that also loads the reward-claim module. Its DOM helpers are
+// stubbed because the claim functions only read SV and write SV; the rules under
+// test (eligibility, one-claim-per-reward, date handling) are the shipping ones.
+const claimSandbox = loadEngine({
+  extra: ['engine_events_missions.js'],
+  globals: {
+    $: () => null,
+    announce: () => {}, snd: () => {}, lobby: () => {},
+    renderLoginTrackUI: () => {}, renderMissionsUI: () => {}, renderRankRewards: () => {},
+    renderSkinsUI: () => {}, invalidateLookCaches: () => {}, burst: () => {},
+    init: () => {}, applySV: () => {}, startWave: () => {},
+    showDeployScreen: (t, a, b, cb) => cb(),
+    P: { w: [], cur: 0 }, Z: [], S: {}
+  }
+}).sandbox;
+
 /* ------------------------------------------------------------- weapons --- */
 section('WEAPON STATS');
 const statBad = [];
@@ -243,6 +259,146 @@ const before = JSON.stringify(big).length;
 api.sv();
 const after = JSON.stringify(api.getSV()).length;
 ok(after < before && Object.keys(api.getSV().pace.times).length <= 80, 'an oversized pace history is pruned before writing', before + ' -> ' + after + ' bytes');
+
+/* ------------------------------------------------- weapon ownership --- */
+// Rank is a prerequisite to *buy*, never a grant. This is the regression guard
+// for the auto-unlock bug: the old syncWeaponUnlocks() handed out every gun whose
+// WEAP_RANK the account had reached, which silently bypassed the shop prices.
+section('WEAPON OWNERSHIP');
+const ownApi = exportsOf(sandbox, `({
+  WEAP: WEAP, WEAP_RANK: WEAP_RANK, sanitizeSV: sanitizeSV, syncWeaponUnlocks: syncWeaponUnlocks,
+  weaponRankReq: weaponRankReq, weaponRankMet: weaponRankMet, weaponOwned: weaponOwned,
+  getSV: function () { return SV; }, setSV: function (v) { SV = v; }
+})`);
+{
+  const freeAt3 = ownApi.sanitizeSV({ v: 3, lvl: 3, cr: 0 });
+  ownApi.setSV(freeAt3);
+  ownApi.syncWeaponUnlocks();
+  const owned = ownApi.getSV().own.map((v, i) => v ? i : -1).filter(i => i >= 0);
+  ok(owned.length === 1 && owned[0] === 0, 'rank 3 owns nothing but the starter pistol', owned.length + ' owned');
+
+  const at22 = ownApi.sanitizeSV({ v: 3, lvl: 22, cr: 0 });
+  ownApi.setSV(at22);
+  ownApi.syncWeaponUnlocks();
+  ok(ownApi.getSV().own.filter(Boolean).length === 1, 'even rank 22 grants no free weapon',
+    ownApi.getSV().own.filter(Boolean).length + ' owned of ' + ownApi.WEAP.length);
+
+  // Preserved progression: a profile that owns weapons keeps them.
+  const bought = ownApi.sanitizeSV({ v: 3, lvl: 4, cr: 0, own: [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
+  ownApi.setSV(bought);
+  ownApi.syncWeaponUnlocks();
+  const kept = ownApi.getSV().own.map((v, i) => v ? i : -1).filter(i => i >= 0);
+  ok(kept.join(',') === '0,1,2', 'weapons that were paid for stay owned', 'indices ' + kept.join(','));
+
+  // A short/corrupt own array is repaired, not trusted.
+  const short = ownApi.sanitizeSV({ v: 3, lvl: 3, cr: 0, own: [1] });
+  ownApi.setSV(short);
+  ownApi.syncWeaponUnlocks();
+  ok(ownApi.getSV().own.length === ownApi.WEAP.length, 'a short ownership list is padded to the arsenal',
+    ownApi.getSV().own.length + ' entries');
+  const junk = ownApi.sanitizeSV({ v: 3, lvl: 3, cr: 0, own: 'nope' });
+  ownApi.setSV(junk);
+  ownApi.syncWeaponUnlocks();
+  ok(Array.isArray(ownApi.getSV().own) && ownApi.getSV().own[0] === 1, 'a non-array ownership field becomes [1, 0, ...]',
+    JSON.stringify(ownApi.getSV().own.slice(0, 3)));
+
+  // The rank gate itself.
+  const gateBad = [];
+  ownApi.WEAP.forEach((w, i) => {
+    const req = ownApi.WEAP_RANK[i] || 0;
+    if (ownApi.weaponRankReq(i) !== req) gateBad.push(i + ' req ' + ownApi.weaponRankReq(i) + ' != ' + req);
+    ownApi.setSV(ownApi.sanitizeSV({ v: 3, lvl: Math.max(1, req - 1), cr: 0 }));
+    if (req > 0 && ownApi.weaponRankMet(i)) gateBad.push(w.n + ' met below rank ' + req);
+    ownApi.setSV(ownApi.sanitizeSV({ v: 3, lvl: req, cr: 0 }));
+    if (!ownApi.weaponRankMet(i)) gateBad.push(w.n + ' not met at rank ' + req);
+  });
+  ok(gateBad.length === 0, 'the shop gate matches WEAP_RANK for all ' + ownApi.WEAP.length + ' weapons',
+    gateBad.slice(0, 3).join(' | ') || 'every weapon');
+
+  ownApi.setSV(ownApi.sanitizeSV({ v: 3, lvl: 1, cr: 0, own: [1, 0, 0] }));
+  ok(!ownApi.weaponOwned(1) && ownApi.weaponOwned(0), 'ownership reads the flag, not the rank');
+}
+
+/* --------------------------------------------------- rewards & claims --- */
+// The claim functions are the real ones from engine_events_missions.js, driven
+// with the string arguments an HTML data-arg actually produces.
+section('REWARDS & CLAIMS');
+const claimApi = exportsOf(claimSandbox, `({
+  sanitizeSV: sanitizeSV, setSV: function (v) { SV = v; }, getSV: function () { return SV; },
+  claimLoginDay: claimLoginDay, claimRank: claimRank, claimMission: claimMission,
+  initDailyMissions: initDailyMissions, trackMissionProgress: trackMissionProgress,
+  LOGIN_REWARDS: LOGIN_REWARDS, RANK_MILESTONES: RANK_MILESTONES
+})`);
+{
+  const today = new Date().toDateString();
+  // sanitizeSV() starts from the running profile, so the resets have to be
+  // explicit or the previous block's progress leaks into the next expectation.
+  const fresh = () => claimApi.sanitizeSV({
+    v: 3, lvl: 5, cr: 0, loginDays: 3, dmDate: today, lastLogin: today,
+    dailyMissions: {}, loginClaimed: {}, rankClaimed: {}
+  });
+
+  claimApi.setSV(fresh());
+  claimApi.claimLoginDay('1');
+  ok(claimApi.getSV().cr === 100, 'claiming login day 1 pays the table amount', '+ ' + claimApi.getSV().cr + ' CR');
+  claimApi.claimLoginDay('1');
+  ok(claimApi.getSV().cr === 100, 'claiming it twice does not pay twice', claimApi.getSV().cr + ' CR');
+  claimApi.claimLoginDay('7');
+  ok(claimApi.getSV().cr === 100 && !claimApi.getSV().loginClaimed['7'], 'a day beyond the streak cannot be claimed early',
+    JSON.stringify(claimApi.getSV().loginClaimed));
+  claimApi.claimLoginDay('abc');
+  ok(claimApi.getSV().cr === 100, 'a non-numeric day is refused rather than coerced to day 0');
+
+  claimApi.setSV(fresh());
+  claimApi.claimRank('2');
+  claimApi.claimRank('4');
+  claimApi.claimRank('2');
+  ok(claimApi.getSV().cr === 650, 'rank milestones pay once each', claimApi.getSV().cr + ' CR (250+400)');
+  ok(claimApi.getSV().rankClaimed['2'] === true && claimApi.getSV().rankClaimed['4'] === true, 'both milestones are marked claimed');
+
+  claimApi.setSV(fresh());
+  claimApi.initDailyMissions();
+  ok(Object.keys(claimApi.getSV().dailyMissions).length === 3, 'an empty board is reseeded for today',
+    Object.keys(claimApi.getSV().dailyMissions).join(','));
+
+  // The board must survive the sanitiser that every lobby() pass runs.
+  claimApi.trackMissionProgress('kills', 25);
+  claimApi.trackMissionProgress('waves', 3);
+  const roundTrip = claimApi.sanitizeSV(JSON.parse(JSON.stringify(claimApi.getSV())));
+  ok(roundTrip.dailyMissions.m1.cur === 25, 'mission progress survives a save round trip', 'm1 ' + roundTrip.dailyMissions.m1.cur + '/60');
+  ok(roundTrip.dailyMissions.m2.cur === 3, 'the waves mission tracks cleared waves', 'm2 ' + roundTrip.dailyMissions.m2.cur + '/3');
+  ok(roundTrip.dailyMissions.m1.title && roundTrip.dailyMissions.m1.type === 'kills' && roundTrip.dailyMissions.m1.reward === 150,
+    'a mission record keeps its title, type and reward');
+
+  // Waves: the type that had no caller at all before this pass.
+  claimApi.setSV(fresh());
+  claimApi.initDailyMissions();
+  claimApi.trackMissionProgress('waves', 1);
+  claimApi.trackMissionProgress('waves', 1);
+  ok(claimApi.getSV().dailyMissions.m2.cur === 2, 'consecutive wave clears accumulate', claimApi.getSV().dailyMissions.m2.cur + '/3');
+  claimApi.trackMissionProgress('waves', 99);
+  ok(claimApi.getSV().dailyMissions.m2.cur === 3, 'progress clamps at the target', claimApi.getSV().dailyMissions.m2.cur + '/3');
+
+  // Elite kills only count when the target really was one.
+  claimApi.trackMissionProgress('elites', 1);
+  ok(claimApi.getSV().dailyMissions.m3.cur === 0, 'a non-elite kill does not advance the elite mission');
+  claimApi.trackMissionProgress('elites', 1, { el: true });
+  ok(claimApi.getSV().dailyMissions.m3.cur === 1, 'an elite kill advances it');
+
+  // Claims: only when complete, and exactly once.
+  const before = claimApi.getSV().cr;
+  claimApi.claimMission('m1');
+  ok(claimApi.getSV().cr === before, 'an incomplete mission cannot be claimed');
+  claimApi.trackMissionProgress('kills', 999);
+  claimApi.claimMission('m1');
+  const paid = claimApi.getSV().cr;
+  ok(paid === before + 150, 'a completed mission pays its reward', '+' + (paid - before) + ' CR');
+  claimApi.claimMission('m1');
+  ok(claimApi.getSV().cr === paid, 'and pays it only once', claimApi.getSV().cr + ' CR');
+  claimApi.claimMission('nope');
+  ok(claimApi.getSV().cr === paid, 'an unknown mission id is ignored');
+  ok(claimApi.getSV().dailyMissions.m1.claimed === true, 'the claimed flag is persisted in the record');
+}
 
 console.log('\n' + '='.repeat(64));
 console.log('LOGIC TESTS: ' + (fails ? fails + ' FAILURES' : 'ALL CHECKS PASSED') + ' (' + checks + ' assertions)');

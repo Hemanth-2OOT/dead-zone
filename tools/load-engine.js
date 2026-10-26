@@ -48,14 +48,20 @@ function makeSandbox() {
 }
 
 // engine_maps.js, engine_data.js and engine_persistence.js are tables and pure
-// helpers; everything else in src_v2 talks to the canvas or the DOM.
+// helpers; everything else in src_v2 talks to the canvas or the DOM at load time.
+// Modules that are DOM-free except for a handful of render/announce helpers can
+// be pulled in through `extra`, with those helpers supplied as `globals` - that is
+// how the reward-claim functions get tested against the real implementation
+// instead of a re-implementation of their rules.
 const PURE_MODULES = ['engine_maps.js', 'engine_data.js', 'engine_persistence.js'];
 
-function loadEngine() {
+function loadEngine(opts) {
   const sandbox = makeSandbox();
+  if (opts && opts.globals) Object.assign(sandbox, opts.globals);
   vm.createContext(sandbox);
   const loaded = [];
-  for (const mod of PURE_MODULES) {
+  const mods = PURE_MODULES.concat((opts && opts.extra) || []);
+  for (const mod of mods) {
     const file = path.join(ROOT, 'src_v2', mod);
     vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
     loaded.push(mod);

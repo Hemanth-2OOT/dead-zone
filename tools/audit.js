@@ -261,6 +261,47 @@ try {
   warn('dead code scan', e.message);
 }
 
+/* ------------------------------------------------------- gameplay wiring -- */
+// A mission type with no caller is a mission that can never complete, and it is
+// invisible to every other check: the board renders it, the reward table prices
+// it, only the gameplay event is missing. 'waves' shipped in exactly that state.
+section('GAMEPLAY WIRING');
+{
+  const missions = read('src_v2/engine_events_missions.js');
+  const types = Array.from(new Set(Array.from(missions.matchAll(/type:\s*'([a-z]+)'/g)).map(m => m[1])));
+  const files = fs.readdirSync(path.join(ROOT, 'src_v2'))
+    .filter(f => f.endsWith('.js') && f !== 'build.js' && f !== 'engine_events_missions.js');
+  const seen = new Set();
+  for (const f of files) {
+    for (const m of read('src_v2/' + f).matchAll(/trackMissionProgress\(\s*'([a-z]+)'/g)) seen.add(m[1]);
+  }
+  const unWired = types.filter(t => !seen.has(t));
+  if (!types.length) fail('daily mission types are declared', 'no type: entries found in the mission seed');
+  else if (unWired.length) fail('every daily mission type has a gameplay caller', 'no caller for: ' + unWired.join(', '));
+  else ok('every daily mission type has a gameplay caller', types.join(', ') + ' (' + seen.size + ' call sites)');
+
+  // The wave counter must sit inside the idempotent clear branch, or re-entering
+  // the cleared state would count the same wave twice.
+  const world = read('src_v2/engine_world.js');
+  const clear = world.match(/clearedWave !== S\.wave[\s\S]{0,700}?trackMissionProgress\(\s*'waves'/);
+  if (clear) ok('the waves mission is counted once per cleared wave');
+  else fail('the waves mission is counted in the idempotent clear branch', 'trackMissionProgress(\'waves\') not found inside the clearedWave guard');
+
+  // Every claim path must re-validate its own claimed flag: the buttons are only
+  // a hint, and a stale re-render must not be able to pay twice.
+  const guards = [
+    ['claimMission', /m\.claimed/],
+    ['claimLoginDay', /SV\.loginClaimed\s*&&\s*SV\.loginClaimed\[/],
+    ['claimRank', /SV\.rankClaimed\[/]
+  ];
+  const missing = guards.filter(([fn, re]) => {
+    const body = missions.slice(missions.indexOf('function ' + fn + '('));
+    return body.indexOf('function ' + fn + '(') < 0 || !re.test(body.slice(0, body.indexOf('\n}')));
+  }).map(([fn]) => fn);
+  if (missing.length) fail('every claim function re-validates its own flag', missing.join(', '));
+  else ok('every claim function re-validates its own flag', guards.map(g => g[0]).join(', '));
+}
+
 /* ------------------------------------------------------------- ui binding -- */
 section('UI BINDING');
 {

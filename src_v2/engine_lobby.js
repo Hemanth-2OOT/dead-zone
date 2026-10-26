@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.0.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -996,18 +996,25 @@ function renderShop() {
     const owned = Boolean(SV.own && SV.own[i]);
     const equipped = owned && SV.start === i;
     const tCol = SHOP_TIER_COLS[w.tier] || '#94a3b8';
-    const rankReq = WEAP_RANK[i] || 0;
+    const rankReq = weaponRankReq(i);
+    const rankOk = weaponRankMet(i);
     const cost = Math.max(0, w.c || 0);
     const affordable = (SV.cr || 0) >= cost;
-    const status = equipped ? 'EQUIPPED' : owned ? 'OWNED' : 'LOCKED';
+    // Three honest states, not two: you may not own it yet and cannot buy it
+    // (rank too low), you may buy it, or it is yours.
+    const status = equipped ? 'EQUIPPED' : owned ? 'OWNED' : rankOk ? 'FOR SALE' : 'RANK ' + rankReq;
     const action = owned
       ? '<button data-eq="' + i + '"' + (equipped ? ' disabled' : '') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800;border-color:' + (equipped ? '#333' : '#8fae4a') + ';color:' + (equipped ? '#666' : '#8fae4a') + '">' + (equipped ? 'EQUIPPED' : 'EQUIP') + '</button>'
-      : '<button data-buy="' + i + '"' + (affordable ? '' : ' disabled') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800">BUY ' + cost.toLocaleString() + ' CR</button>';
+      : rankOk
+        ? '<button data-buy="' + i + '"' + (affordable ? '' : ' disabled') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800">BUY ' + cost.toLocaleString() + ' CR</button>'
+        : '<button disabled style="min-width:96px;padding:7px 10px;font-size:10px;font-weight:800;color:#8892a0;border-color:#3a4048">RANK ' + rankReq + '</button>';
     const stats = [['DMG', Math.round(st.shot)], ['DPS', Math.round(st.dps)], ['MAG', st.mag], ['RELOAD', st.reload.toFixed(1) + 's']]
       .map(r => '<div style="text-align:center"><div style="font-size:8.5px;letter-spacing:.5px;opacity:.6">' + r[0] + '</div><div style="font-size:12px;font-weight:800;color:#e8e2d6">' + r[1] + '</div></div>').join('');
-    const origin = rankReq > 0 ? 'RANK ' + rankReq + ' UNLOCK &bull; ' : 'STARTER WEAPON &bull; ';
-    const footer = owned ? (equipped ? 'YOUR DEPLOYED WEAPON' : 'IN YOUR ARSENAL') : cost.toLocaleString() + ' CREDITS';
-    const footerCol = owned ? '#8fae4a' : (affordable ? '#e0b83a' : '#c98a6a');
+    const origin = rankReq > 0 ? 'RANK ' + rankReq + ' REQUIRED &bull; ' : 'STARTER WEAPON &bull; ';
+    const footer = owned ? (equipped ? 'YOUR DEPLOYED WEAPON' : 'IN YOUR ARSENAL')
+      : rankOk ? cost.toLocaleString() + ' CREDITS'
+        : 'UNLOCKS AT ACCOUNT RANK ' + rankReq;
+    const footerCol = owned ? '#8fae4a' : (rankOk ? (affordable ? '#e0b83a' : '#c98a6a') : '#8892a0');
     return '<div class="card" style="display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,' + tCol + '0f,rgba(20,24,18,.96));border-left:5px solid ' + tCol + '">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
       +   '<div style="min-width:0">'
@@ -1030,20 +1037,34 @@ function renderShop() {
 
 function buyWeapon(i) {
   const w = WEAP[i]; if (!w) return;
+  if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
+  // Ownership, then the rank precondition, then the price. Every path in (shop
+  // click, future shortcut) comes through here, so a locked gun cannot be forced
+  // into the arsenal by calling buyWeapon directly either.
   if (SV.own && SV.own[i]) return;
+  if (!weaponRankMet(i)) {
+    if (typeof announce === 'function') announce('RANK LOCKED', '#8892a0', w.n + ' requires account rank ' + weaponRankReq(i), 3);
+    return;
+  }
   const cost = Math.max(0, w.c || 0);
   if ((SV.cr || 0) < cost) {
     if (typeof announce === 'function') announce('NOT ENOUGH CREDITS', '#e07a5a', 'Need ' + cost.toLocaleString() + ' CR', 3);
     return;
   }
+  // The debit is the authority: it re-checks the balance and returns false if it
+  // could not be applied, so a failed transaction can never leave ownership set.
   if (!transactMetaCredits(cost, 'weapon_' + i)) return;
+  if (!Array.isArray(SV.own)) SV.own = [];
+  while (SV.own.length < WEAP.length) SV.own.push(0);
   SV.own[i] = 1;
   sv();
   if (typeof snd === 'function') snd(660, 0.12, 'triangle', 0.05, 1.4);
+  if (typeof announce === 'function') announce('UNLOCKED', '#e0b83a', w.n + ' added to your arsenal', 3);
   renderShop();
 }
 
 function equipWeapon(i) {
+  if (!WEAP[i]) return;
   if (!(SV.own && SV.own[i])) return;
   SV.start = i;
   sv();

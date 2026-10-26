@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.1 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.0.2 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -201,7 +201,32 @@ function sanitizeSV(s) {
     out.eqSkin = r;
   }
   out.evDone = flagMap(out.evDone, MAP_MAX);
-  out.dailyMissions = numMap(out.dailyMissions, MAP_MAX, 0, 1e6);
+  // Daily missions are records, not counters. Running them through numMap() meant
+  // `Number({title,target,cur,...})` was NaN for every entry, so the whole board
+  // was dropped on the very next save - the missions screen could only ever show
+  // what initDailyMissions() had just written, and that only reseeds when the
+  // calendar date flips. Progress therefore never survived a load, and a profile
+  // whose board had been wiped stayed empty until midnight.
+  const missionMap = (v, max) => {
+    const o = mapOf(v, max), r = {};
+    for (const k of Object.keys(o)) {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+      const m = o[k];
+      if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
+      const target = num(m.target, 1, 1e6, null);
+      if (target === null) continue;             // not a mission record
+      r[k] = {
+        title: (typeof m.title === 'string' ? m.title : 'Daily Mission').slice(0, 64),
+        type: (typeof m.type === 'string' ? m.type : 'kills').slice(0, 16),
+        target: target,
+        cur: Math.min(num(m.cur, 0, 1e6, 0), target),
+        reward: num(m.reward, 0, 1e6, 0),
+        claimed: m.claimed ? true : false
+      };
+    }
+    return r;
+  };
+  out.dailyMissions = missionMap(out.dailyMissions, MAP_MAX);
   out.loginClaimed = flagMap(out.loginClaimed, MAP_MAX);
   out.rankClaimed = flagMap(out.rankClaimed, MAP_MAX);
   out.mast = numMap(out.mast, MAP_MAX, 0, 1e12);
@@ -364,16 +389,39 @@ function sv() {
   }
 }
 
-// Guns are unlocked by account rank rather than bought, so ownership is
-// re-derived from the rank on every load and save. Folding it into the existing
-// SV.own flags keeps every other reader of SV.own working unchanged.
+// A weapon is owned or it is not. Ownership is bought (SV.own, persisted) and
+// the starter pistol is owned on every profile; account rank is only the
+// *prerequisite* that makes a gun offerable in the shop (weaponRankMet).
+//
+// This used to hand out every gun whose WEAP_RANK the account had already
+// reached. That was correct while the shop was retired - rank *was* the only
+// unlock path - but the shop returned in v1.0.0 and prices the same guns, so the
+// rank grant was silently bypassing every price: an account at rank 3 owned the
+// SMG, the revolver and the dual pistols for free without ever visiting the
+// shop, and the card's "RANK 3 UNLOCK" line read as a receipt rather than a gate.
+// Ownership is now never derived from rank; only purchase writes SV.own.
 function syncWeaponUnlocks() {
   if (typeof SV === 'undefined' || !SV || typeof WEAP === 'undefined') return;
-  if (!SV.own || !SV.own.length) SV.own = WEAP.map((_, i) => (i === 0 ? 1 : 0));
-  const rank = SV.lvl || 1;
-  for (let i = 0; i < WEAP.length; i++) {
-    if (!SV.own[i] && rank >= (WEAP_RANK[i] || 0)) SV.own[i] = 1;
-  }
+  if (!Array.isArray(SV.own)) SV.own = [];
+  while (SV.own.length < WEAP.length) SV.own.push(0);
+  if (SV.own.length > WEAP.length) SV.own.length = WEAP.length;
+  for (let i = 0; i < WEAP.length; i++) SV.own[i] = SV.own[i] ? 1 : 0;
+  SV.own[0] = 1;   // the starter pistol is standard issue, never sold
+}
+
+// Rank needed before a weapon may be *acquired* (0 = no requirement). Read
+// wherever ownership or purchase eligibility is decided, so the number the shop
+// prints and the number the purchase checks cannot drift apart.
+function weaponRankReq(i) {
+  return (typeof WEAP_RANK !== 'undefined' && WEAP_RANK[i]) ? Math.max(0, WEAP_RANK[i]) : 0;
+}
+function weaponRankMet(i) {
+  if (!i) return true;
+  const lvl = (typeof SV !== 'undefined' && SV && SV.lvl) ? SV.lvl : 1;
+  return lvl >= weaponRankReq(i);
+}
+function weaponOwned(i) {
+  return Boolean(typeof SV !== 'undefined' && SV && SV.own && SV.own[i]);
 }
 
 function need(l) { return 100 + l * 50; }
@@ -388,7 +436,10 @@ function applySV() {
   if (typeof P !== 'undefined') {
     P.mx = cl.hp + 4 * (SV.lvl - 1) + (SV.hu || 0) * 10 + (SV.mx || 0) * 10; // 'Max Health' stat + 'Vitality' skill
     P.hp = P.mx;
-    WEAP.forEach((w, i) => { if (SV.own && SV.own[i]) P.w[i] = 1; });
+    // The run arsenal mirrors ownership exactly, in both directions: only
+    // setting the owned entries to 1 would let a weapon granted mid-run by an
+    // operation leak into the next run's picker.
+    WEAP.forEach((w, i) => { P.w[i] = (SV.own && SV.own[i]) ? 1 : 0; });
     P.cur = (SV.own && SV.own[SV.start]) ? SV.start : 0;
     P.maxAmmo = WEAP[P.cur].mag || 12;
     P.ammo = P.maxAmmo;

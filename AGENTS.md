@@ -581,3 +581,41 @@ same shape of bug: state that only one code path was supposed to touch, reachabl
   `keytool -genkeypair` under a new alias → replace `android/app/release.keystore` locally → update
   `RELEASE_KEYSTORE_BASE64`/`RELEASE_STORE_PASSWORD`/`RELEASE_KEY_PASSWORD`/`RELEASE_KEY_ALIAS` →
   cut a new tag.
+
+
+## Release v1.0.2 — ownership, claims, and the feedback that was missing
+
+Two functional bugs (both "a second code path quietly overrode the intended rule") plus the combat
+feedback work. Details and root causes: `dead-zone-analysis.md` §9 (N14–N17).
+
+* **N14 — weapons no longer unlock themselves.** `syncWeaponUnlocks()` derived ownership from rank
+  (`SV.lvl >= WEAP_RANK[i] -> SV.own[i] = 1`). That was right when the shop was retired and became a
+  bug when the shop returned in v1.0.0: every rank-up handed over that rank's guns for free, past
+  their prices (Dual Pistols "unlocked by default" was rank 3 doing this). Ownership is now written
+  only by a purchase or the starter pistol; rank is a purchase *prerequisite*
+  (`weaponRankReq(i)` / `weaponRankMet(i)`), shown on the card as `RANK n REQUIRED`. `applySV()`
+  mirrors ownership both ways and normalises a short/absent/non-array `own` list.
+* **N15 — missions and claims work.** Four causes: `sanitizeSV` pushed `dailyMissions` through
+  `numMap()` (mission records are objects → `NaN` → board dropped on save; now `missionMap()`);
+  `claimLoginDay`/`claimRank` compared a string `data-arg` against numeric table rows with `===` (now
+  coerced and re-validated server-side); `initDailyMissions()` only reseeded on a date flip (an empty
+  board is now reseeded for today, while the streak still only advances on a real day change); and the
+  `waves` mission type had no caller at all (now counted inside the idempotent wave-clear branch).
+* **N16 — burn is visible damage.** Immolation dealt `20 * S.fi * dt` per frame through `dotZ()`:
+  real damage, zero feedback, frame-rate-dependent. `applyBurn()` now pays the same dps in 0.25s ticks
+  with flames drawn from the same status, capped at `BURN_MAX`, non-stacking, and with a short
+  flamethrower-hit residue (`applyFlameHit`, presentation only — the shot already dealt its damage).
+* **N17 — auras and explosions touch the ground.** Frost/Immolation draw their real radius as a
+  boundary and fire a reach ring when taken; `boom()` drops a scorch decal sized from the blast radius
+  it damages; walking kicks up footfall dust on the stride beat. `RG` rings accept an optional `maxR`
+  so a reach ring stops at the aura radius instead of sailing past it.
+* **Test tooling.** `tools/audit.js` gained a GAMEPLAY WIRING section (every daily mission type has a
+  gameplay caller; the waves mission sits in the idempotent branch; every claim function re-validates
+  its own flag) — that is the check that would have caught the `waves` mission shipping dead.
+  `tools/load-engine.js` `loadEngine()` now takes `extra` modules and `globals` so the claim functions
+  can be tested headlessly; `tools/test-logic.js` gained WEAPON OWNERSHIP and REWARDS & CLAIMS
+  sections (59 assertions); `tools/regression-harness.js` gained PROGRESSION & REWARDS, BURN STATUS and
+  GROUNDING sections (213 assertions) and its SHOP section now raises the profile to the weapon's rank
+  before expecting a buy button.
+* **Remember when running the harness:** `npm run harness` only repacks `www/index.html`, it does not
+  rebuild it — run `npm run build` first or you will test a stale bundle.

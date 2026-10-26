@@ -345,7 +345,134 @@
     ok(Math.abs(r2b.expected - 20 * 1.36 * mast) < 1e-6, 'perk maths unchanged (pistol 20 x 1.36 x mastery)', r2b.expected.toFixed(2) + ' mast ' + mast);
     S.dm = savedDm;
 
-    /* ---------------- 5. COLLISION ---------------- */
+    /* ---------------- 5. BURN STATUS ---------------- */
+    // The promise of the burn rework is that the fire on a zombie is the same
+    // thing as the damage coming off it: same radius, same rate, same ticks, and
+    // nothing on fire that is not really taking burn damage.
+    section('BURN STATUS');
+    function burnZombie(ax, ay) {
+      var z = { x: (ax == null ? P.x + 40 : ax), y: (ay == null ? P.y : ay), t: 'walk', hp: 1e9, mh: 1e9, r: 13, hit: 0, flinch: 0, iv: 0, sh: 0, dead: 0, animOffset: 0, cd: 0, bv: 0, aff: -1, cgT: 0 };
+      Z.push(z);
+      return z;
+    }
+    function dropZ(z) { z.hp = 0; z.dead = 1; var i = Z.indexOf(z); if (i >= 0) Z.splice(i, 1); }
+    function runPassive(seconds) {
+      var n = Math.round(seconds * 60);
+      var hps = P.hp;
+      for (var f = 0; f < n; f++) { S.t = (S.t || 0) + 1 / 60; P.hp = hps; updatePassives(1 / 60); }
+    }
+    var savedFi = S.fi, savedHp = P.hp;
+    P.hp = P.mx;
+
+    // Immolation's radius is the radius it draws (88 + 8 per stack).
+    var insideZ = burnZombie(P.x + 90, P.y), outsideZ = burnZombie(P.x + 105, P.y);
+    S.fi = 1;
+    var inHp0 = insideZ.hp, outHp0 = outsideZ.hp;
+    runPassive(2);
+    var inLost = inHp0 - insideZ.hp, outLost = outHp0 - outsideZ.hp;
+    ok(Math.abs(inLost - 40) <= 20 * 0.25 + 0.01, 'two seconds inside the Immolation ring costs ~40 hp', inLost.toFixed(2) + ' hp');
+    ok(outLost === 0, 'a zombie just outside the drawn ring takes nothing', 'r=' + (88 + 8 * S.fi) + 'px, target at 105px');
+    ok(insideZ.bn > 0 && insideZ.bnD === 20, 'and it is left burning, at the rate it is being burned', 'bn=' + insideZ.bn.toFixed(2) + 's dps=' + insideZ.bnD);
+    ok(!(outsideZ.bn > 0), 'nothing outside the ring is on fire');
+
+    // Leaving the ring: one last tick, then the flames go out.
+    insideZ.x = P.x + 400;
+    var hpAtExit = insideZ.hp;
+    runPassive(0.35);
+    var residual = hpAtExit - insideZ.hp;
+    ok(residual <= 2 * 20 * 0.25 + 0.01, 'walking out of the ring owes at most two ticks', residual.toFixed(2) + ' hp (tick = 5)');
+    ok(!(insideZ.bn > 0), 'and the burn is visibly over', 'bn=' + (insideZ.bn || 0));
+
+    // The rate is capped and cannot be stacked by re-applying it.
+    applyBurn(insideZ, 9999);
+    ok(insideZ.bnD === 40, 'the burn rate is capped', 'dps=' + insideZ.bnD);
+    insideZ.bnD = 0; insideZ.bn = 0;
+    applyBurn(insideZ, 30);
+    applyBurn(insideZ, 5);
+    ok(insideZ.bnD === 30, 'a weaker source cannot weaken a stronger burn', 'dps=' + insideZ.bnD);
+    // Re-applying refreshes the clock, it does not add a tick per application:
+    // twenty applies inside one duration pay one tick, not twenty.
+    for (var rep = 0; rep < 20; rep++) applyBurn(insideZ, 30);
+    var repHp0 = insideZ.hp;
+    runPassive(0.35);
+    var repLost = repHp0 - insideZ.hp;
+    ok(repLost > 0 && repLost <= 15.01, 're-applying refreshes the burn instead of stacking ticks',
+      repLost.toFixed(2) + ' hp in 0.35s (1-2 ticks of 7.5; a stacked burn would pay 150)');
+    // Held on a target continuously (what the aura does), it pays its full rate.
+    var holdZ = burnZombie(P.x + 400, P.y);
+    applyBurn(holdZ, 30);
+    var holdHp0 = holdZ.hp;
+    var holdFrames = 60, hpKeep = P.hp;
+    for (var hf = 0; hf < holdFrames; hf++) { S.t = (S.t || 0) + 1 / 60; P.hp = hpKeep; applyBurn(holdZ, 30); updatePassives(1 / 60); }
+    var holdLost = holdHp0 - holdZ.hp;
+    ok(Math.abs(holdLost - 30) <= 7.51, 'a held burn pays 30 hp per second', holdLost.toFixed(2) + ' hp in 1s');
+    dropZ(holdZ);
+    dropZ(insideZ); dropZ(outsideZ);
+    S.fi = savedFi; P.hp = savedHp;
+
+    /* ---------------- 6. GROUNDING ---------------- */
+    section('GROUNDING');
+    // An explosion must leave a mark on the floor, and the mark must be the size
+    // of the blast: the scorch decal is derived from the same radius the damage
+    // loop uses, so it cannot claim more ground than the grenade actually covered.
+    // Counted by type, not by index: the decal pool is capped and trims its oldest
+    // entries, so an index captured before the blast can shift out from under it.
+    function scorchAt(x, y) {
+      var best = null, bestD = 1e9;
+      // Newest first: a later blast lands on the same ground as an earlier one,
+      // and the fresh mark is the one being asserted about.
+      for (var di = DEC.length - 1; di >= 0; di--) {
+        var d = DEC[di];
+        if (d.type !== 'scorch') continue;
+        var dd = Math.hypot(d.x - x, d.y - y);
+        if (dd < bestD) { bestD = dd; best = d; }
+      }
+      return bestD < 30 ? best : null;
+    }
+    var scorchBefore = DEC.filter(function (d) { return d.type === 'scorch'; }).length;
+    var bx = P.x + 200, by = P.y;
+    boom(bx, by, 90, 0);
+    var made = scorchAt(bx, by);
+    var scorchAfter = DEC.filter(function (d) { return d.type === 'scorch'; }).length;
+    ok(scorchAfter > scorchBefore && !!made, 'an explosion leaves a scorch on the ground', scorchAfter - scorchBefore + ' new scorch decals');
+    // Proportionality, not the decal pool's internal stretch factor: the mark
+    // scales with the blast and stays a fraction of it rather than covering ground
+    // the explosion never touched.
+    ok(made && made.r / 90 > 0.3 && made.r / 90 < 0.8, 'the scorch stays a fraction of the blast radius',
+      made ? Math.round(made.r) + 'px for a 90px blast (' + Math.round(made.r / 90 * 100) + '%)' : 'none');
+    boom(bx, by, 200, 0);
+    var madeBig = scorchAt(bx, by);
+    ok(madeBig && made && Math.abs(madeBig.r / made.r - 200 / 90) < 0.05, 'and it scales with the blast',
+      (madeBig ? Math.round(madeBig.r) : 'none') + ' vs ' + (made ? Math.round(made.r) : 'none') + ' for 200 vs 90');
+    // The decal budget still holds under a burst of explosions.
+    for (var bi = 0; bi < 60; bi++) boom(P.x + 120 + (bi % 10) * 30, P.y + (bi % 7) * 30, 60, 0);
+    var cap = getQualityProfile().maxDecals;
+    ok(DEC.length <= cap + 30, 'a burst of blasts stays inside the decal budget', DEC.length + ' decals, budget ' + cap);
+
+    // Footfall dust: it appears while the player walks, on the stride beat, and
+    // never while standing still. Driven through the real update() with a held
+    // movement key, so it tests the same path a player uses.
+    function dustRun(frames, holdKey) {
+      var seen = 0, hp0 = P.hp, savedK = K.d, x0 = P.x, y0 = P.y;
+      P.dash = 0;
+      F.length = 0;   // the particle cap is its own behaviour; start from a clean pool
+      if (holdKey) K.d = 1; else K.d = 0;
+      for (var f = 0; f < frames; f++) {
+        var fb = F.length;
+        S.t = (S.t || 0) + 1 / 60; P.hp = hp0;
+        update(1 / 60);
+        for (var fi = fb; fi < F.length; fi++) if (String(F[fi].c).indexOf('rgba(205,196,176') === 0) seen++;
+      }
+      K.d = savedK; P.hp = hp0;
+      return { seen: seen, moved: Math.hypot(P.x - x0, P.y - y0) };
+    }
+    var walkedDust = dustRun(40, true);
+    var stoodDust = dustRun(40, false);
+    ok(walkedDust.moved > 5, 'the walk probe actually moved the player', Math.round(walkedDust.moved) + 'px in 40 frames');
+    ok(walkedDust.seen > 0, 'walking kicks up footfall dust', walkedDust.seen + ' puffs in 40 frames');
+    ok(stoodDust.seen === 0, 'standing still kicks up nothing', stoodDust.seen + ' puffs');
+
+    /* ---------------- 7. COLLISION ---------------- */
     section('COLLISION');
     ok(typeof S.propColliders === 'number' && S.propColliders > 0, 'solid props registered as colliders', 'count ' + S.propColliders);
     var solid = O.filter(function (o) { return o.prop; });
@@ -555,8 +682,10 @@
     ok(rendered.map(function (r) { return r.name; }).join('|') === expected.join('|'),
       'the rendered order is tier-then-price', rendered.map(function (r) { return r.name; }).join(', '));
 
-    // Buying and equipping through the real DOM handlers.
-    SV.cr = 5000;
+    // Buying and equipping through the real DOM handlers. The SMG is rank 3, so
+    // the profile has to be rank 3 to see a BUY button at all - rank is the gate
+    // and the price is the cost, which is the whole point of the ownership model.
+    SV = sanitizeSV(Object.assign({}, SV, { lvl: Math.max(SV.lvl || 1, weaponRankReq(1)), cr: 5000 }));
     tab(2);
     cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
     var smgCard = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'SMG'; })[0];
@@ -573,13 +702,15 @@
     if (smgEq) smgEq.click();
     ok(SV.start === 1, 'equipping sets the deployed weapon', 'SV.start=' + SV.start);
 
-    // Insufficient funds must not hand over the gun.
-    SV.cr = 0;
+    // Insufficient funds must not hand over the gun. The Railgun is rank 17, so
+    // the profile is raised to its gate first - otherwise the card would be gated
+    // by rank and the price would never be consulted.
+    SV = sanitizeSV(Object.assign({}, SV, { lvl: Math.max(SV.lvl || 1, weaponRankReq(14)), cr: 0 }));
     tab(2);
     cards = Array.prototype.slice.call(document.getElementById('shop-list').children);
     var lockCard = cards.filter(function (c) { return (c.querySelector('b') || {}).textContent === 'Railgun'; })[0];
     var lockBuy = lockCard && lockCard.querySelector('button[data-buy]');
-    ok(!!lockBuy && lockBuy.disabled, 'an unaffordable weapon is disabled');
+    ok(!!lockBuy && lockBuy.disabled, 'an unaffordable weapon is disabled', lockBuy ? 'price ' + WEAP[14].c + ' CR, rank ' + weaponRankReq(14) : 'no buy button');
     if (lockBuy) lockBuy.click();
     ok(!SV.own[14], 'clicking a disabled BUY does not grant the weapon', 'own[14]=' + SV.own[14]);
 
@@ -711,6 +842,138 @@
     gun = realGun;
     ok(threw, 'a throwing scratch render propagates its error');
     ok(X === mainCx, 'and still hands the engine context back', 'X ' + (X === mainCx ? 'restored' : 'left dangling'));
+
+    section('PROGRESSION & REWARDS');
+    // Everything below goes through the real DOM path - a rendered button, a real
+    // click, the delegated listener, the game function, the save. The profile is
+    // snapshotted and restored so the perf section still sees a normal save.
+    var svSnap = JSON.stringify(SV);
+    var dzsSnap = localStorage.getItem('dzs'), dzsBakSnap = localStorage.getItem('dzs_bak');
+    var today = new Date().toDateString();
+    function profile(o) {
+      SV = sanitizeSV(Object.assign({
+        v: 3, lvl: 1, cr: 0, loginDays: 1, dmDate: today, lastLogin: today,
+        dailyMissions: {}, loginClaimed: {}, rankClaimed: {},
+        own: WEAP.map(function (_, i) { return i ? 0 : 1; })
+      }, o || {}));
+      lobby();
+    }
+
+    // 1. A fresh rank-1 profile owns the pistol and nothing else.
+    profile();
+    var ownedAtBoot = SV.own.filter(Boolean).length;
+    ok(ownedAtBoot === 1, 'a fresh profile owns only the starter pistol', ownedAtBoot + ' of ' + WEAP.length);
+
+    // 2. No rank met, no money: every non-starter card offers a disabled gate.
+    tab(2);
+    var gated = Array.prototype.slice.call(document.querySelectorAll('#shop-list [data-buy]'));
+    ok(gated.length === 0, 'no weapon is purchasable at rank 1', gated.length + ' buy buttons');
+    var gateBtns = Array.prototype.slice.call(document.querySelectorAll('#shop-list button[disabled]'));
+    ok(gateBtns.length >= WEAP.length - 1, 'every locked weapon renders a disabled rank button',
+      gateBtns.length + ' disabled of ' + (WEAP.length - 1) + ' locked');
+
+    // 3. Money alone is not enough: the rank gate still holds.
+    profile({ cr: 999999 });
+    tab(2);   // the shop renders when its tab opens, so re-render after a profile swap
+    var richLocked = Array.prototype.slice.call(document.querySelectorAll('#shop-list [data-buy]'));
+    ok(richLocked.length === 0, 'credits do not bypass the rank gate', richLocked.length + ' buy buttons with 999999 CR');
+    var crBefore = SV.cr;
+    if (richLocked.length) richLocked[0].click();
+    ok(SV.cr === crBefore && SV.own.filter(Boolean).length === 1, 'and clicking a gated card changes nothing');
+
+    // 4. Rank met + affordable: the buy path actually works, once.
+    profile({ lvl: 3, cr: 999999 });
+    tab(2);
+    var wi = -1;
+    for (var bi = 1; bi < WEAP.length; bi++) {
+      if (weaponRankMet(bi) && SV.own[bi] !== 1) { wi = bi; break; }
+    }
+    ok(wi > 0, 'a rank-3 profile has something to buy', wi > 0 ? WEAP[wi].n + ' (rank ' + weaponRankReq(wi) + ')' : 'nothing');
+    var buyBtn = wi > 0 ? document.querySelector('#shop-list [data-buy="' + wi + '"]') : null;
+    ok(!!buyBtn, 'and its card offers a BUY button', buyBtn ? buyBtn.textContent.trim() : 'no buy button');
+    if (buyBtn) {
+      var cost = WEAP[wi].c;
+      var cr0 = SV.cr;
+      buyBtn.click();
+      ok(SV.own[wi] === 1, 'buying sets ownership', WEAP[wi].n);
+      ok(SV.cr === cr0 - cost, 'and debits the price exactly once', cr0 + ' -> ' + SV.cr + ' (-' + cost + ')');
+      var eq = document.querySelector('#shop-list [data-eq="' + wi + '"]');
+      ok(!!eq, 'the card becomes equippable after the purchase');
+      if (eq) { eq.click(); ok(SV.start === wi, 'and equipping it works'); }
+      // Ownership is purchase state, so it has to survive a save/reload.
+      sv(); ld();
+      ok(SV.own[wi] === 1, 'a bought weapon is still owned after a save/reload', WEAP[wi].n);
+    }
+
+    // 5. Login rewards, day by day, through the rendered buttons.
+    profile({ lvl: 5, cr: 0, loginDays: 1 });
+    var day1 = document.querySelector('#login-track [data-act="claimLoginDay"][data-arg="1"]');
+    var day2 = document.querySelector('#login-track [data-act="claimLoginDay"][data-arg="2"]');
+    ok(!!day1 && !!day2, 'the login track renders one button per reward day');
+    if (day1 && day2) {
+      ok(day2.disabled === true, 'a day beyond the streak is locked', 'day 2 disabled=' + day2.disabled);
+      day1.click();
+      ok(SV.cr === 100, 'clicking CLAIM on day 1 pays +100', SV.cr + ' CR');
+      ok(!!(SV.loginClaimed && SV.loginClaimed['1']), 'and the claim is recorded');
+      day1.click();
+      ok(SV.cr === 100, 'clicking it again does not pay twice', SV.cr + ' CR');
+      var day1After = document.querySelector('#login-track [data-act="claimLoginDay"][data-arg="1"]');
+      ok(day1After && day1After.disabled && /CLAIMED/.test(day1After.textContent), 'and the card reads CLAIMED',
+        day1After ? day1After.textContent.trim() : 'gone');
+    }
+
+    // 6. Rank milestones, through the rendered CLAIM button.
+    profile({ lvl: 2, cr: 0 });
+    var rank2 = document.querySelector('#rank-list [data-act="claimRank"][data-arg="2"]');
+    var rank4 = document.querySelector('#rank-list [data-act="claimRank"][data-arg="4"]');
+    ok(!!rank2 && !!rank4 && rank4.disabled === true, 'rank milestones above the current rank are locked');
+    if (rank2 && !rank2.disabled) {
+      rank2.click();
+      ok(SV.cr === 250, 'the rank-2 milestone pays +250', SV.cr + ' CR');
+      rank2.click();
+      ok(SV.cr === 250, 'and only once', SV.cr + ' CR');
+    } else { ok(false, 'the rank-2 milestone CLAIM button is enabled at rank 2'); }
+
+    // 7. Daily missions: progress -> claim -> persisted, through the real buttons.
+    profile({ lvl: 5, cr: 0 });
+    initDailyMissions();
+    trackMissionProgress('kills', 60);
+    trackMissionProgress('waves', 3);
+    trackMissionProgress('elites', 1, { el: true });
+    lobby();
+    var boardRows = document.querySelectorAll('#daily-list [data-act="claimMission"]');
+    ok(boardRows.length === 3, 'the mission board renders one row per mission', boardRows.length + ' rows');
+    var m1Btn = document.querySelector('#daily-list [data-act="claimMission"][data-arg="m1"]');
+    var m3Btn = document.querySelector('#daily-list [data-act="claimMission"][data-arg="m3"]');
+    ok(!!m1Btn && !m1Btn.disabled, 'a completed mission is claimable');
+    ok(!!m3Btn && m3Btn.disabled === true, 'an incomplete mission is not', 'elites 1/2');
+    if (m1Btn) {
+      var crA = SV.cr;
+      m1Btn.click();
+      ok(SV.cr === crA + 150, 'claiming the kill mission pays +150', SV.cr + ' CR');
+      m1Btn.click();
+      ok(SV.cr === crA + 150, 'a second click pays nothing', SV.cr + ' CR');
+      var m1After = document.querySelector('#daily-list [data-act="claimMission"][data-arg="m1"]');
+      ok(m1After && /CLAIMED/.test(m1After.textContent), 'the row reads CLAIMED', m1After ? m1After.textContent.trim() : 'gone');
+    }
+    // The board must survive the sanitiser that every lobby() pass runs - this is
+    // the regression that made missions look permanently empty.
+    lobby();
+    var boardAfter = SV.dailyMissions ? Object.keys(SV.dailyMissions).length : 0;
+    ok(boardAfter === 3, 'the board survives a lobby() pass', boardAfter + ' missions');
+    ok(SV.dailyMissions.m1 && SV.dailyMissions.m1.cur === 60 && SV.dailyMissions.m1.claimed === true,
+      'with progress and the claimed flag intact', SV.dailyMissions.m1 ? SV.dailyMissions.m1.cur + '/60 claimed=' + SV.dailyMissions.m1.claimed : 'gone');
+    ok(SV.dailyMissions.m2 && SV.dailyMissions.m2.cur === 3, 'including the waves mission', SV.dailyMissions.m2 ? SV.dailyMissions.m2.cur + '/3' : 'gone');
+    sv(); ld();
+    ok(SV.dailyMissions && Object.keys(SV.dailyMissions).length === 3 && SV.dailyMissions.m2.cur === 3,
+      'and survives a save/reload round trip', SV.dailyMissions ? Object.keys(SV.dailyMissions).length + ' missions' : 'gone');
+
+    // restore
+    SV = sanitizeSV(JSON.parse(svSnap));
+    if (dzsSnap === null) localStorage.removeItem('dzs'); else localStorage.setItem('dzs', dzsSnap);
+    if (dzsBakSnap === null) localStorage.removeItem('dzs_bak'); else localStorage.setItem('dzs_bak', dzsBakSnap);
+    lobby();
+    tab(0);
 
     section('PERF / DRAW PATH');
     var gcount = 0, gp = CanvasRenderingContext2D.prototype;

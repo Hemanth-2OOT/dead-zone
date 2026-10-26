@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v1.0.2 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -37,6 +37,82 @@ function dotZ(z, amount, src) {
     z.hp = 0;
     if (typeof killZ === 'function') killZ(z, src || 'dot');
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* BURN - the one damage-over-time the player can see                  */
+/* ------------------------------------------------------------------ */
+// Immolation used to deal `20 * S.fi * dt` every frame through dotZ(): real
+// damage with no feedback at all, and a rate tied to the frame rate (sixty
+// invisible slivers a second). Burn keeps exactly the same damage per second but
+// pays it in fixed ticks, so the flames, the embers and the numbers all land on
+// the same beat and the effect is readable while it happens.
+//
+// The duration is one tick plus a hair, so a zombie that walks out of the aura
+// takes at most two more ticks - never more than half a second's worth of aura
+// damage - while a zombie standing in it is refreshed every frame and burns
+// continuously. The margin over the tick length also means a stutter frame cannot
+// expire a burn that is still being fed.
+const BURN_TICK = 0.25;
+const BURN_DUR = 0.3;
+const BURN_MAX = 40;        // ceiling on the dps any single burn can claim
+const FLAME_RESIDUE = 0.35; // how long a flamethrower hit keeps licking at the wound
+
+// dps is damage per second. A target keeps the strongest burn on it and refreshes
+// its clock, so two sources cannot silently stack into an invisible melt.
+function applyBurn(z, dps, dur) {
+  if (!z || z.dead || !(dps > 0)) return;
+  const d = Math.min(BURN_MAX, dps);
+  if (d >= (z.bnD || 0)) {
+    z.bnD = d;
+    z.bn = Math.max(z.bn || 0, dur || BURN_DUR);
+  } else {
+    z.bn = Math.max(z.bn || 0, Math.min(dur || BURN_DUR, 0.15));
+  }
+  // Stagger the first tick so a crowd ignited on the same frame does not tick in
+  // lockstep - twenty zombies flashing on the same beat reads as one glitch.
+  if (z.bnT == null) z.bnT = BURN_TICK * Math.random();
+}
+
+// A flamethrower hit leaves the jet clinging to the target for a moment. It is an
+// impact reaction, not a damage source: the shot that lit it already dealt its
+// damage through the normal bullet pipeline.
+function applyFlameHit(z) {
+  if (!z || z.dead) return;
+  z.ignT = Math.max(z.ignT || 0, FLAME_RESIDUE);
+}
+
+function burnTickUpdate(z, dt) {
+  if (!(z.bn > 0)) return;
+  z.bn -= dt;
+  z.bnT -= dt;
+  if (z.bnT <= 0) {
+    z.bnT += BURN_TICK;
+    if (z.bnT <= 0) z.bnT = BURN_TICK;
+    const dmg = (z.bnD || 0) * BURN_TICK;
+    if (dmg > 0) {
+      if (typeof F !== 'undefined' && F.length < 240) {
+        F.push({
+          x: z.x + (Math.random() - 0.5) * 9, y: z.y + (Math.random() - 0.5) * 9,
+          vx: 0, vy: -34 - Math.random() * 20, l: 0.3,
+          c: Math.random() < 0.5 ? '#ffb03a' : '#ff6a2a', s: 1.6 + Math.random(), fr: 1
+        });
+      }
+      dotZ(z, dmg, 'burn');
+    }
+  }
+  if (z.bn <= 0) { z.bn = 0; z.bnD = 0; z.bnT = null; }
+}
+
+// An expanding ring at the exact radius an aura works over, so casting (or
+// upgrading) an aura answers "how far does this reach?" at the moment it matters.
+function auraRingFX(radius, rgb) {
+  if (typeof RG !== 'undefined') {
+    RG.push({ x: P.x, y: P.y, r: 8, l: 0.6, v: 320, maxR: radius, c: rgb });
+    RG.push({ x: P.x, y: P.y, r: 6, l: 0.36, v: 220, maxR: radius * 0.6, c: '255,240,210' });
+  }
+  if (typeof burst === 'function') burst(P.x, P.y, rgb === '255,122,58' ? '#ff9a3a' : '#9be7ff', 18, 3, 120, 1);
+  if (typeof addShake === 'function') addShake(2.5);
 }
 
 function clearPassives() {
@@ -126,6 +202,8 @@ function updatePassives(dt) {
     if (!z || z.dead) continue;
     if (z.obT > 0) z.obT -= dt;
     if (z.sdT > 0) z.sdT -= dt;
+    if (z.ignT > 0) z.ignT -= dt;
+    burnTickUpdate(z, dt);
     if (z.psn > 0) {
       z.psn -= dt;
       if (S.pv) dotZ(z, 14 * S.pv * dt, 'venom');
@@ -148,13 +226,20 @@ function updatePassives(dt) {
     }
   }
 
-  // Immolation - contact-range burn aura.
+  // Immolation - contact-range burn aura. The aura lights the burn; the burn pays
+  // the damage in ticks (see burnTickUpdate), so the flames on a zombie are the
+  // exact source of the numbers coming off it.
   if (S.fi) {
     const R = 88 + 8 * S.fi, R2 = R * R;
+    const dps = 20 * S.fi;
     for (const z of Z) {
       if (!z || z.dead) continue;
       const dx = z.x - P.x, dy = z.y - P.y;
-      if (dx * dx + dy * dy < R2) dotZ(z, 20 * S.fi * dt, 'immolation');
+      if (dx * dx + dy * dy < R2) {
+        // First contact: a small ignition burst, once per zombie entering the ring.
+        if (!(z.bn > 0) && typeof burst === 'function') burst(z.x, z.y - 4, '#ff9a3a', 6, 2.2, 90, 1);
+        applyBurn(z, dps, BURN_DUR);
+      }
     }
     if (Math.random() < dt * 14 && typeof F !== 'undefined' && F.length < 240) {
       const a = Math.random() * 6.28, rr = Math.random() * R;
@@ -281,14 +366,42 @@ function renderPassivesGround(cx, cy, W, H) {
   const t = S.t || 0;
   X.save();
   if (S.fa) {
+    const R = 140 + 20 * S.fa;
     X.globalAlpha = 0.09 + Math.sin(t * 3) * 0.02;
     X.fillStyle = '#9be7ff';
-    X.beginPath(); X.arc(P.x, P.y, 140 + 20 * S.fa, 0, 6.28); X.fill();
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.fill();
+    // A dashed boundary that crawls around the rim: the slow radius a zombie has
+    // to cross to be chilled, stated as a line rather than implied by a soft disc.
+    X.globalAlpha = 0.34 + Math.sin(t * 3) * 0.06;
+    X.strokeStyle = '#cdefff';
+    X.lineWidth = 1.6;
+    if (X.setLineDash) { X.setLineDash([7, 9]); X.lineDashOffset = -t * 26; }
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.stroke();
+    if (X.setLineDash) { X.setLineDash([]); X.lineDashOffset = 0; }
   }
   if (S.fi) {
+    const R = 88 + 8 * S.fi;
     X.globalAlpha = 0.09 + Math.sin(t * 7) * 0.03;
     X.fillStyle = '#ff7a3a';
-    X.beginPath(); X.arc(P.x, P.y, 88 + 8 * S.fi, 0, 6.28); X.fill();
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.fill();
+    // Solid rim + tongues of flame licking outward, rotating slowly. This is the
+    // burn radius itself, so where the fire ends is where the damage ends.
+    X.globalAlpha = 0.42 + Math.sin(t * 9) * 0.08;
+    X.strokeStyle = '#ff9a3a';
+    X.lineWidth = 2;
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.stroke();
+    X.globalAlpha = 0.30;
+    X.strokeStyle = '#ffd07a';
+    X.lineWidth = 2.2;
+    for (let i = 0; i < 14; i++) {
+      const a = t * 0.5 + i * (6.28318 / 14);
+      const ph = Math.sin(t * 6 + i * 1.7) * 0.5 + 0.5;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      X.beginPath();
+      X.moveTo(P.x + ca * (R - 9), P.y + sa * (R - 9));
+      X.quadraticCurveTo(P.x + ca * (R - 3), P.y + sa * (R - 3) - 5, P.x + ca * (R + 2 + ph * 4), P.y + sa * (R + 2 + ph * 4) - 10 - ph * 6);
+      X.stroke();
+    }
   }
   X.globalAlpha = 1;
   for (const m of METEOR) {
@@ -377,6 +490,49 @@ function renderPassives(cx, cy, W, H) {
     X.strokeStyle = '#7be04a';
     X.lineWidth = 1.6;
     X.beginPath(); X.arc(z.x, z.y + 4, 13, 0, 6.28); X.stroke();
+  }
+
+  // Burning zombies. Drawn above the body so the flames lick up over it. Two
+  // states, both honest: `bn` is the burn paying damage ticks (the aura is on
+  // them), `ignT` is the residue of a flamethrower jet that has just hit them.
+  // Nothing burns here that was not actually set on fire.
+  // Always scanned, like the venom haze above: one early-out per zombie and no
+  // extra bookkeeping flag that could go stale and hide a burning enemy.
+  for (const z of Z) {
+    if (!z || z.dead) continue;
+    const burning = z.bn > 0, residue = z.ignT > 0;
+    if (!burning && !residue) continue;
+    const zr = (typeof ZT !== 'undefined' && ZT[z.t] && ZT[z.t].r) ? ZT[z.t].r : 12;
+    const strength = burning ? 1 : 0.55;
+    // A burn that is running out dips instead of cutting: the fade is the tell
+    // that the tick is about to stop.
+    const fade = burning ? Math.min(1, 0.35 + z.bn / 0.3) : Math.min(1, z.ignT / FLAME_RESIDUE);
+    X.strokeStyle = '#ff7a2a';
+    X.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      const ph = t * 9 + k * 2.1 + z.x * 0.03 + z.y * 0.02;
+      const h = (zr * 0.85 + Math.sin(ph) * 2.5) * strength;
+      const bx = z.x + Math.sin(ph * 0.7 + k * 2.4) * (zr * 0.42);
+      const by = z.y + zr * 0.35;
+      X.globalAlpha = (0.42 + 0.28 * Math.abs(Math.sin(ph * 1.3))) * strength * fade;
+      X.lineWidth = 3.4;
+      X.beginPath();
+      X.moveTo(bx - 2.6, by);
+      X.quadraticCurveTo(bx - 1.2, by - h * 0.6, bx + Math.sin(ph * 1.7) * 3, by - h);
+      X.stroke();
+      X.strokeStyle = '#ffd07a';
+      X.lineWidth = 1.6;
+      X.beginPath();
+      X.moveTo(bx - 1.2, by);
+      X.quadraticCurveTo(bx - 0.6, by - h * 0.4, bx + Math.sin(ph * 1.7) * 2, by - h * 0.62);
+      X.stroke();
+      X.strokeStyle = '#ff7a2a';
+    }
+    // Warm rim, so a burning zombie is identifiable even in a dense crowd.
+    X.globalAlpha = 0.3 * fade;
+    X.strokeStyle = '#ff9a3a';
+    X.lineWidth = 1.8;
+    X.beginPath(); X.arc(z.x, z.y, zr + 3.5, 0, 6.28); X.stroke();
   }
   X.restore();
   X.globalAlpha = 1;

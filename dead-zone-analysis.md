@@ -456,3 +456,79 @@ new save-bounds ones). The browser harness runs the built v1.0.1 bundle headless
 zero-inline-handler check and the throwing-scratch-render context assertion. As before, "verified"
 means the input paths and the rendering were driven in a browser, not that anything was profiled on a
 device.
+
+---
+
+## 9. v1.0.2 pass — ownership, claims, and the feedback that was missing
+
+Two functional bugs and a set of presentation gaps. The bugs were the interesting half: both were
+systems where the *intended* rule was implemented somewhere, and a second path quietly overrode it.
+
+### N14 — Weapons unlocked themselves as the account ranked up · **High · fixed**
+
+`syncWeaponUnlocks()` in `engine_persistence.js` derived ownership from rank:
+
+```js
+if (SV.lvl >= WEAP_RANK[i]) SV.own[i] = 1;
+```
+
+That was correct when it was written — the lobby shop had been retired, so rank was the only way to
+obtain a weapon. The shop came back in v1.0.0 and the line stayed, so every level-up silently handed
+over the guns of that rank for free, past their prices, and `SV.own` (the record the shop, the HUD and
+the equip path all read) agreed they were owned. Dual Pistols "unlocked by default" was this: rank 3
+reached in ordinary play, then `own[15] = 1` on the next save.
+
+Ownership is now only ever written by a purchase (or the starter pistol) and only read by the rest of
+the game. Rank is a *prerequisite* for buying, via `weaponRankReq(i)` / `weaponRankMet(i)`, checked in
+`buyWeapon()` and shown honestly on the card (`RANK 17 REQUIRED` instead of a buy button). `applySV()`
+mirrors ownership in both directions, so a save whose `own` list is short, absent or non-array is
+normalised to the arsenal length rather than trusted.
+
+### N15 — Missions, login rewards and claims did nothing · **High · fixed**
+
+Four separate causes, all in `engine_events_missions.js` and the save pipeline:
+
+1. `sanitizeSV()` ran `dailyMissions` through `numMap()`, which coerces values with `Number()`. A
+   mission record is an object, so every value became `NaN` and the whole board was dropped on the next
+   save. `missionMap()` now preserves the record fields (and clamps `cur` to `target`).
+2. `claimLoginDay(day)` and `claimRank(r)` were called from the delegated click listener with the
+   button's `data-arg` **as a string**, then compared with `===` against numeric table rows
+   (`LOGIN_REWARDS.find(x => x.day === day)`). The lookup always missed, so CLAIM silently did nothing.
+   Both now coerce their argument and re-validate eligibility and claimed state server-side, rather
+   than trusting the button's disabled attribute.
+3. `initDailyMissions()` only reseeded the board when the calendar date changed, so a board wiped by
+   (1) stayed empty until midnight. An empty board is now reseeded for today; the login streak still
+   only advances on a real day change.
+4. The `waves` mission type had **no caller at all** — no code anywhere tracked a wave clear, so that
+   mission could never complete. It is now counted inside the idempotent wave-clear branch in
+   `engine_world.js`, where re-entering the cleared state cannot double-count it.
+
+### N16 — Immolation damaged in the dark · **Medium · fixed**
+
+The aura dealt `20 * S.fi * dt` per frame through `dotZ()`, which bypasses the hit pipeline by design.
+Correct damage, no feedback whatsoever, and a rate tied to the frame rate. Burn now pays the same
+damage per second in fixed 0.25s ticks, and the flames drawn on a zombie are lit by that same status —
+so an enemy is only ever on fire while it is really taking burn damage. The rate is capped, a stronger
+source is not weakened by a weaker one, and re-applying refreshes rather than stacks. A flamethrower
+*hit* also leaves a short residue of the jet on the target; that one is presentation only, because the
+shot that caused it already dealt its damage through the normal bullet path.
+
+### N17 — Auras and explosions did not touch the ground · **Low · fixed**
+
+Frost Aura and Immolation were soft discs with no edge, so "how far does this reach?" was guesswork:
+both now draw their real radius as a boundary (a crawling dashed ring for Frost, a rim with rotating
+flame tongues for Immolation), and taking an aura perk fires a ring that expands to exactly that
+radius. `boom()` left no mark on the floor: explosions now drop a scorch decal sized from the same
+radius the damage loop uses, so where a grenade landed stays readable after the fireball. Walking kicks
+up a puff of dust on the stride beat the legs already animate to — never while standing still or
+dashing.
+
+**Verification.** `npm test` = build + `tools/audit.js` (**27 checks**, 0 warnings; three new ones: every
+daily mission type has a gameplay caller, the waves mission sits inside the idempotent clear branch,
+every claim function re-validates its own flag) + `tools/test-logic.js` (**59 assertions**, including 26
+new ownership and reward-claim ones). The browser harness drives the built v1.0.2 bundle headlessly:
+**213 assertions, 0 console errors, 0 failures**, including a rank-3 purchase that persists across a
+save/reload, day-by-day login claims, the mission board surviving a round trip, and the burn tests that
+pin the damage to the drawn radius. Frame cost is unchanged (~39 ms/frame for 180 headless sim+draw
+frames, the same as v1.0.1). No device profiling was done; "verified" means the input paths, the DOM
+handlers and the render path were driven in a browser.

@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.0.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -1097,6 +1097,19 @@ function boom(b, y0, r0, c0) {
   burst(x, y, '#ff5a3a', 22, 5, 140, 1);
   burst(x, y, '#ffd36b', 18, 4, 180, 1);
 
+  // Scorch on the ground, sized from the blast radius the damage loop below
+  // actually uses. The mark left behind is the footprint of the explosion, so a
+  // player can read where a grenade or rocket landed after the fireball is gone.
+  if (typeof spawnGroundDecal === 'function') {
+    spawnGroundDecal(x, y, 0, 0, Math.max(16, r * 0.5), '#241f1b', '#3f352c', 'scorch');
+    if (Math.random() < 0.7) {
+      spawnGroundDecal(
+        x + (Math.random() - 0.5) * r * 0.55, y + (Math.random() - 0.5) * r * 0.55,
+        0, 0, Math.max(7, r * 0.2), '#2b2420', '#4a3d31', 'scorch'
+      );
+    }
+  }
+
   // AoE ground debris & flying chunks
   for (let k = 0; k < 10; k++) {
     const da = Math.random() * 6.28, dspd = 50 + Math.random() * 110;
@@ -1598,7 +1611,16 @@ function openPerk() {
 }
 
 function applyPerk(p) {
+  // Read the aura stacks either side of the effect so an aura perk can announce
+  // its own reach: the ring that fires is the radius the damage or slow really
+  // uses, which answers "how far does this go?" at the moment the player cares.
+  const fi0 = (typeof S !== 'undefined' && S) ? (S.fi || 0) : 0;
+  const fa0 = (typeof S !== 'undefined' && S) ? (S.fa || 0) : 0;
   p[2]();
+  if (typeof S !== 'undefined' && S && typeof auraRingFX === 'function') {
+    if ((S.fi || 0) > fi0) auraRingFX(88 + 8 * S.fi, '255,122,58');
+    if ((S.fa || 0) > fa0) auraRingFX(140 + 20 * S.fa, '155,231,255');
+  }
   S.pk[p[0]] = (S.pk[p[0]] || 0) + 1;
   if (typeof snd === 'function') snd(700, 0.15, 'triangle', 0.06, 1.5);
 
@@ -1675,7 +1697,20 @@ function update(dt) {
     vx = P.lx; vy = P.ly;
   }
 
-  if (Math.hypot(vx, vy) > 0.1) P.st = (P.st || 0) + dt * 14;
+  // Stride phase, and a puff of ground dust on each footfall. The beat is the one
+  // the legs already animate to (P.st advances 14/s, one foot lands per half
+  // turn), and it only fires while the player is really walking: no dust while
+  // dashing, no dust standing still. Grounding, not decoration.
+  const moving = Math.hypot(vx, vy) > 0.1;
+  if (moving) {
+    const stPrev = P.st || 0;
+    P.st = stPrev + dt * 14;
+    if (P.dash <= 0 && Math.floor(P.st / Math.PI) !== Math.floor(stPrev / Math.PI) && typeof F !== 'undefined' && F.length < 220) {
+      const dust = 'rgba(205,196,176,0.42)';
+      F.push({ x: P.x - vx * 5, y: P.y + 9, vx: -vx * 20 + (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 8, l: 0.32, c: dust, s: 2.6 + Math.random() * 1.4, fr: 1 });
+      F.push({ x: P.x - vx * 9, y: P.y + 9, vx: -vx * 34 + (Math.random() - 0.5) * 10, vy: -3, l: 0.24, c: dust, s: 1.7 + Math.random(), fr: 1 });
+    }
+  }
   moveBody(P, 14, vx * sp * dt, vy * sp * dt);
   sanitizePlayer();
 
@@ -2055,6 +2090,10 @@ function update(dt) {
         if (b.cl && !b.arced) { b.arced = 1; if (typeof chainLightning === 'function') chainLightning(z, b); }
         if (b.pr > 0) b.pr--; else b.l = 0;
         if (b.fz) z.fz = 2.5;
+        // A flame hit leaves the jet clinging to the target. Visual only: this
+        // shot's damage was just dealt above, and the burn status (a real damage
+        // source) belongs to Immolation.
+        if (b.flm && typeof applyFlameHit === 'function') applyFlameHit(z);
         if (S.pv) z.psn = Math.max(z.psn || 0, 2.5); // Venom Rounds: bullets poison
 
         // Knockback
@@ -2151,7 +2190,10 @@ function update(dt) {
   if (typeof trimParticleBudget === 'function') trimParticleBudget();
 
   // Shockwave rings decay
-  for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }
+  // maxR lets a ring mark a boundary instead of an explosion: an aura's reach
+  // ring grows to the radius the aura really uses and then fades there, rather
+  // than sailing past it and overstating the area.
+  for (const r of RG) { r.r += (r.v || 520) * dt; if (r.maxR && r.r > r.maxR) r.r = r.maxR; r.l -= dt; }
   pruneArr(RG, r => r.l > 0);
 
   // Skill VFX lifetimes, dash afterimages, grenade flight and bullet smoke.
@@ -2199,6 +2241,11 @@ function update(dt) {
     // for the same wave can no longer stack flawless bonuses or duplicate the shop.
     S.clearedWave = S.wave;
     run = 0;
+    // Mission progress for cleared waves. This sits inside the idempotent branch
+    // on purpose: every clear passes here exactly once, so the 'waves' mission
+    // type (which had no caller at all and could never complete) cannot be
+    // double-counted by re-entering the clear state.
+    if (typeof trackMissionProgress === 'function') trackMissionProgress('waves', 1);
     if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
     endWave();
   }

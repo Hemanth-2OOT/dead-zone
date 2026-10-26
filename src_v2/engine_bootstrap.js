@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.0.2 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 /* ================================================================== */
 // UI ACTIONS
@@ -114,7 +114,7 @@ addEventListener('mouseup', () => { M.down = 0; });
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '1.0.1';
+const GAME_VERSION = '1.0.2';
 
 ld();
 init();

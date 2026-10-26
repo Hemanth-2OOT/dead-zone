@@ -1,4 +1,4 @@
-// DEAD ZONE v1.0.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.0.2 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -197,18 +197,27 @@ function triggerEventVictory() {
 
 function initDailyMissions() {
   const today = new Date().toDateString();
+  const dayChanged = SV.dmDate !== today;
   SV.dailyMissions = SV.dailyMissions || {};
-  if (SV.dmDate !== today) {
-    SV.dmDate = today;
+  // Reseed on an empty board as well as on a new day. The sanitiser used to drop
+  // every mission record (see sanitizeSV), so a save that had been through one
+  // lobby() pass carried `{}` with today's dmDate already stamped - and since
+  // this function only reseeded when the date flipped, that profile sat with an
+  // empty missions board until the next midnight.
+  if (dayChanged || !Object.keys(SV.dailyMissions).length) {
     SV.dailyMissions = {
       m1: { title: 'Eliminate 60 Zombies', target: 60, cur: 0, reward: 150, claimed: false, type: 'kills' },
       m2: { title: 'Survive 3 Waves in any Sector', target: 3, cur: 0, reward: 200, claimed: false, type: 'waves' },
       m3: { title: 'Destroy 2 Elite Enemies', target: 2, cur: 0, reward: 250, claimed: false, type: 'elites' }
     };
-    // Check login day tracking
-    if (SV.lastLogin !== today) {
-      SV.lastLogin = today;
-      SV.loginDays = Math.min(10, (SV.loginDays || 0) + 1);
+    // The login streak advances at most once per calendar day, and only on a real
+    // day change: re-seeding a wiped board must not hand out another day.
+    if (dayChanged) {
+      SV.dmDate = today;
+      if (SV.lastLogin !== today) {
+        SV.lastLogin = today;
+        SV.loginDays = Math.min(10, (SV.loginDays || 0) + 1);
+      }
     }
     sv();
   }
@@ -251,6 +260,8 @@ function renderMissionsUI() {
 
 function claimMission(k) {
   const m = SV.dailyMissions && SV.dailyMissions[k];
+  // Re-validate here rather than trusting the button's disabled state: the same
+  // entry point serves a re-rendered list, and a claim must never pay twice.
   if (!m || m.claimed || m.cur < m.target) return;
   m.claimed = true;
   SV.cr = (SV.cr || 0) + m.reward;
@@ -258,6 +269,8 @@ function claimMission(k) {
   SV.ts = Date.now();
   sv();
   lobby();
+  if (typeof snd === 'function') snd(760, 0.16, 'triangle', 0.06, 1.4);
+  if (typeof announce === 'function') announce('MISSION COMPLETE', '#8fae4a', '+' + m.reward + ' CR', 3);
 }
 
 function renderLoginTrackUI() {
@@ -279,10 +292,15 @@ function renderLoginTrackUI() {
 }
 
 function claimLoginDay(day) {
-  const r = LOGIN_REWARDS.find(x => x.day === day);
-  if (!r || (SV.loginClaimed && SV.loginClaimed[day]) || day > (SV.loginDays || 1)) return;
+  // The delegated click listener passes data-arg straight through, and an HTML
+  // attribute is always a string. `LOGIN_REWARDS.find(x => x.day === day)` then
+  // never matched a numeric table row, so the CLAIM button silently did nothing.
+  const d = Math.floor(Number(day));
+  if (!isFinite(d)) return;
+  const r = LOGIN_REWARDS.find(x => x.day === d);
+  if (!r || (SV.loginClaimed && SV.loginClaimed[d]) || d > (SV.loginDays || 1)) return;
   SV.loginClaimed = SV.loginClaimed || {};
-  SV.loginClaimed[day] = true;
+  SV.loginClaimed[d] = true;
   const cr = r.amt || r.cr || 0;
   if (cr) SV.cr = (SV.cr || 0) + cr;
   if (r.sp) SV.sp = (SV.sp || 0) + r.sp;
@@ -290,9 +308,13 @@ function claimLoginDay(day) {
     SV.skins = SV.skins || {};
     SV.skins[r.skin] = 1;
   }
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
   sv();
   lobby();
   renderLoginTrackUI();
+  if (typeof snd === 'function') snd(880, 0.18, 'triangle', 0.06, 1.5);
+  if (typeof announce === 'function') announce('DAY ' + d + ' CLAIMED', '#ffd36b', '+' + (r.label || (cr + ' CR')), 3);
 }
 
 function renderRankRewards() {
@@ -320,15 +342,22 @@ function renderRankRewards() {
 }
 
 function claimRank(r) {
-  const m = RANK_MILESTONES.find(x => x.r === r);
-  if (!m || (SV.lvl || 1) < r) return;
+  // Same string/number trap as claimLoginDay(): the rank arrives from a data
+  // attribute, and RANK_MILESTONES rows hold numbers.
+  const rk = Math.floor(Number(r));
+  if (!isFinite(rk)) return;
+  const m = RANK_MILESTONES.find(x => x.r === rk);
+  if (!m || (SV.lvl || 1) < rk) return;
   SV.rankClaimed = SV.rankClaimed || {};
-  if (SV.rankClaimed[r]) return;
-  SV.rankClaimed[r] = true;
+  if (SV.rankClaimed[rk]) return;
+  SV.rankClaimed[rk] = true;
   SV.cr = (SV.cr || 0) + m.cr;
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
   if (typeof snd === 'function') snd(880, 0.2, 'triangle', 0.08, 1.6);
   sv();
   lobby();
+  if (typeof announce === 'function') announce('RANK ' + rk + ' REWARD', '#ffd36b', '+' + m.cr + ' CR', 3);
 }
 
 const LOBBY_REWARD_TABS = ['m', 'l', 'c', 's'];

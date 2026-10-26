@@ -1523,7 +1523,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
       <div class="l-left">
         <div class="logo-wrap">
           <h1 class="logo">DEAD ZONE</h1>
-          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.1</span>
+          <span class="tagline">OUTBREAK PROTOCOL &bull; v1.0.2</span>
         </div>
 
         <button type="button" id="best-badge" data-act="openTacticalRecords" title="Tap to inspect tactical survival record">
@@ -3214,7 +3214,7 @@ function charSkinIcon(skinKey) {
 
 
 /* === MODULE: engine_persistence.js === */
-// DEAD ZONE v1.0.1 - SAVE PERSISTENCE & DATA PIPELINE
+// DEAD ZONE v1.0.2 - SAVE PERSISTENCE & DATA PIPELINE
 // Version: SV.v = 3
 
 let SV = {
@@ -3417,7 +3417,32 @@ function sanitizeSV(s) {
     out.eqSkin = r;
   }
   out.evDone = flagMap(out.evDone, MAP_MAX);
-  out.dailyMissions = numMap(out.dailyMissions, MAP_MAX, 0, 1e6);
+  // Daily missions are records, not counters. Running them through numMap() meant
+  // `Number({title,target,cur,...})` was NaN for every entry, so the whole board
+  // was dropped on the very next save - the missions screen could only ever show
+  // what initDailyMissions() had just written, and that only reseeds when the
+  // calendar date flips. Progress therefore never survived a load, and a profile
+  // whose board had been wiped stayed empty until midnight.
+  const missionMap = (v, max) => {
+    const o = mapOf(v, max), r = {};
+    for (const k of Object.keys(o)) {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+      const m = o[k];
+      if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
+      const target = num(m.target, 1, 1e6, null);
+      if (target === null) continue;             // not a mission record
+      r[k] = {
+        title: (typeof m.title === 'string' ? m.title : 'Daily Mission').slice(0, 64),
+        type: (typeof m.type === 'string' ? m.type : 'kills').slice(0, 16),
+        target: target,
+        cur: Math.min(num(m.cur, 0, 1e6, 0), target),
+        reward: num(m.reward, 0, 1e6, 0),
+        claimed: m.claimed ? true : false
+      };
+    }
+    return r;
+  };
+  out.dailyMissions = missionMap(out.dailyMissions, MAP_MAX);
   out.loginClaimed = flagMap(out.loginClaimed, MAP_MAX);
   out.rankClaimed = flagMap(out.rankClaimed, MAP_MAX);
   out.mast = numMap(out.mast, MAP_MAX, 0, 1e12);
@@ -3580,16 +3605,39 @@ function sv() {
   }
 }
 
-// Guns are unlocked by account rank rather than bought, so ownership is
-// re-derived from the rank on every load and save. Folding it into the existing
-// SV.own flags keeps every other reader of SV.own working unchanged.
+// A weapon is owned or it is not. Ownership is bought (SV.own, persisted) and
+// the starter pistol is owned on every profile; account rank is only the
+// *prerequisite* that makes a gun offerable in the shop (weaponRankMet).
+//
+// This used to hand out every gun whose WEAP_RANK the account had already
+// reached. That was correct while the shop was retired - rank *was* the only
+// unlock path - but the shop returned in v1.0.0 and prices the same guns, so the
+// rank grant was silently bypassing every price: an account at rank 3 owned the
+// SMG, the revolver and the dual pistols for free without ever visiting the
+// shop, and the card's "RANK 3 UNLOCK" line read as a receipt rather than a gate.
+// Ownership is now never derived from rank; only purchase writes SV.own.
 function syncWeaponUnlocks() {
   if (typeof SV === 'undefined' || !SV || typeof WEAP === 'undefined') return;
-  if (!SV.own || !SV.own.length) SV.own = WEAP.map((_, i) => (i === 0 ? 1 : 0));
-  const rank = SV.lvl || 1;
-  for (let i = 0; i < WEAP.length; i++) {
-    if (!SV.own[i] && rank >= (WEAP_RANK[i] || 0)) SV.own[i] = 1;
-  }
+  if (!Array.isArray(SV.own)) SV.own = [];
+  while (SV.own.length < WEAP.length) SV.own.push(0);
+  if (SV.own.length > WEAP.length) SV.own.length = WEAP.length;
+  for (let i = 0; i < WEAP.length; i++) SV.own[i] = SV.own[i] ? 1 : 0;
+  SV.own[0] = 1;   // the starter pistol is standard issue, never sold
+}
+
+// Rank needed before a weapon may be *acquired* (0 = no requirement). Read
+// wherever ownership or purchase eligibility is decided, so the number the shop
+// prints and the number the purchase checks cannot drift apart.
+function weaponRankReq(i) {
+  return (typeof WEAP_RANK !== 'undefined' && WEAP_RANK[i]) ? Math.max(0, WEAP_RANK[i]) : 0;
+}
+function weaponRankMet(i) {
+  if (!i) return true;
+  const lvl = (typeof SV !== 'undefined' && SV && SV.lvl) ? SV.lvl : 1;
+  return lvl >= weaponRankReq(i);
+}
+function weaponOwned(i) {
+  return Boolean(typeof SV !== 'undefined' && SV && SV.own && SV.own[i]);
 }
 
 function need(l) { return 100 + l * 50; }
@@ -3604,7 +3652,10 @@ function applySV() {
   if (typeof P !== 'undefined') {
     P.mx = cl.hp + 4 * (SV.lvl - 1) + (SV.hu || 0) * 10 + (SV.mx || 0) * 10; // 'Max Health' stat + 'Vitality' skill
     P.hp = P.mx;
-    WEAP.forEach((w, i) => { if (SV.own && SV.own[i]) P.w[i] = 1; });
+    // The run arsenal mirrors ownership exactly, in both directions: only
+    // setting the owned entries to 1 would let a weapon granted mid-run by an
+    // operation leak into the next run's picker.
+    WEAP.forEach((w, i) => { P.w[i] = (SV.own && SV.own[i]) ? 1 : 0; });
     P.cur = (SV.own && SV.own[SV.start]) ? SV.start : 0;
     P.maxAmmo = WEAP[P.cur].mag || 12;
     P.ammo = P.maxAmmo;
@@ -4040,7 +4091,7 @@ function clearEventContext() {
 
 
 /* === MODULE: engine_events_missions.js === */
-// DEAD ZONE v1.0.1 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
+// DEAD ZONE v1.0.2 - EVENTS, MISSIONS, LOGIN TRACK & SKINS CONTROLLER
 
 let activeEventFilter = 'all';
 function filterEvents(f) {
@@ -4239,18 +4290,27 @@ function triggerEventVictory() {
 
 function initDailyMissions() {
   const today = new Date().toDateString();
+  const dayChanged = SV.dmDate !== today;
   SV.dailyMissions = SV.dailyMissions || {};
-  if (SV.dmDate !== today) {
-    SV.dmDate = today;
+  // Reseed on an empty board as well as on a new day. The sanitiser used to drop
+  // every mission record (see sanitizeSV), so a save that had been through one
+  // lobby() pass carried `{}` with today's dmDate already stamped - and since
+  // this function only reseeded when the date flipped, that profile sat with an
+  // empty missions board until the next midnight.
+  if (dayChanged || !Object.keys(SV.dailyMissions).length) {
     SV.dailyMissions = {
       m1: { title: 'Eliminate 60 Zombies', target: 60, cur: 0, reward: 150, claimed: false, type: 'kills' },
       m2: { title: 'Survive 3 Waves in any Sector', target: 3, cur: 0, reward: 200, claimed: false, type: 'waves' },
       m3: { title: 'Destroy 2 Elite Enemies', target: 2, cur: 0, reward: 250, claimed: false, type: 'elites' }
     };
-    // Check login day tracking
-    if (SV.lastLogin !== today) {
-      SV.lastLogin = today;
-      SV.loginDays = Math.min(10, (SV.loginDays || 0) + 1);
+    // The login streak advances at most once per calendar day, and only on a real
+    // day change: re-seeding a wiped board must not hand out another day.
+    if (dayChanged) {
+      SV.dmDate = today;
+      if (SV.lastLogin !== today) {
+        SV.lastLogin = today;
+        SV.loginDays = Math.min(10, (SV.loginDays || 0) + 1);
+      }
     }
     sv();
   }
@@ -4293,6 +4353,8 @@ function renderMissionsUI() {
 
 function claimMission(k) {
   const m = SV.dailyMissions && SV.dailyMissions[k];
+  // Re-validate here rather than trusting the button's disabled state: the same
+  // entry point serves a re-rendered list, and a claim must never pay twice.
   if (!m || m.claimed || m.cur < m.target) return;
   m.claimed = true;
   SV.cr = (SV.cr || 0) + m.reward;
@@ -4300,6 +4362,8 @@ function claimMission(k) {
   SV.ts = Date.now();
   sv();
   lobby();
+  if (typeof snd === 'function') snd(760, 0.16, 'triangle', 0.06, 1.4);
+  if (typeof announce === 'function') announce('MISSION COMPLETE', '#8fae4a', '+' + m.reward + ' CR', 3);
 }
 
 function renderLoginTrackUI() {
@@ -4321,10 +4385,15 @@ function renderLoginTrackUI() {
 }
 
 function claimLoginDay(day) {
-  const r = LOGIN_REWARDS.find(x => x.day === day);
-  if (!r || (SV.loginClaimed && SV.loginClaimed[day]) || day > (SV.loginDays || 1)) return;
+  // The delegated click listener passes data-arg straight through, and an HTML
+  // attribute is always a string. `LOGIN_REWARDS.find(x => x.day === day)` then
+  // never matched a numeric table row, so the CLAIM button silently did nothing.
+  const d = Math.floor(Number(day));
+  if (!isFinite(d)) return;
+  const r = LOGIN_REWARDS.find(x => x.day === d);
+  if (!r || (SV.loginClaimed && SV.loginClaimed[d]) || d > (SV.loginDays || 1)) return;
   SV.loginClaimed = SV.loginClaimed || {};
-  SV.loginClaimed[day] = true;
+  SV.loginClaimed[d] = true;
   const cr = r.amt || r.cr || 0;
   if (cr) SV.cr = (SV.cr || 0) + cr;
   if (r.sp) SV.sp = (SV.sp || 0) + r.sp;
@@ -4332,9 +4401,13 @@ function claimLoginDay(day) {
     SV.skins = SV.skins || {};
     SV.skins[r.skin] = 1;
   }
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
   sv();
   lobby();
   renderLoginTrackUI();
+  if (typeof snd === 'function') snd(880, 0.18, 'triangle', 0.06, 1.5);
+  if (typeof announce === 'function') announce('DAY ' + d + ' CLAIMED', '#ffd36b', '+' + (r.label || (cr + ' CR')), 3);
 }
 
 function renderRankRewards() {
@@ -4362,15 +4435,22 @@ function renderRankRewards() {
 }
 
 function claimRank(r) {
-  const m = RANK_MILESTONES.find(x => x.r === r);
-  if (!m || (SV.lvl || 1) < r) return;
+  // Same string/number trap as claimLoginDay(): the rank arrives from a data
+  // attribute, and RANK_MILESTONES rows hold numbers.
+  const rk = Math.floor(Number(r));
+  if (!isFinite(rk)) return;
+  const m = RANK_MILESTONES.find(x => x.r === rk);
+  if (!m || (SV.lvl || 1) < rk) return;
   SV.rankClaimed = SV.rankClaimed || {};
-  if (SV.rankClaimed[r]) return;
-  SV.rankClaimed[r] = true;
+  if (SV.rankClaimed[rk]) return;
+  SV.rankClaimed[rk] = true;
   SV.cr = (SV.cr || 0) + m.cr;
+  SV.rev = (SV.rev || 0) + 1;
+  SV.ts = Date.now();
   if (typeof snd === 'function') snd(880, 0.2, 'triangle', 0.08, 1.6);
   sv();
   lobby();
+  if (typeof announce === 'function') announce('RANK ' + rk + ' REWARD', '#ffd36b', '+' + m.cr + ' CR', 3);
 }
 
 const LOBBY_REWARD_TABS = ['m', 'l', 'c', 's'];
@@ -5850,7 +5930,7 @@ const renderDropsPass = renderPickupsPass;
 
 
 /* === MODULE: engine_render_player.js === */
-// DEAD ZONE v1.0.1 - PLAYER & WEAPONS RENDERING ENGINE
+// DEAD ZONE v1.0.2 - PLAYER & WEAPONS RENDERING ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 function bodyBack(ci = (typeof SV !== 'undefined' && SV && SV.cls != null) ? SV.cls : 0) {
@@ -6456,7 +6536,7 @@ function resetCharacterIconCache() {
 
 
 /* === MODULE: engine_render_zombies.js === */
-// DEAD ZONE v1.0.1 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
+// DEAD ZONE v1.0.2 - ZOMBIE ARCHETYPES & ATTACK TELEGRAPHS
 // Senior 2D Artist / Technical Animation Pipeline
 
 function drawTelegraph(z) {
@@ -7425,7 +7505,7 @@ function drawDyingZombies(cx, cy, W, H) {
 
 
 /* === MODULE: engine_render_turret.js === */
-// DEAD ZONE v1.0.1 - MILITARY SENTRY TURRET ENGINE
+// DEAD ZONE v1.0.2 - MILITARY SENTRY TURRET ENGINE
 // Senior 2D Artist / Technical Rendering Pipeline
 
 let TURRET_DEBRIS = [];
@@ -7803,7 +7883,7 @@ function drawTurretDebris(cx, cy, W, H) {
 
 
 /* === MODULE: engine_depth.js === */
-// DEAD ZONE v1.0.1 - DEPTH, LIGHTING & PARTICLE PRESENTATION
+// DEAD ZONE v1.0.2 - DEPTH, LIGHTING & PARTICLE PRESENTATION
 // Pure-canvas depth cues that the previous build was missing:
 //   * cached soft sprites (contact shadows, light falloff) instead of per-frame gradients
 //   * a y-sorted entity band so overlap order follows screen depth
@@ -8342,7 +8422,7 @@ function renderDepthFog(cx, cy, W, H) {
 
 
 /* === MODULE: engine_feel.js === */
-// DEAD ZONE v1.0.1 - WEAPON FEEL, IMPACT & SKILL VFX
+// DEAD ZONE v1.0.2 - WEAPON FEEL, IMPACT & SKILL VFX
 // Everything in this file is presentation. It never mutates damage, cooldowns or
 // reward values: it only makes what already happened legible to the player.
 
@@ -9617,7 +9697,7 @@ function drawPlayerGear() {
 
 
 /* === MODULE: engine_passives.js === */
-// DEAD ZONE v1.0.1 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
+// DEAD ZONE v1.0.2 - PASSIVE AURAS, SUMMONS & STATUS EFFECTS
 // Twelve late-game SPECIAL perks and one relic shipped purchasable but inert:
 // their state fields were set by the perk table and then never read by anything.
 // This module gives every one of them a real, legible effect and keeps the
@@ -9656,6 +9736,82 @@ function dotZ(z, amount, src) {
     z.hp = 0;
     if (typeof killZ === 'function') killZ(z, src || 'dot');
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* BURN - the one damage-over-time the player can see                  */
+/* ------------------------------------------------------------------ */
+// Immolation used to deal `20 * S.fi * dt` every frame through dotZ(): real
+// damage with no feedback at all, and a rate tied to the frame rate (sixty
+// invisible slivers a second). Burn keeps exactly the same damage per second but
+// pays it in fixed ticks, so the flames, the embers and the numbers all land on
+// the same beat and the effect is readable while it happens.
+//
+// The duration is one tick plus a hair, so a zombie that walks out of the aura
+// takes at most two more ticks - never more than half a second's worth of aura
+// damage - while a zombie standing in it is refreshed every frame and burns
+// continuously. The margin over the tick length also means a stutter frame cannot
+// expire a burn that is still being fed.
+const BURN_TICK = 0.25;
+const BURN_DUR = 0.3;
+const BURN_MAX = 40;        // ceiling on the dps any single burn can claim
+const FLAME_RESIDUE = 0.35; // how long a flamethrower hit keeps licking at the wound
+
+// dps is damage per second. A target keeps the strongest burn on it and refreshes
+// its clock, so two sources cannot silently stack into an invisible melt.
+function applyBurn(z, dps, dur) {
+  if (!z || z.dead || !(dps > 0)) return;
+  const d = Math.min(BURN_MAX, dps);
+  if (d >= (z.bnD || 0)) {
+    z.bnD = d;
+    z.bn = Math.max(z.bn || 0, dur || BURN_DUR);
+  } else {
+    z.bn = Math.max(z.bn || 0, Math.min(dur || BURN_DUR, 0.15));
+  }
+  // Stagger the first tick so a crowd ignited on the same frame does not tick in
+  // lockstep - twenty zombies flashing on the same beat reads as one glitch.
+  if (z.bnT == null) z.bnT = BURN_TICK * Math.random();
+}
+
+// A flamethrower hit leaves the jet clinging to the target for a moment. It is an
+// impact reaction, not a damage source: the shot that lit it already dealt its
+// damage through the normal bullet pipeline.
+function applyFlameHit(z) {
+  if (!z || z.dead) return;
+  z.ignT = Math.max(z.ignT || 0, FLAME_RESIDUE);
+}
+
+function burnTickUpdate(z, dt) {
+  if (!(z.bn > 0)) return;
+  z.bn -= dt;
+  z.bnT -= dt;
+  if (z.bnT <= 0) {
+    z.bnT += BURN_TICK;
+    if (z.bnT <= 0) z.bnT = BURN_TICK;
+    const dmg = (z.bnD || 0) * BURN_TICK;
+    if (dmg > 0) {
+      if (typeof F !== 'undefined' && F.length < 240) {
+        F.push({
+          x: z.x + (Math.random() - 0.5) * 9, y: z.y + (Math.random() - 0.5) * 9,
+          vx: 0, vy: -34 - Math.random() * 20, l: 0.3,
+          c: Math.random() < 0.5 ? '#ffb03a' : '#ff6a2a', s: 1.6 + Math.random(), fr: 1
+        });
+      }
+      dotZ(z, dmg, 'burn');
+    }
+  }
+  if (z.bn <= 0) { z.bn = 0; z.bnD = 0; z.bnT = null; }
+}
+
+// An expanding ring at the exact radius an aura works over, so casting (or
+// upgrading) an aura answers "how far does this reach?" at the moment it matters.
+function auraRingFX(radius, rgb) {
+  if (typeof RG !== 'undefined') {
+    RG.push({ x: P.x, y: P.y, r: 8, l: 0.6, v: 320, maxR: radius, c: rgb });
+    RG.push({ x: P.x, y: P.y, r: 6, l: 0.36, v: 220, maxR: radius * 0.6, c: '255,240,210' });
+  }
+  if (typeof burst === 'function') burst(P.x, P.y, rgb === '255,122,58' ? '#ff9a3a' : '#9be7ff', 18, 3, 120, 1);
+  if (typeof addShake === 'function') addShake(2.5);
 }
 
 function clearPassives() {
@@ -9745,6 +9901,8 @@ function updatePassives(dt) {
     if (!z || z.dead) continue;
     if (z.obT > 0) z.obT -= dt;
     if (z.sdT > 0) z.sdT -= dt;
+    if (z.ignT > 0) z.ignT -= dt;
+    burnTickUpdate(z, dt);
     if (z.psn > 0) {
       z.psn -= dt;
       if (S.pv) dotZ(z, 14 * S.pv * dt, 'venom');
@@ -9767,13 +9925,20 @@ function updatePassives(dt) {
     }
   }
 
-  // Immolation - contact-range burn aura.
+  // Immolation - contact-range burn aura. The aura lights the burn; the burn pays
+  // the damage in ticks (see burnTickUpdate), so the flames on a zombie are the
+  // exact source of the numbers coming off it.
   if (S.fi) {
     const R = 88 + 8 * S.fi, R2 = R * R;
+    const dps = 20 * S.fi;
     for (const z of Z) {
       if (!z || z.dead) continue;
       const dx = z.x - P.x, dy = z.y - P.y;
-      if (dx * dx + dy * dy < R2) dotZ(z, 20 * S.fi * dt, 'immolation');
+      if (dx * dx + dy * dy < R2) {
+        // First contact: a small ignition burst, once per zombie entering the ring.
+        if (!(z.bn > 0) && typeof burst === 'function') burst(z.x, z.y - 4, '#ff9a3a', 6, 2.2, 90, 1);
+        applyBurn(z, dps, BURN_DUR);
+      }
     }
     if (Math.random() < dt * 14 && typeof F !== 'undefined' && F.length < 240) {
       const a = Math.random() * 6.28, rr = Math.random() * R;
@@ -9900,14 +10065,42 @@ function renderPassivesGround(cx, cy, W, H) {
   const t = S.t || 0;
   X.save();
   if (S.fa) {
+    const R = 140 + 20 * S.fa;
     X.globalAlpha = 0.09 + Math.sin(t * 3) * 0.02;
     X.fillStyle = '#9be7ff';
-    X.beginPath(); X.arc(P.x, P.y, 140 + 20 * S.fa, 0, 6.28); X.fill();
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.fill();
+    // A dashed boundary that crawls around the rim: the slow radius a zombie has
+    // to cross to be chilled, stated as a line rather than implied by a soft disc.
+    X.globalAlpha = 0.34 + Math.sin(t * 3) * 0.06;
+    X.strokeStyle = '#cdefff';
+    X.lineWidth = 1.6;
+    if (X.setLineDash) { X.setLineDash([7, 9]); X.lineDashOffset = -t * 26; }
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.stroke();
+    if (X.setLineDash) { X.setLineDash([]); X.lineDashOffset = 0; }
   }
   if (S.fi) {
+    const R = 88 + 8 * S.fi;
     X.globalAlpha = 0.09 + Math.sin(t * 7) * 0.03;
     X.fillStyle = '#ff7a3a';
-    X.beginPath(); X.arc(P.x, P.y, 88 + 8 * S.fi, 0, 6.28); X.fill();
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.fill();
+    // Solid rim + tongues of flame licking outward, rotating slowly. This is the
+    // burn radius itself, so where the fire ends is where the damage ends.
+    X.globalAlpha = 0.42 + Math.sin(t * 9) * 0.08;
+    X.strokeStyle = '#ff9a3a';
+    X.lineWidth = 2;
+    X.beginPath(); X.arc(P.x, P.y, R, 0, 6.28); X.stroke();
+    X.globalAlpha = 0.30;
+    X.strokeStyle = '#ffd07a';
+    X.lineWidth = 2.2;
+    for (let i = 0; i < 14; i++) {
+      const a = t * 0.5 + i * (6.28318 / 14);
+      const ph = Math.sin(t * 6 + i * 1.7) * 0.5 + 0.5;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      X.beginPath();
+      X.moveTo(P.x + ca * (R - 9), P.y + sa * (R - 9));
+      X.quadraticCurveTo(P.x + ca * (R - 3), P.y + sa * (R - 3) - 5, P.x + ca * (R + 2 + ph * 4), P.y + sa * (R + 2 + ph * 4) - 10 - ph * 6);
+      X.stroke();
+    }
   }
   X.globalAlpha = 1;
   for (const m of METEOR) {
@@ -9997,13 +10190,56 @@ function renderPassives(cx, cy, W, H) {
     X.lineWidth = 1.6;
     X.beginPath(); X.arc(z.x, z.y + 4, 13, 0, 6.28); X.stroke();
   }
+
+  // Burning zombies. Drawn above the body so the flames lick up over it. Two
+  // states, both honest: `bn` is the burn paying damage ticks (the aura is on
+  // them), `ignT` is the residue of a flamethrower jet that has just hit them.
+  // Nothing burns here that was not actually set on fire.
+  // Always scanned, like the venom haze above: one early-out per zombie and no
+  // extra bookkeeping flag that could go stale and hide a burning enemy.
+  for (const z of Z) {
+    if (!z || z.dead) continue;
+    const burning = z.bn > 0, residue = z.ignT > 0;
+    if (!burning && !residue) continue;
+    const zr = (typeof ZT !== 'undefined' && ZT[z.t] && ZT[z.t].r) ? ZT[z.t].r : 12;
+    const strength = burning ? 1 : 0.55;
+    // A burn that is running out dips instead of cutting: the fade is the tell
+    // that the tick is about to stop.
+    const fade = burning ? Math.min(1, 0.35 + z.bn / 0.3) : Math.min(1, z.ignT / FLAME_RESIDUE);
+    X.strokeStyle = '#ff7a2a';
+    X.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      const ph = t * 9 + k * 2.1 + z.x * 0.03 + z.y * 0.02;
+      const h = (zr * 0.85 + Math.sin(ph) * 2.5) * strength;
+      const bx = z.x + Math.sin(ph * 0.7 + k * 2.4) * (zr * 0.42);
+      const by = z.y + zr * 0.35;
+      X.globalAlpha = (0.42 + 0.28 * Math.abs(Math.sin(ph * 1.3))) * strength * fade;
+      X.lineWidth = 3.4;
+      X.beginPath();
+      X.moveTo(bx - 2.6, by);
+      X.quadraticCurveTo(bx - 1.2, by - h * 0.6, bx + Math.sin(ph * 1.7) * 3, by - h);
+      X.stroke();
+      X.strokeStyle = '#ffd07a';
+      X.lineWidth = 1.6;
+      X.beginPath();
+      X.moveTo(bx - 1.2, by);
+      X.quadraticCurveTo(bx - 0.6, by - h * 0.4, bx + Math.sin(ph * 1.7) * 2, by - h * 0.62);
+      X.stroke();
+      X.strokeStyle = '#ff7a2a';
+    }
+    // Warm rim, so a burning zombie is identifiable even in a dense crowd.
+    X.globalAlpha = 0.3 * fade;
+    X.strokeStyle = '#ff9a3a';
+    X.lineWidth = 1.8;
+    X.beginPath(); X.arc(z.x, z.y, zr + 3.5, 0, 6.28); X.stroke();
+  }
   X.restore();
   X.globalAlpha = 1;
 }
 
 
 /* === MODULE: engine_world.js === */
-// DEAD ZONE v1.0.1 - WORLD ENGINE & MAIN SIMULATION PIPELINE
+// DEAD ZONE v1.0.2 - WORLD ENGINE & MAIN SIMULATION PIPELINE
 // Senior 2D Artist / Technical Rendering & Gameplay System
 
 let P, Z = [], B = [], D = [], F = [], T = [], RG = [], GH = [], AB = [];
@@ -11102,6 +11338,19 @@ function boom(b, y0, r0, c0) {
   burst(x, y, '#ff5a3a', 22, 5, 140, 1);
   burst(x, y, '#ffd36b', 18, 4, 180, 1);
 
+  // Scorch on the ground, sized from the blast radius the damage loop below
+  // actually uses. The mark left behind is the footprint of the explosion, so a
+  // player can read where a grenade or rocket landed after the fireball is gone.
+  if (typeof spawnGroundDecal === 'function') {
+    spawnGroundDecal(x, y, 0, 0, Math.max(16, r * 0.5), '#241f1b', '#3f352c', 'scorch');
+    if (Math.random() < 0.7) {
+      spawnGroundDecal(
+        x + (Math.random() - 0.5) * r * 0.55, y + (Math.random() - 0.5) * r * 0.55,
+        0, 0, Math.max(7, r * 0.2), '#2b2420', '#4a3d31', 'scorch'
+      );
+    }
+  }
+
   // AoE ground debris & flying chunks
   for (let k = 0; k < 10; k++) {
     const da = Math.random() * 6.28, dspd = 50 + Math.random() * 110;
@@ -11603,7 +11852,16 @@ function openPerk() {
 }
 
 function applyPerk(p) {
+  // Read the aura stacks either side of the effect so an aura perk can announce
+  // its own reach: the ring that fires is the radius the damage or slow really
+  // uses, which answers "how far does this go?" at the moment the player cares.
+  const fi0 = (typeof S !== 'undefined' && S) ? (S.fi || 0) : 0;
+  const fa0 = (typeof S !== 'undefined' && S) ? (S.fa || 0) : 0;
   p[2]();
+  if (typeof S !== 'undefined' && S && typeof auraRingFX === 'function') {
+    if ((S.fi || 0) > fi0) auraRingFX(88 + 8 * S.fi, '255,122,58');
+    if ((S.fa || 0) > fa0) auraRingFX(140 + 20 * S.fa, '155,231,255');
+  }
   S.pk[p[0]] = (S.pk[p[0]] || 0) + 1;
   if (typeof snd === 'function') snd(700, 0.15, 'triangle', 0.06, 1.5);
 
@@ -11680,7 +11938,20 @@ function update(dt) {
     vx = P.lx; vy = P.ly;
   }
 
-  if (Math.hypot(vx, vy) > 0.1) P.st = (P.st || 0) + dt * 14;
+  // Stride phase, and a puff of ground dust on each footfall. The beat is the one
+  // the legs already animate to (P.st advances 14/s, one foot lands per half
+  // turn), and it only fires while the player is really walking: no dust while
+  // dashing, no dust standing still. Grounding, not decoration.
+  const moving = Math.hypot(vx, vy) > 0.1;
+  if (moving) {
+    const stPrev = P.st || 0;
+    P.st = stPrev + dt * 14;
+    if (P.dash <= 0 && Math.floor(P.st / Math.PI) !== Math.floor(stPrev / Math.PI) && typeof F !== 'undefined' && F.length < 220) {
+      const dust = 'rgba(205,196,176,0.42)';
+      F.push({ x: P.x - vx * 5, y: P.y + 9, vx: -vx * 20 + (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 8, l: 0.32, c: dust, s: 2.6 + Math.random() * 1.4, fr: 1 });
+      F.push({ x: P.x - vx * 9, y: P.y + 9, vx: -vx * 34 + (Math.random() - 0.5) * 10, vy: -3, l: 0.24, c: dust, s: 1.7 + Math.random(), fr: 1 });
+    }
+  }
   moveBody(P, 14, vx * sp * dt, vy * sp * dt);
   sanitizePlayer();
 
@@ -12060,6 +12331,10 @@ function update(dt) {
         if (b.cl && !b.arced) { b.arced = 1; if (typeof chainLightning === 'function') chainLightning(z, b); }
         if (b.pr > 0) b.pr--; else b.l = 0;
         if (b.fz) z.fz = 2.5;
+        // A flame hit leaves the jet clinging to the target. Visual only: this
+        // shot's damage was just dealt above, and the burn status (a real damage
+        // source) belongs to Immolation.
+        if (b.flm && typeof applyFlameHit === 'function') applyFlameHit(z);
         if (S.pv) z.psn = Math.max(z.psn || 0, 2.5); // Venom Rounds: bullets poison
 
         // Knockback
@@ -12156,7 +12431,10 @@ function update(dt) {
   if (typeof trimParticleBudget === 'function') trimParticleBudget();
 
   // Shockwave rings decay
-  for (const r of RG) { r.r += (r.v || 520) * dt; r.l -= dt; }
+  // maxR lets a ring mark a boundary instead of an explosion: an aura's reach
+  // ring grows to the radius the aura really uses and then fades there, rather
+  // than sailing past it and overstating the area.
+  for (const r of RG) { r.r += (r.v || 520) * dt; if (r.maxR && r.r > r.maxR) r.r = r.maxR; r.l -= dt; }
   pruneArr(RG, r => r.l > 0);
 
   // Skill VFX lifetimes, dash afterimages, grenade flight and bullet smoke.
@@ -12204,6 +12482,11 @@ function update(dt) {
     // for the same wave can no longer stack flawless bonuses or duplicate the shop.
     S.clearedWave = S.wave;
     run = 0;
+    // Mission progress for cleared waves. This sits inside the idempotent branch
+    // on purpose: every clear passes here exactly once, so the 'waves' mission
+    // type (which had no caller at all and could never complete) cannot be
+    // double-counted by re-entering the clear state.
+    if (typeof trackMissionProgress === 'function') trackMissionProgress('waves', 1);
     if (typeof directorOnWaveClear === 'function') directorOnWaveClear();
     endWave();
   }
@@ -13999,7 +14282,7 @@ function drawControls() {
 
 
 /* === MODULE: engine_director.js === */
-// DEAD ZONE v1.0.1 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
+// DEAD ZONE v1.0.2 - DIRECTOR: POWER-UPS, COMBO, LAST STAND, WAVE MODIFIERS, ZOMBIE STEERING, META HOOKS
 // Loaded after engine_world.js. Everything here is called through guarded hooks in the world engine.
 
 /* ------------------------------------------------------------------ */
@@ -14444,7 +14727,7 @@ function metaHooksHTML(prevBest) {
 
 
 /* === MODULE: engine_meta.js === */
-// DEAD ZONE v1.0.1 - META PROGRESSION & RETENTION SYSTEMS
+// DEAD ZONE v1.0.2 - META PROGRESSION & RETENTION SYSTEMS
 // Short-cycle hooks that keep a run interesting and a session going:
 //   * BOON DRAFT      - pick 1 of 3 run-scoped boons after every wave
 //   * WEAPON MASTERY  - per-gun XP and permanent damage tiers
@@ -14892,7 +15175,7 @@ function settleRun() {
 
 
 /* === MODULE: engine_fx.js === */
-// DEAD ZONE v1.0.1 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
+// DEAD ZONE v1.0.2 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
 // Announcer queue (screen-space banners).
 //
@@ -15345,7 +15628,7 @@ function staggerIn(container) {
 
 
 /* === MODULE: engine_lobby.js === */
-// DEAD ZONE v1.0.1 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
+// DEAD ZONE v1.0.2 - LOBBY, PREVIEWS, PROGRESSION & UI CONTROLLER
 // Senior 2D Artist / Technical UI Engineering System
 
 let curPreviewZone = 0;
@@ -16343,18 +16626,25 @@ function renderShop() {
     const owned = Boolean(SV.own && SV.own[i]);
     const equipped = owned && SV.start === i;
     const tCol = SHOP_TIER_COLS[w.tier] || '#94a3b8';
-    const rankReq = WEAP_RANK[i] || 0;
+    const rankReq = weaponRankReq(i);
+    const rankOk = weaponRankMet(i);
     const cost = Math.max(0, w.c || 0);
     const affordable = (SV.cr || 0) >= cost;
-    const status = equipped ? 'EQUIPPED' : owned ? 'OWNED' : 'LOCKED';
+    // Three honest states, not two: you may not own it yet and cannot buy it
+    // (rank too low), you may buy it, or it is yours.
+    const status = equipped ? 'EQUIPPED' : owned ? 'OWNED' : rankOk ? 'FOR SALE' : 'RANK ' + rankReq;
     const action = owned
       ? '<button data-eq="' + i + '"' + (equipped ? ' disabled' : '') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800;border-color:' + (equipped ? '#333' : '#8fae4a') + ';color:' + (equipped ? '#666' : '#8fae4a') + '">' + (equipped ? 'EQUIPPED' : 'EQUIP') + '</button>'
-      : '<button data-buy="' + i + '"' + (affordable ? '' : ' disabled') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800">BUY ' + cost.toLocaleString() + ' CR</button>';
+      : rankOk
+        ? '<button data-buy="' + i + '"' + (affordable ? '' : ' disabled') + ' style="min-width:96px;padding:7px 10px;font-size:11px;font-weight:800">BUY ' + cost.toLocaleString() + ' CR</button>'
+        : '<button disabled style="min-width:96px;padding:7px 10px;font-size:10px;font-weight:800;color:#8892a0;border-color:#3a4048">RANK ' + rankReq + '</button>';
     const stats = [['DMG', Math.round(st.shot)], ['DPS', Math.round(st.dps)], ['MAG', st.mag], ['RELOAD', st.reload.toFixed(1) + 's']]
       .map(r => '<div style="text-align:center"><div style="font-size:8.5px;letter-spacing:.5px;opacity:.6">' + r[0] + '</div><div style="font-size:12px;font-weight:800;color:#e8e2d6">' + r[1] + '</div></div>').join('');
-    const origin = rankReq > 0 ? 'RANK ' + rankReq + ' UNLOCK &bull; ' : 'STARTER WEAPON &bull; ';
-    const footer = owned ? (equipped ? 'YOUR DEPLOYED WEAPON' : 'IN YOUR ARSENAL') : cost.toLocaleString() + ' CREDITS';
-    const footerCol = owned ? '#8fae4a' : (affordable ? '#e0b83a' : '#c98a6a');
+    const origin = rankReq > 0 ? 'RANK ' + rankReq + ' REQUIRED &bull; ' : 'STARTER WEAPON &bull; ';
+    const footer = owned ? (equipped ? 'YOUR DEPLOYED WEAPON' : 'IN YOUR ARSENAL')
+      : rankOk ? cost.toLocaleString() + ' CREDITS'
+        : 'UNLOCKS AT ACCOUNT RANK ' + rankReq;
+    const footerCol = owned ? '#8fae4a' : (rankOk ? (affordable ? '#e0b83a' : '#c98a6a') : '#8892a0');
     return '<div class="card" style="display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,' + tCol + '0f,rgba(20,24,18,.96));border-left:5px solid ' + tCol + '">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
       +   '<div style="min-width:0">'
@@ -16377,20 +16667,34 @@ function renderShop() {
 
 function buyWeapon(i) {
   const w = WEAP[i]; if (!w) return;
+  if (typeof syncWeaponUnlocks === 'function') syncWeaponUnlocks();
+  // Ownership, then the rank precondition, then the price. Every path in (shop
+  // click, future shortcut) comes through here, so a locked gun cannot be forced
+  // into the arsenal by calling buyWeapon directly either.
   if (SV.own && SV.own[i]) return;
+  if (!weaponRankMet(i)) {
+    if (typeof announce === 'function') announce('RANK LOCKED', '#8892a0', w.n + ' requires account rank ' + weaponRankReq(i), 3);
+    return;
+  }
   const cost = Math.max(0, w.c || 0);
   if ((SV.cr || 0) < cost) {
     if (typeof announce === 'function') announce('NOT ENOUGH CREDITS', '#e07a5a', 'Need ' + cost.toLocaleString() + ' CR', 3);
     return;
   }
+  // The debit is the authority: it re-checks the balance and returns false if it
+  // could not be applied, so a failed transaction can never leave ownership set.
   if (!transactMetaCredits(cost, 'weapon_' + i)) return;
+  if (!Array.isArray(SV.own)) SV.own = [];
+  while (SV.own.length < WEAP.length) SV.own.push(0);
   SV.own[i] = 1;
   sv();
   if (typeof snd === 'function') snd(660, 0.12, 'triangle', 0.05, 1.4);
+  if (typeof announce === 'function') announce('UNLOCKED', '#e0b83a', w.n + ' added to your arsenal', 3);
   renderShop();
 }
 
 function equipWeapon(i) {
+  if (!WEAP[i]) return;
   if (!(SV.own && SV.own[i])) return;
   SV.start = i;
   sv();
@@ -16627,7 +16931,7 @@ function showDeployScreen(title, sub, kicker, onReady) {
 
 
 /* === MODULE: engine_bootstrap.js === */
-// DEAD ZONE v1.0.1 - BOOTSTRAP & SYSTEM EVENT BINDINGS
+// DEAD ZONE v1.0.2 - BOOTSTRAP & SYSTEM EVENT BINDINGS
 
 /* ================================================================== */
 // UI ACTIONS
@@ -16743,7 +17047,7 @@ addEventListener('mouseup', () => { M.down = 0; });
 addEventListener('touchstart', () => { TCH = 1; M.down = 0; }, { passive: true });
 
 // Load save data & initialize systems
-const GAME_VERSION = '1.0.1';
+const GAME_VERSION = '1.0.2';
 
 ld();
 init();
