@@ -709,3 +709,55 @@ Details in `RELEASE-v1.1.0-VALIDATION.md` §5, §6, §9, §11, §12. Still no co
   logged `NOTE` instead of asserting it. Before this, the same code produced 3 failures in one run and
   none in the next.
 - `package-lock.json` still carried version 1.0.0 while `package.json` was 1.1.0; this pass aligned it.
+
+## Release v2.0.1 — relics panel, skin unlocks, boss audio and the brute silhouette (SHIPPED)
+
+Branch `draft/v2.0.1` (cut from the shipped `draft/v1.1.0`), commit `5fd74db`, tag `v2.0.1`, GitHub
+release published by CI with `dead-zone-v2.0.1.apk` + `-source.zip`. This section is a docs-only
+follow-up commit, so the tag points at the release commit itself, not at this text. `main` is still at
+`91b7d09` (v1.0.2): two releases have now shipped from draft branches, so main is the stale shortcut a
+future fast-forward has to handle.
+
+- **Relics screen looked frozen:** the tab's click handler changed `SV.ar`/`SV.eq` and called `sv()` +
+  `lobby()`, which redraws the header only. Nothing re-rendered the panel, so the cards and the
+  `#rcnt` counter kept the pre-click state and a third equip did nothing at all. It now calls
+  `relics()` after the mutation, prints the equipped names, says **SLOTS FULL** on the third equip, and
+  plays a purchase/equip sound. Nothing about relic *ownership* was broken — the template is `ar: []`,
+  `eq: []` and both were correct; it only ever *looked* unlocked.
+- **Ten skins had an advertised condition no code evaluated.** `toxic_shotgun`, `neon_plasma`,
+  `dragon_flamer`, `stealth_smg`, `ghost_specops`, `cyber_juggernaut`, `hazmat_scout`,
+  `arctic_commando`, `desert_infantry`, `blood_hunter` carried `how: '…'` text and no `rk`/`rf`, so the
+  rule engine skipped them and the Skins tab could never complete. They now carry rules built on the
+  per-sector record the run settlement already writes — `lt.maps[curM] = max(…, S.wave)`
+  (`engine_meta.js`) — via three new helpers: `sectorBest(name)` (looks the sector up in `MP` by name,
+  so a reshuffle cannot point a skin at the wrong map), `sectorCount()` (visited sectors, same quantity
+  the `sw` achievement reads) and `classOwned(name)` (`SV.ucl` indexed through `CL`). No new save field.
+  `test-logic.js` gained a `metaSandbox` (loaded with `extra: ['engine_meta.js']`) asserting every skin
+  resolves to a real operative/weapon, has an unlock path, and that each rule-based skin has a goal.
+  **A skin whose `how` text promises something must carry a rule that can actually fire.**
+- **Boss audio:** every boss broke its phase with the same 130 Hz sawtooth and the BRUTE's slam/charge
+  sat under 100 Hz — inaudible on a phone speaker. Per-boss break cues, a boss entrance roar and
+  slam/charge hits were added above the speaker floor.
+- **Boss death vs the boon draft:** `update()` stops when the wave ends, so `endWave()` froze the death
+  animation mid-collapse *and* opened the draft on the same frame, covering it. `endWave()` now sets
+  `S.bossJustDied`, arms `DRAFT_DELAY_T` (1.2 s), and the between-wave branch of `loop()` steps
+  `updateDyingZombies(dt * directorTimeScale())` while it waits, then opens the draft. `BOSS_SLOWMO_T`
+  (0.42×, `directorTimeScale()`) makes the kill read as an event. The wave countdown is held for the
+  same beat, so the next wave cannot start early.
+- **The BRUTE had no art of its own** — it shared the `z.t === 'brute' || z.t === 'tank'` branch, so the
+  boss banner named a silhouette that did not exist. Split into its own branch in
+  `engine_render_zombies.js` (hunched back, spined plates, rib work, cleaver arm, jaw cage, wound
+  state).
+- **Harness lesson (root cause found the hard way):** `applySV()` re-applies every equipped relic's
+  effect at run start (`AR[i][3]()`), so a save with **Storm Crown** equipped added lightning to `Z`
+  and the Immolation geometry assertions failed deterministically — `131.00 hp` instead of `40.00`, and
+  a zombie 9 px outside the drawn 96 px ring taking damage — on *unchanged* game code. It reproduced
+  perfectly and looked exactly like a regression. The harness now saves `SV.ar`/`SV.eq`, empties them
+  before the run and hands them back at the end. **Before blaming a harness failure on a code change,
+  check the profile the run inherited** (`SV.eq`, `SV.lt`, `SV.skins`, `SV.own` all outlive a run).
+- Version bumps must stay in the three places the audit compares — `package.json`,
+  `GAME_VERSION` in `engine_bootstrap.js`, `versionName` in `android/app/build.gradle` — plus
+  `versionCode` (`5` here) and the `// DEAD ZONE vX.Y.Z` headers, and `RELEASE-NOTES-vX.Y.Z.md`.
+  Verified on the published APK: `com.deadzone.game`, versionCode 5, versionName 2.0.1, minSdk 22,
+  targetSdk 34, signer `CN=Dead Zone, OU=Games, O=Hemanth, C=IN` cert SHA-256 `5f8a8bbc…52e6` — the
+  same identity as v1.0.0–v1.1.0, verified v1+v2+v3 by `apksigner`.
