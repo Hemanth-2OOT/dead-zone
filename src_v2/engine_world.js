@@ -17,6 +17,22 @@ const K = {};
 const M = { x: 0, y: 0, down: 0, moved: 0 };
 const J = { l: null, r: null };
 let TCH = 0;
+// Touch ownership. Every active pointer id owns exactly one role, so lifting
+// the aiming finger can never cancel the movement stick (or the FIRE button),
+// and a second finger landing on an ability cannot steal the aim stick.
+const TOUCH_ROLE = new Map();   // pointer id -> 'move' | 'aim' | 'fire' | 'btn'
+let FIRE_HOLD = 0;              // pointer id holding the FIRE button, 0 = idle
+const fireHeld = () => FIRE_HOLD !== 0;
+
+// Called on pause, tab switch, window blur and app backgrounding. Without it a
+// finger that was down when the app lost focus never delivers a touchend, so the
+// stick stayed engaged and the player kept walking (and firing) on resume.
+function releaseAllInputs() {
+  J.l = null; J.r = null;
+  FIRE_HOLD = 0;
+  TOUCH_ROLE.clear();
+  M.down = 0;
+}
 
 const stick = s => {
   if (!s) return [0, 0, 0];
@@ -43,11 +59,19 @@ function saInsets() {
   } else _sa = [0, 0, 0, 0];
   return _sa;
 }
-function ctlScale() { return Math.max(0.78, Math.min(1.2, Math.min(W, H) / 420)); }
+function ctlScale() {
+  const base = Math.max(0.78, Math.min(1.2, Math.min(W, H) / 420));
+  return base * ctlPref().size;
+}
 function insetR() { return saInsets()[1]; }
 function jRad() { return 46 * ctlScale(); }
 function jKnob() { return 20 * ctlScale(); }
-function btRad(ar) { return (ar ? 16 : 22) * ctlScale(); }
+function btRad() { return 22 * ctlScale(); }
+
+// Tap radius per button. Kept close to the drawn size so the target a player
+// aims at is the target the game reads - the old generous radii made neighbouring
+// abilities overlap and the first match in the array won the tap.
+function btHit(b) { return (b.hr || 25) * ctlScale(); }
 
 function jPos(k) {
   const s = ctlScale();
@@ -57,42 +81,93 @@ function jPos(k) {
   return [k === 'l' ? edge : W - edge, H - drop];
 }
 
-// Action buttons sit on one arc around the aim stick with even angular
-// spacing, so the thumb finds a skill by angle instead of by memorising four
-// unrelated offsets. Angles are degrees, counter-clockwise from screen-right.
-const ARC_D = 94, ARC_A = [150, 112, 74, 205];
-function arcPos(i) {
+// FIRE sits in the empty band between the weapon card and the aim stick, at the
+// stick's own height. Far enough from the stick that a thumb aiming near the rim
+// cannot catch the trigger by accident, close enough to hold for a magazine.
+function fireBtnPos() {
+  const s = ctlScale();
   const j = jPos('r');
-  const a = ARC_A[i] * Math.PI / 180;
-  const d = ARC_D * ctlScale();
-  return [j[0] + Math.cos(a) * d, j[1] - Math.sin(a) * d];
+  return [j[0] - 104 * s, j[1] + 4 * s];
 }
 
-// On-screen action buttons
+// Keeps a floating stick origin inside the playable area so a thumb that starts
+// the drag against an edge still gets a full range of motion.
+function clampStickOrigin(x, y) {
+  const r = jRad() + 8;
+  const [saT, saR, saB, saL] = saInsets();
+  return [
+    Math.max(r + saL, Math.min(W - r - saR, x)),
+    Math.max(r + saT, Math.min(H - r - saB, y))
+  ];
+}
+
+// Ability cluster: a compact, uniform 2x2 block in the right-hand band, anchored
+// above the aim stick and clear of the pause button, the weapon card and the top
+// HUD bar. Slots are ordered by how often they are used - slot 0 (the class's
+// signature skill) takes the bottom-right cell, the one nearest the resting
+// thumb; the grenade, used least, takes the far corner.
+//
+// This replaced an arc of four buttons around the aim stick. The arc fanned out
+// into exactly the band the FIRE button now needs, so an arc plus a trigger could
+// not both fit on a 360px-tall screen - and the arc's angles meant four
+// different button positions for a player to learn.
+const CLU_CELL = [
+  [1, 1],  // slot 0
+  [0, 1],  // slot 1
+  [1, 0],  // slot 2
+  [0, 0],  // slot 3
+];
+function clusterPos(i) {
+  const s = ctlScale();
+  const j = jPos('r');
+  const cell = CLU_CELL[i] || [0, 0];
+  const pitch = 52 * s;
+  return [j[0] + (cell[0] - 1) * pitch, j[1] - 104 * s - cell[1] * pitch];
+}
+
+// Activation feedback rings: pushed by btPress(), drawn for a beat and gone.
+const BT_FX = [];
+function btPress(b, x, y) {
+  BT_FX.push({
+    x, y,
+    r: btRad() * (b.rr || 1) + 4,
+    t0: (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(),
+    col: b.fire ? '#ff7a4a' : '#8fae4a'
+  });
+  if (BT_FX.length > 10) BT_FX.shift();
+}
+
+// On-screen action buttons. `hr` is the tap radius, `rr` a draw-size multiplier.
 const BT = [
+  // Held, not tapped: firing continues for as long as the button is down, and the
+  // weapon's own cadence, ammo and reloads still govern the rate.
+  { id: 'fire', n: 'FIRE', fire: 1, rr: 1.25, hr: 46, p: () => fireBtnPos(), f() {} },
   {
+    id: 'sk0',
     get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[0] : 'dash'; },
     get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'DASH'; },
-    p: () => arcPos(0),
+    p: () => clusterPos(0),
     f() { skill(this.k); }
   },
   {
+    id: 'sk1',
     get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[1] : 'nova'; },
     get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'NOVA'; },
-    p: () => arcPos(1),
+    p: () => clusterPos(1),
     f() { skill(this.k); }
   },
   {
+    id: 'sk2',
     get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[2] : 'rage'; },
     get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'RAGE'; },
-    p: () => arcPos(2),
+    p: () => clusterPos(2),
     f() { skill(this.k); }
   },
-  { n: 'GREN', k: 'gren', p: () => arcPos(3), f: () => skill('gren') },
-  { n: 'II', ar: 1, p: () => { const [saT, saR] = saInsets(); const s = ctlScale(); return [W - 34 * s - saR, 30 * s + saT]; }, f: () => pause() },
+  { id: 'gren', n: 'GREN', k: 'gren', p: () => clusterPos(3), f: () => skill('gren') },
+  { id: 'pause', n: 'II', ar: 1, p: () => { const [saT, saR] = saInsets(); const s = ctlScale(); return [W - 34 * s - saR, 30 * s + saT]; }, f: () => pause() },
   // Reload sits beside the weapon card. Swapping is done in the weapon picker
   // now: two tiny arrows flanking the card were easy to hit while dragging.
-  { n: '\u21bb', ar: 1, p: () => { const [, , saB] = saInsets(); const r = weaponHudRect(); return [r.x + r.w + 34 * ctlScale(), H - 29 - saB]; }, f: () => { if (run) startReload(); } }
+  { id: 'reload', n: '\u21bb', ar: 1, p: () => { const [, , saB] = saInsets(); const r = weaponHudRect(); return [r.x + r.w + 34 * ctlScale(), H - 29 - saB]; }, f: () => { if (run) startReload(); } }
 ];
 
 function txt(x, y, s, c, b) {
@@ -201,7 +276,7 @@ function hurtP(dmg, srcX, srcY) {
   // Screen shake scaled to damage (respecting shake toggle & reduced motion)
   if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : (QUALITY_SETTINGS.screenShake && !isReducedMotion())) {
     const scaledShake = Math.min(24, Math.max(4, Math.round(d * 0.55)));
-    SH = Math.max(SH, scaledShake);
+    addShake(scaledShake);
   }
   if (typeof snd === 'function') snd(110, 0.2, 'sawtooth', 0.08, 0.5);
   if (typeof txt === 'function') txt(P.x, P.y - 20, '-' + d, '#ff5a3a');
@@ -392,9 +467,9 @@ function bossPhaseBreak(z, n) {
   RG.push({ x: z.x, y: z.y, r: 5, l: 0.9, v: 360, c: '255,255,255' });
   burst(z.x, z.y, (ZT[z.t] || ZT.boss).col, 22, 4, 150, 1);
   if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 78, d: ((ZT[z.t] || ZT.boss).dm || 32) * 0.9 });
-  if (typeof announce === 'function') announce('PHASE ' + n + ' BROKEN', '#ff5a3a', 'the husk is venting');
+  if (typeof announce === 'function') announce('PHASE ' + n + ' BROKEN', '#ff5a3a', 'the husk is venting', 2);
   if (typeof snd === 'function') snd(130, 0.5, 'sawtooth', 0.1, 0.6);
-  SH = Math.max(SH, 14);
+  addShake(11);
   if (typeof HIT_STOP_TIMER !== 'undefined') HIT_STOP_TIMER = Math.max(HIT_STOP_TIMER, 0.07);
 }
 
@@ -423,7 +498,7 @@ function grantSupplyDrop() {
     if (r <= 0) {
       d.fn();
       burst(P.x, P.y, d.col, 16, 3, 120);
-      if (typeof announce === 'function') announce('SUPPLY DROP', d.col, d.label);
+      if (typeof announce === 'function') announce('SUPPLY DROP', d.col, d.label, 3, 'supply');
       return d;
     }
   }
@@ -522,7 +597,7 @@ function fire() {
   });
   if (CS.length > 70) CS.shift();
 
-  if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : QUALITY_SETTINGS.screenShake) SH = Math.max(SH, w.p > 1 ? 4 : 1.5);
+  addShake(w.p > 1 ? 3 : 1.2);
 
   const curSkin = (typeof SV !== 'undefined' && SV && SV.eqSkin && SV.eqSkin[P.cur]) ? SKINS[SV.eqSkin[P.cur]] : null;
   const bulletCol = curSkin ? curSkin.col : WC[P.cur];
@@ -768,7 +843,7 @@ function killZ(z, src, hitAngle, isCrit, wi) {
       RG.push({ x: z.x, y: z.y, r: 8, l: 0.5, v: 520, c: '251,146,60' });
       burst(z.x, z.y, '#fb923c', 20, 4, 150, 1);
       if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 120, d: 55 });
-      SH = Math.max(SH, 10);
+      addShake(6);
       if (typeof snd === 'function') snd(110, 0.3, 'square', 0.08, 0.6);
     } else if (af.id === 'split') {
       // Splitters break into two smaller walkers - killing one is not done.
@@ -861,7 +936,7 @@ function boom(b, y0, r0, c0) {
   if (AOE_DEBRIS.length > 60) AOE_DEBRIS.splice(0, AOE_DEBRIS.length - 60);
 
   if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : (QUALITY_SETTINGS.screenShake && !isReducedMotion())) {
-    SH = Math.max(SH, 14);
+    addShake(11);
   }
   if (typeof noise === 'function') noise(0.35, 0.14);
 
@@ -915,7 +990,7 @@ function push(z, r) {
 function selectWeapon(i) {
   if (!P || P.reloading) return false;
   if (!(P.w && P.w[i])) {
-    if (typeof announce === 'function') announce('LOCKED', '#8892a0', 'Reach account rank ' + (WEAP_RANK[i] || 0));
+    if (typeof announce === 'function') announce('LOCKED', '#8892a0', 'Reach account rank ' + (WEAP_RANK[i] || 0), 3);
     return false;
   }
   if (P.cur === i) return false;
@@ -967,7 +1042,7 @@ function skill(k) {
         damageZ(z, 90 * S.dm, 'nova');
       }
     }
-    if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : QUALITY_SETTINGS.screenShake) SH = Math.max(SH, 8);
+    addShake(5);
     if (typeof noise === 'function') noise(0.25, 0.1);
   } else if (k === 'rage') {
     s.on = 6;
@@ -1085,6 +1160,10 @@ function saveBest() {
 
 function pause() {
   run = 0;
+  // A finger that was down when the app lost focus never delivers a touchend, so
+  // the stick would otherwise stay engaged through the pause and the player would
+  // resume mid-sprint. Every pause path funnels through here.
+  if (typeof releaseAllInputs === 'function') releaseAllInputs();
   const p = document.getElementById('pause');
   if (p) p.classList.add('on');
 }
@@ -1105,6 +1184,7 @@ function returnToLobby() {
   run = 0;
   pendingNextWave = 0;
   WAVE_CLEAR_T = 0;
+  if (typeof releaseAllInputs === 'function') releaseAllInputs();
   ['pause', 'perk', 'over', 'gunpick', 'boondraft'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('on');
@@ -1289,12 +1369,17 @@ function update(dt) {
   // Dual virtual sticks & keyboard inputs
   let mx = (K.d || K.arrowright ? 1 : 0) - (K.a || K.arrowleft ? 1 : 0);
   let my = (K.s || K.arrowdown ? 1 : 0) - (K.w || K.arrowup ? 1 : 0);
-  let firing = M.down;
+  let firing = M.down || fireHeld();
 
   const L = stick(J.l);
   if (L[2]) { mx = L[0]; my = L[1]; }
   const R = stick(J.r);
-  if (R[2]) { P.a = Math.atan2(R[1], R[0]); firing = 1; }
+  if (R[2]) {
+    P.a = Math.atan2(R[1], R[0]);
+    // Twin-stick default: aiming also fires. Under the FIRE-button preference
+    // the aim stick only steers and the button (or the mouse) drives the trigger.
+    if (ctlPref().fireMode === 'aim') firing = 1;
+  }
   else if (!TCH && M.moved) { P.a = Math.atan2(M.y - (P.y - CY), M.x - (P.x - CX)); }
 
   const l = Math.hypot(mx, my);
@@ -1324,7 +1409,9 @@ function update(dt) {
   for (const k in SK) if (SK[k] && SK[k].cd > 0) SK[k].cd -= dt * Math.min(1.5, 1 + 0.05 * (SV.cdr || 0)) * (S.cd2 || 1);
   if (SK && SK.rage && SK.rage.on > 0) SK.rage.on -= dt;
   P.fl -= dt;
-  SH *= 0.88;
+  // Camera shake decays on real frame time in loop(), not here: while a draft or
+  // the wave-clear beat holds the run at 0 this function never runs, so a frozen
+  // SH kept the camera vibrating at peak amplitude over a still world.
   S.t += dt;
 
   if (SV.regen) P.hp = Math.min(P.mx, P.hp + 0.4 * SV.regen * dt);
@@ -1615,7 +1702,7 @@ function update(dt) {
           RG.push({ x: z.x, y: z.y, r: 6, l: 0.75, v: 420, c: '255,220,120' });
           burst(z.x, z.y, '#ff8a3a', 22, 5, 170, 1);
           if (typeof boom === 'function') boom({ x: z.x, y: z.y, ex: 90, d: damage * 2.2 });
-          SH = Math.max(SH, 12);
+          addShake(9);
           if (typeof snd === 'function') snd(90, 0.4, 'square', 0.09, 0.7);
         } else if (z.bw <= 0 && dd < 620 && dd > 120 && los && !(P.dash > 0)) {
           z.ch = 0.7;
@@ -1804,7 +1891,7 @@ function update(dt) {
     for (const z of Z) { if (!z.dead) damageZ(z, 200 * S.dm, 'phoenix'); }
     RG.push({ x: P.x, y: P.y, r: 10, l: 0.7, v: 800, c: '255,160,40' });
     burst(P.x, P.y, '#ffb347', 40);
-    SH = 16;
+    addShake(13);
     S.ts = 'PHOENIX REBORN';
     S.tt = 3;
     if (typeof snd === 'function') snd(300, 0.5, 'sine', 0.12, 2);
@@ -2710,9 +2797,11 @@ function renderHUD() {
     X.fillRect(0, 0, W, H);
   }
 
-  // Nuke Blinding Whiteout Flash Effect
-  if (S && S.nukeFlash > 0) {
-    X.fillStyle = `rgba(255, 255, 255, ${Math.min(1.0, S.nukeFlash * 2.2)})`;
+  // Nuke Blinding Whiteout Flash Effect. Capped well below full white and
+  // skipped entirely under reduced visual effects: a screen-filling white frame
+  // is the single most uncomfortable thing the game drew.
+  if (S && S.nukeFlash > 0 && !isFxReduced()) {
+    X.fillStyle = `rgba(255, 255, 255, ${Math.min(0.55, S.nukeFlash * 1.6)})`;
     X.fillRect(0, 0, W, H);
   }
 
@@ -2748,9 +2837,10 @@ function renderHUD() {
   drawWeaponHud();
   X.textAlign = 'left';
 
-  // Screen-edge damage vignette
+  // Screen-edge damage vignette. This is the low-health warning, so it stays
+  // readable under reduced effects - just softer and shorter.
   if (HURT_VIGNETTE_TIMER > 0) {
-    const vAlpha = Math.min(0.7, HURT_VIGNETTE_TIMER * 2.0);
+    const vAlpha = Math.min(isFxReduced() ? 0.26 : 0.5, HURT_VIGNETTE_TIMER * 1.6);
     const vig = X.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.75);
     vig.addColorStop(0, 'rgba(239,68,68,0)');
     vig.addColorStop(1, `rgba(239,68,68,${vAlpha})`);
@@ -2848,7 +2938,9 @@ function renderHUD() {
 function drawControls() {
   // 1. Out of bounds map border warnings
   if (P && (P.x < 140 || P.x > WS - 140 || P.y < 140 || P.y > WS - 140)) {
-    const oobAlpha = 0.28 + 0.22 * Math.sin((S ? S.t : 0) * 8);
+    // Out-of-bounds warning: a slow, low-amplitude breathe instead of the old
+    // 1.3Hz throb, which read as a flicker at the screen edge.
+    const oobAlpha = isFxReduced() ? 0.34 : 0.3 + 0.1 * Math.sin((S ? S.t : 0) * 3);
     X.fillStyle = `rgba(239, 68, 68, ${oobAlpha})`;
     if (P.x < 140) X.fillRect(0, 0, 8, H);
     if (P.x > WS - 140) X.fillRect(W - 8, 0, 8, H);
@@ -2874,18 +2966,22 @@ function drawControls() {
   }
 
   // 3. Dual Virtual Joysticks
+  const ctlAlpha = ctlPref().opacity;
   const [lx, ly] = jPos('l');
   const [rx, ry] = jPos('r');
 
-  // Left joystick (Movement)
+  // Left joystick (Movement). The base ring follows the live origin so a
+  // floating stick appears under the thumb that summoned it.
+  const lBase = J.l ? [J.l.ox, J.l.oy] : [lx, ly];
   X.save();
+  X.globalAlpha = ctlAlpha;
   X.lineWidth = 2.5;
   X.strokeStyle = 'rgba(255, 255, 255, 0.25)';
   X.fillStyle = 'rgba(0, 0, 0, 0.22)';
-  X.beginPath(); X.arc(lx, ly, jRad(), 0, 6.28); X.fill(); X.stroke();
+  X.beginPath(); X.arc(lBase[0], lBase[1], jRad(), 0, 6.28); X.fill(); X.stroke();
   X.fillStyle = 'rgba(255, 255, 255, 0.2)';
   X.font = `900 ${Math.round(11 * ctlScale())}px Arial`; X.textAlign = 'center'; X.textBaseline = 'middle';
-  X.fillText('MOVE', lx, ly);
+  X.fillText('MOVE', lBase[0], lBase[1]);
   const curL = J.l ? [J.l.x, J.l.y] : [lx, ly];
   X.fillStyle = 'rgba(255, 255, 255, 0.35)';
   X.beginPath(); X.arc(curL[0], curL[1], jKnob(), 0, 6.28); X.fill();
@@ -2893,14 +2989,16 @@ function drawControls() {
   X.restore();
 
   // Right joystick (Aim & Fire)
+  const rBase = J.r ? [J.r.ox, J.r.oy] : [rx, ry];
   X.save();
+  X.globalAlpha = ctlAlpha;
   X.lineWidth = 2.5;
   X.strokeStyle = 'rgba(255, 110, 80, 0.28)';
   X.fillStyle = 'rgba(0, 0, 0, 0.22)';
-  X.beginPath(); X.arc(rx, ry, jRad(), 0, 6.28); X.fill(); X.stroke();
+  X.beginPath(); X.arc(rBase[0], rBase[1], jRad(), 0, 6.28); X.fill(); X.stroke();
   X.fillStyle = 'rgba(255, 110, 80, 0.22)';
   X.font = `900 ${Math.round(11 * ctlScale())}px Arial`; X.textAlign = 'center'; X.textBaseline = 'middle';
-  X.fillText('AIM', rx, ry);
+  X.fillText('AIM', rBase[0], rBase[1]);
   const curR = J.r ? [J.r.x, J.r.y] : [rx, ry];
   X.fillStyle = 'rgba(255, 110, 80, 0.42)';
   X.beginPath(); X.arc(curR[0], curR[1], jKnob(), 0, 6.28); X.fill();
@@ -2908,13 +3006,35 @@ function drawControls() {
   X.restore();
 
   // 4. On-screen Action & Utility Buttons
+  const reloading = !!(P && P.reloading);
+  const noAmmo = !!(P && P.ammo != null && P.ammo <= 0);
   for (const b of BT) {
     const p = b.p();
     const bx = p[0], by = p[1];
-    const r = btRad(b.ar);
+    const r = btRad() * (b.rr || 1);
     const cdRatio = (b.k && SK[b.k] && SK[b.k].cd > 0) ? Math.max(0, Math.min(1, SK[b.k].cd / (SK[b.k].max || 1))) : 0;
 
+    // The trigger reads as the primary action: solid orange-red, brightest while
+    // held, muted while the weapon is empty or reloading.
+    if (b.fire) {
+      const held = fireHeld();
+      const dry = reloading || noAmmo;
+      X.save();
+      X.globalAlpha = ctlAlpha;
+      X.fillStyle = held ? 'rgba(255,104,62,0.88)' : dry ? 'rgba(46,30,24,0.8)' : 'rgba(150,44,26,0.84)';
+      X.beginPath(); X.arc(bx, by, r, 0, 6.28); X.fill();
+      X.strokeStyle = dry ? 'rgba(140,90,70,0.55)' : held ? '#ffd7c2' : '#ff7a4a';
+      X.lineWidth = held ? 3 : 2.2; X.stroke();
+      X.fillStyle = dry ? 'rgba(214,186,170,0.7)' : '#fff3ea';
+      X.font = `900 ${Math.round(13 * ctlScale())}px Impact, Arial Black, sans-serif`;
+      X.textAlign = 'center'; X.textBaseline = 'middle';
+      X.fillText(reloading ? 'RELOAD' : 'FIRE', bx, by);
+      X.restore();
+      continue;
+    }
+
     X.save();
+    X.globalAlpha = ctlAlpha;
     X.fillStyle = cdRatio > 0 ? 'rgba(25, 30, 22, 0.72)' : 'rgba(20, 26, 18, 0.88)';
     X.beginPath(); X.arc(bx, by, r, 0, 6.28); X.fill();
     X.strokeStyle = cdRatio > 0 ? 'rgba(90, 100, 80, 0.45)' : (b.ar ? '#3d4f34' : '#8fae4a');
@@ -2935,6 +3055,22 @@ function drawControls() {
     X.fillText(b.n, bx, by);
     X.restore();
   }
+
+  // 5. Activation rings: one short expanding ring per press, so an ability that
+  //    fires while the screen is busy still confirms that the tap landed.
+  if (BT_FX.length) {
+    const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    for (let i = BT_FX.length - 1; i >= 0; i--) {
+      const f = BT_FX[i];
+      const a = (nowMs - f.t0) / 320;
+      if (a >= 1) { BT_FX.splice(i, 1); continue; }
+      X.save();
+      X.globalAlpha = (1 - a) * 0.7 * ctlAlpha;
+      X.strokeStyle = f.col; X.lineWidth = 2;
+      X.beginPath(); X.arc(f.x, f.y, f.r + a * 14, 0, 6.28); X.stroke();
+      X.restore();
+    }
+  }
 }
 
 // MAIN ANIMATION LOOP
@@ -2946,6 +3082,17 @@ function loop(t) {
   if (typeof updateFPSMonitor === 'function') {
     updateFPSMonitor(dt);
   }
+
+  // Camera shake, the white-out flash and the notification queue all age on real
+  // frame time rather than simulation time. update() only runs while run === 1,
+  // so when a draft or the wave-clear beat held the run at 0 the shake froze at
+  // peak amplitude (a still world with a vibrating camera), the flash stayed up,
+  // and every banner that had been raised before the pause reappeared at once on
+  // resume.
+  SH *= Math.pow(0.88, dt * 45);
+  if (SH < 0.05) SH = 0;
+  if (S && S.nukeFlash > 0) S.nukeFlash = Math.max(0, S.nukeFlash - dt);
+  if (typeof annUpdate === 'function') annUpdate(dt);
 
   if (run) {
     try {
@@ -3008,7 +3155,7 @@ function endWave() {
   const gd = (typeof ghostDelta === 'function') ? ghostDelta() : null;
   if (gd != null && Math.abs(gd) >= 1.5 && typeof announce === 'function') {
     announce(gd < 0 ? 'AHEAD OF GHOST' : 'BEHIND GHOST', gd < 0 ? '#4ade80' : '#f97316',
-      (gd < 0 ? '-' : '+') + Math.abs(gd) + 's vs your best run');
+      (gd < 0 ? '-' : '+') + Math.abs(gd) + 's vs your best run', 3, 'ghost');
   }
   rebuild();
 
@@ -3016,11 +3163,15 @@ function endWave() {
   // overlay; that screen collided with the perk draft and could sit on top of
   // it. The run now breathes for two seconds and rolls into the next wave.
   // Hold the next wave for a beat so the clear reads, but never block the run.
+  // The beat only has to cover the case where no draft takes the screen: when a
+  // draft is queued the player is already reading that panel, so holding the
+  // arena for another two seconds after they pick it read as a freeze.
   pendingNextWave = 1;
-  WAVE_CLEAR_T = 2.0;
+  const draftQueued = !!(S && ((S.boonOffer && S.boonOffer.length) || S.pend > 0));
+  WAVE_CLEAR_T = draftQueued ? 0.45 : 1.4;
   run = 0;
   if (typeof grantSupplyDrop === 'function') grantSupplyDrop();
-  if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound');
+  if (typeof announce === 'function') announce('WAVE ' + S.wave + ' CLEARED', '#8fae4a', 'next wave inbound', 2, 'wave');
   // One draft at a time: the boon draft first, then the perk draft. Chained so
   // a wave clear never shows two power-up screens together.
   openNextDraft();
@@ -3072,38 +3223,82 @@ function begin() {
   else start();
 }
 
+// ---------------------------------------------------------------------------
+// TOUCH INPUT
+// Every active pointer owns exactly one role ('l' movement, 'r' aim, 'fire',
+// 'btn'), recorded in TOUCH_ROLE by pointer identifier. Releasing one finger
+// therefore releases only its own role: aiming, moving and firing can all be
+// held at the same time, and a stray touchend can never cancel another input.
+// ---------------------------------------------------------------------------
+
+function startStick(k, t) {
+  const pref = ctlPref();
+  const [bx, by] = jPos(k);
+  let ox = bx, oy = by;
+  if (pref.floating) {
+    // Floating: the stick materialises under the thumb, clamped on-screen so an
+    // edge press still gets a full throw.
+    [ox, oy] = clampStickOrigin(t.clientX, t.clientY);
+  }
+  J[k] = { id: t.identifier, ox, oy, x: t.clientX, y: t.clientY };
+}
+
+function touchStart(t) {
+  // The weapon picker is a DOM sheet over the canvas; ignore the world beneath.
+  // Only touchstart is gated: cancels and releases must still be processed or a
+  // finger that was already down would stay owned by a dead role.
+  if (S && S.gp) return;
+  // Action buttons are claimed before the sticks, so an ability or FIRE press
+  // near the aim stick cannot also start an aim drag.
+  if (run) {
+    for (const b of BT) {
+      const p = b.p();
+      const hr = btHit(b);
+      if (Math.hypot(t.clientX - p[0], t.clientY - p[1]) >= hr) continue;
+      if (b.fire) { FIRE_HOLD = t.identifier; TOUCH_ROLE.set(t.identifier, 'fire'); }
+      else { b.f(); TOUCH_ROLE.set(t.identifier, 'btn'); }
+      btPress(b, p[0], p[1]);
+      return;
+    }
+    // The weapon card opens the picker. Nothing else down here switches guns any
+    // more, so a stray thumb drag can never change the equipped weapon.
+    if (P && weaponHudHit(t.clientX, t.clientY)) { TOUCH_ROLE.set(t.identifier, 'btn'); openGunPicker(); return; }
+  }
+  // Sticks: movement on the left half, aiming on the right. A second finger in a
+  // half whose stick is already held takes the other stick if it is free.
+  const k = t.clientX < W / 2 ? 'l' : 'r';
+  const other = k === 'l' ? 'r' : 'l';
+  const target = J[k] ? (J[other] ? null : other) : k;
+  if (!target) return;
+  if (t.clientY <= H * 0.25) return;   // top band is HUD, not sticks
+  TOUCH_ROLE.set(t.identifier, target);
+  startStick(target, t);
+}
+
+function touchMove(t) {
+  const role = TOUCH_ROLE.get(t.identifier);
+  if (role !== 'l' && role !== 'r') return;
+  const s = J[role];
+  if (s && s.id === t.identifier) { s.x = t.clientX; s.y = t.clientY; }
+}
+
+function touchEnd(id) {
+  const role = TOUCH_ROLE.get(id);
+  TOUCH_ROLE.delete(id);
+  if (role === 'l' || role === 'r') {
+    if (J[role] && J[role].id === id) J[role] = null;
+  } else if (role === 'fire') {
+    if (FIRE_HOLD === id) FIRE_HOLD = 0;
+  }
+}
+
 function tch(e) {
   e.preventDefault();
-  // The picker is a DOM sheet over the canvas; ignore the world underneath.
-  if (S && S.gp) return;
   TCH = 1;
-  for (const t of e.changedTouches) {
-    if (e.type === 'touchstart') {
-      const bi = BT.findIndex(b => {
-        const p = b.p();
-        return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38) * ctlScale();
-      });
-      if (bi >= 0) { if (run) BT[bi].f(); continue; }
-      // The weapon card opens the picker. Nothing else down here switches guns
-      // any more, so a stray thumb drag can never change the equipped weapon.
-      if (run && P && weaponHudHit(t.clientX, t.clientY)) { openGunPicker(); continue; }
-      const k = t.clientX < W / 2 ? 'l' : 'r';
-      if (!J[k] && t.clientY > H * 0.25) {
-        const [bx, by] = jPos(k);
-        const ox = Math.abs(t.clientX - bx) < 100 ? bx : t.clientX;
-        const oy = Math.abs(t.clientY - by) < 100 ? by : t.clientY;
-        J[k] = { id: t.identifier, ox, oy, x: t.clientX, y: t.clientY };
-      }
-    } else {
-      for (const k of ['l', 'r']) {
-        const s = J[k];
-        if (s && s.id === t.identifier) {
-          if (e.type === 'touchmove') { s.x = t.clientX; s.y = t.clientY; }
-          else J[k] = null;
-        }
-      }
-    }
-  }
+  if (e.type === 'touchcancel') { for (const t of e.changedTouches) touchEnd(t.identifier); return; }
+  if (e.type === 'touchstart') { for (const t of e.changedTouches) touchStart(t); return; }
+  if (e.type === 'touchmove') { for (const t of e.changedTouches) touchMove(t); return; }
+  for (const t of e.changedTouches) touchEnd(t.identifier);
 }
 
 

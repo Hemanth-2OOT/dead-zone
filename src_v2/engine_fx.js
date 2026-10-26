@@ -1,15 +1,58 @@
 // DEAD ZONE v2.9.0 - FX: ANNOUNCER, COMBO METER, HEARTBEAT, BEACONS, BUILDINGS, FOOTSTEPS, IMPACTS
 
-let ANN = [];          // announcer queue (screen-space banners)
-let FX_STEP_T = 0;
-let FX_HEART = 0;
+// Announcer queue (screen-space banners).
+//
+// Every entry carries an explicit priority - 1 critical, 2 major, 3 minor - and
+// an optional `key` identity. Before this, one flat queue held every message at
+// the same visual weight, so a wave clear, a combo tier and a supply drop all
+// stacked on top of each other and every one of them scale-punched on entry.
+//
+//   * A keyed event refreshes its own banner instead of pushing a second one,
+//     so one wave produces one wave banner.
+//   * Raising a major (1-2) clears the minor chatter still on screen.
+//   * At most one major is ever drawn; minors ride below in a small steady
+//     column.
+let ANN = [];
+let ANN_ID = 0;
+const ANN_PRI_LIFE = { 1: 2.6, 2: 2.2, 3: 1.5 };
 
-function announce(title, col, sub) {
+function announce(title, col, sub, pri, key) {
   if (!S) return;
-  // Collapse duplicates fired in quick succession
-  if (ANN.length && ANN[ANN.length - 1].title === title && ANN[ANN.length - 1].t < 0.6) return;
-  ANN.push({ title, col: col || '#fff', sub: sub || '', t: 0, life: 2.4 });
-  if (ANN.length > 4) ANN.shift();
+  pri = pri || 3;
+  if (key) {
+    const dup = ANN.find(a => a.key === key);
+    if (dup) {
+      dup.title = title; dup.sub = sub || ''; dup.col = col || '#fff';
+      dup.t = 0; dup.pri = pri;
+      return;
+    }
+  } else if (ANN.length && ANN[ANN.length - 1].title === title && ANN[ANN.length - 1].t < 0.6) {
+    return;
+  }
+  // A major announcement clears stale minor chatter (but keeps anything raised
+  // in the last half second, so a reward line that belongs to this same moment
+  // is not thrown away by the banner that describes it).
+  if (pri <= 2) pruneArr(ANN, a => a.pri >= 3 || a.t < 0.5);
+  ANN.push({
+    id: ++ANN_ID, title, col: col || '#fff', sub: sub || '',
+    t: 0, life: ANN_PRI_LIFE[pri] || 1.5, pri, key: key || null
+  });
+  // Cap the queue: newest major plus the three newest minors.
+  const majors = ANN.filter(a => a.pri <= 2);
+  const minors = ANN.filter(a => a.pri >= 3);
+  while (majors.length > 1) majors.shift();
+  while (minors.length > 3) minors.shift();
+  ANN = majors.concat(minors).sort((a, b) => a.id - b.id);
+}
+
+// Ages the banner queue on real frame time. Called from loop() rather than from
+// the run-gated update(), so banners expire normally while a draft or the
+// wave-clear beat has the run paused instead of all reappearing at once when
+// play resumes.
+function annUpdate(dt) {
+  if (!ANN.length) return;
+  for (const a of ANN) a.t += dt;
+  pruneArr(ANN, a => a.t < a.life);
 }
 
 function fxReset() {
@@ -17,8 +60,7 @@ function fxReset() {
 }
 
 function fxUpdate(dt) {
-  for (const a of ANN) a.t += dt;
-  pruneArr(ANN, a => a.t < a.life);
+  // Banner aging moved to annUpdate() so it is not gated on the run being live.
 
   // Footstep dust while moving
   if (P && P.hp > 0 && !(P.dash > 0)) {
@@ -225,23 +267,48 @@ function drawComboMeter(W, H) {
 
 function drawAnnouncements(W, H) {
   if (!ANN.length) return;
-  let yy = H * 0.2;
-  for (const a of ANN) {
-    const inT = Math.min(1, a.t / 0.28), outT = Math.min(1, Math.max(0, (a.life - a.t) / 0.45));
+
+  // One major line at a time: the newest entry that is not minor.
+  let major = null;
+  for (let i = ANN.length - 1; i >= 0; i--) {
+    if (ANN[i].pri <= 2) { major = ANN[i]; break; }
+  }
+
+  if (major) {
+    const a = major;
+    const inT = Math.min(1, a.t / 0.26), outT = Math.min(1, Math.max(0, (a.life - a.t) / 0.42));
     const ease = 1 - Math.pow(1 - inT, 3);
     const alpha = Math.min(ease, outT);
-    const sc = 0.7 + 0.3 * ease + (a.t < 0.2 ? 0.12 * (1 - a.t / 0.2) : 0);
-    X.save(); X.translate(W / 2, yy); X.scale(sc, sc); X.globalAlpha = alpha; X.textAlign = 'center';
-    X.shadowColor = a.col; X.shadowBlur = 16;
+    // A single short scale-in. The old renderer punched the scale on every entry
+    // and again for the first 0.2s of its life, which is what made a wave clear
+    // read as a flicker when several banners were alive at once.
+    const sc = 0.95 + 0.05 * ease;
+    X.save();
+    X.translate(W / 2, H * 0.2); X.scale(sc, sc); X.globalAlpha = alpha; X.textAlign = 'center';
+    X.shadowColor = a.col; X.shadowBlur = 8;
     X.fillStyle = a.col; X.font = '900 ' + (W < 700 ? 26 : 32) + 'px Impact,Arial Black,sans-serif';
     X.fillText(a.title, 0, 0);
     X.shadowBlur = 0;
     if (a.sub) { X.font = 'bold 11px Arial'; X.fillStyle = '#f1efe2'; X.fillText(a.sub, 0, 18); }
-    // sweeping underline
-    X.fillStyle = a.col; X.globalAlpha = alpha * 0.8;
-    const lw = 60 + 120 * ease; X.fillRect(-lw / 2, a.sub ? 26 : 8, lw, 2);
+    X.fillStyle = a.col; X.globalAlpha = alpha * 0.7;
+    const lw = 70 + 110 * ease; X.fillRect(-lw / 2, a.sub ? 26 : 8, lw, 2);
     X.restore();
-    yy += a.sub ? 54 : 42;
+  }
+
+  // Minor feedback (combo, cash, pickups, ghost pace) rides below in a compact,
+  // steady column: no scale punch, no glow, never over the major line.
+  let yy = H * 0.2 + (major ? 52 : 0);
+  let shown = 0;
+  for (const a of ANN) {
+    if (a === major || shown >= 3) continue;
+    const inT = Math.min(1, a.t / 0.22), outT = Math.min(1, Math.max(0, (a.life - a.t) / 0.35));
+    X.save();
+    X.globalAlpha = Math.min(inT, outT) * 0.85;
+    X.textAlign = 'center';
+    X.fillStyle = a.col; X.font = '900 12px Arial';
+    X.fillText(a.sub ? a.title + '   ' + a.sub : a.title, W / 2, yy);
+    X.restore();
+    yy += 16; shown++;
   }
 }
 

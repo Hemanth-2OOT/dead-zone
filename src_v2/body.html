@@ -224,19 +224,34 @@
 
     <!-- TAB 8: OPTIONS & SETTINGS -->
     <div class="pp" id="p3">
-      <div class="card" style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:10px;padding:16px">
-        <b style="font-size:15px;letter-spacing:1px;color:#ffd36b">TACTICAL SETTINGS</b>
-        <button id="sndbtn" style="width:100%">SOUND: ON</button>
-        <button id="apbtn" style="width:100%">AUTO-PICK POWERS: OFF</button>
-        <button id="qualbtn" onclick="toggleQuality()" style="width:100%">GRAPHICS QUALITY: HIGH</button>
-        <button id="shakebtn" onclick="toggleShake()" style="width:100%">SCREEN SHAKE: ON</button>
-        <button id="gorebtn" onclick="toggleGore()" style="width:100%">BLOOD & GORE: FULL</button>
-        <div style="background:rgba(0,0,0,.35);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.06)">
-          <span style="font-weight:700;display:block;margin-bottom:6px;font-size:11px">Survivor Suit Tint</span>
+      <div class="card setcard">
+        <b class="settitle">TACTICAL SETTINGS</b>
+        <div class="setgrp">
+          <span class="setlbl">CONTROLS</span>
+          <button id="ctlsizebtn" class="setbtn" onclick="cycleCtlSize()">CONTROL SIZE: 100%</button>
+          <button id="ctlopbtn" class="setbtn" onclick="cycleCtlOpacity()">CONTROL OPACITY: 100%</button>
+          <button id="ctlbtn" class="setbtn" onclick="cycleCtlMode()">JOYSTICK: FIXED</button>
+          <button id="firebtn" class="setbtn" onclick="cycleFireMode()">FIRE: AIM TO FIRE</button>
+        </div>
+        <div class="setgrp">
+          <span class="setlbl">VISUAL COMFORT</span>
+          <button id="shakebtn" class="setbtn" onclick="toggleShake()">CAMERA SHAKE: NORMAL</button>
+          <button id="fxbtn" class="setbtn" onclick="cycleFx()">VISUAL EFFECTS: FULL</button>
+          <button id="rmbtn" class="setbtn" onclick="cycleReducedMotion()">REDUCED MOTION: AUTO</button>
+          <button id="qualbtn" class="setbtn" onclick="toggleQuality()">GRAPHICS QUALITY: HIGH</button>
+          <button id="gorebtn" class="setbtn" onclick="toggleGore()">BLOOD &amp; GORE: FULL</button>
+        </div>
+        <div class="setgrp">
+          <span class="setlbl">GENERAL</span>
+          <button id="sndbtn" class="setbtn">SOUND: ON</button>
+          <button id="apbtn" class="setbtn">AUTO-PICK POWERS: OFF</button>
+        </div>
+        <div class="setgrp">
+          <span class="setlbl">Survivor Suit Tint</span>
           <div style="display:flex;gap:8px">
-            <button style="flex:1;min-height:30px;font-size:11px" onclick="PC='#d8c9a0';SV.col=PC;sv()">Sand</button>
-            <button style="flex:1;min-height:30px;font-size:11px" onclick="PC='#7fb2d9';SV.col=PC;sv()">Blue</button>
-            <button style="flex:1;min-height:30px;font-size:11px" onclick="PC='#d98f7f';SV.col=PC;sv()">Red</button>
+            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#d8c9a0';SV.col=PC;sv()">Sand</button>
+            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#7fb2d9';SV.col=PC;sv()">Blue</button>
+            <button style="flex:1;min-height:34px;font-size:11px" onclick="PC='#d98f7f';SV.col=PC;sv()">Red</button>
           </div>
         </div>
       </div>

@@ -76,7 +76,7 @@ function meteorBlast(x, y, r, dmg) {
       });
     }
   }
-  if (typeof isShakeEnabled === 'function' ? isShakeEnabled() : true) SH = Math.max(SH, 11);
+  addShake(8);
   if (typeof noise === 'function') noise(0.4, 0.14);
   // Zombies only: an automatic perk must never punish the player for its own cast.
   for (const z of Z) {

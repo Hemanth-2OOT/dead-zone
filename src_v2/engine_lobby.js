@@ -941,32 +941,97 @@ function lobby2() {
 }
 
 function renderSettingsUI() {
-  const qBtn = document.getElementById('qualbtn') || document.getElementById('opt-quality-btn');
-  if (qBtn) qBtn.textContent = `GRAPHICS QUALITY: ${QUALITY_SETTINGS.profile.toUpperCase()}`;
-  const sBtn = document.getElementById('shakebtn') || document.getElementById('opt-shake-btn');
-  if (sBtn) sBtn.textContent = `SCREEN SHAKE: ${QUALITY_SETTINGS.screenShake ? 'ON' : 'OFF'}`;
-  const gBtn = document.getElementById('gorebtn') || document.getElementById('opt-gore-btn');
-  if (gBtn) gBtn.textContent = `BLOOD & GORE: ${QUALITY_SETTINGS.goreLevel.toUpperCase()}`;
-  const sndBtn = document.getElementById('sndbtn');
-  if (sndBtn) sndBtn.textContent = `AUDIO & SFX: ${SV.mute ? 'MUTED' : 'ENABLED'}`;
+  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  set('qualbtn', `GRAPHICS QUALITY: ${QUALITY_SETTINGS.profile.toUpperCase()}`);
+  set('gorebtn', `BLOOD & GORE: ${QUALITY_SETTINGS.goreLevel.toUpperCase()}`);
+  set('sndbtn', `AUDIO & SFX: ${SV.mute ? 'MUTED' : 'ENABLED'}`);
+  set('apbtn', `AUTO-PICK POWERS: ${SV.ap ? 'ON' : 'OFF'}`);
+
+  // Camera shake is a 3-level choice now, not a boolean. When reduced motion is
+  // forcing it off, say so - an "OFF" that will not toggle is otherwise a mystery.
+  const lv = Math.max(0, Math.min(2, Number(SV.shakeLvl != null ? SV.shakeLvl : 2) || 0));
+  const rmForce = isReducedMotion() && lv > 0;
+  set('shakebtn', `CAMERA SHAKE: ${['OFF', 'REDUCED', 'NORMAL'][lv]}${rmForce ? ' (REDUCED MOTION)' : ''}`);
+
+  set('fxbtn', `VISUAL EFFECTS: ${SV.fx === 'reduced' ? 'REDUCED' : 'FULL'}`);
+  set('rmbtn', `REDUCED MOTION: ${SV.rm == null ? 'AUTO' : (SV.rm ? 'ON' : 'OFF')}`);
+
+  const c = ctlPref();
+  set('ctlsizebtn', `CONTROL SIZE: ${Math.round(c.size * 100)}%`);
+  set('ctlopbtn', `CONTROL OPACITY: ${Math.round(c.opacity * 100)}%`);
+  set('ctlbtn', `JOYSTICK: ${c.floating ? 'FLOATING' : 'FIXED'}`);
+  set('firebtn', `FIRE: ${c.fireMode === 'button' ? 'FIRE BUTTON' : 'AIM TO FIRE'}`);
 }
 
 function toggleQuality() {
   const modes = ['high', 'med', 'low'];
   const next = modes[(modes.indexOf(QUALITY_SETTINGS.profile) + 1) % modes.length];
-  setQualityProfile(next);
+  SV.quality = next;
+  applyVisualSettings();
+  sv();
   renderSettingsUI();
 }
 
 function toggleShake() {
-  QUALITY_SETTINGS.screenShake = !QUALITY_SETTINGS.screenShake;
+  const cur = Math.max(0, Math.min(2, Number(SV.shakeLvl != null ? SV.shakeLvl : 2) || 0));
+  const next = (cur + 1) % 3;
+  SV.shakeLvl = next;
+  SV.shake = next > 0 ? 1 : 0;   // legacy mirror
+  applyVisualSettings();
+  sv();
   renderSettingsUI();
 }
 
 function toggleGore() {
   const modes = ['full', 'reduced', 'minimal'];
   const next = modes[(modes.indexOf(QUALITY_SETTINGS.goreLevel) + 1) % modes.length];
-  QUALITY_SETTINGS.goreLevel = next;
+  SV.goreLvl = next;
+  SV.gore = next === 'minimal' ? 0 : 1;
+  applyVisualSettings();
+  sv();
+  renderSettingsUI();
+}
+
+function cycleCtlSize() {
+  const steps = [0.85, 1, 1.15, 1.3];
+  const cur = ctlPref().size;
+  const i = steps.findIndex(v => Math.abs(v - cur) < 0.01);
+  SV.ctlSize = steps[(i + 1) % steps.length];
+  sv();
+  renderSettingsUI();
+}
+
+function cycleCtlOpacity() {
+  const steps = [1, 0.8, 0.6, 0.45];
+  const cur = ctlPref().opacity;
+  const i = steps.findIndex(v => Math.abs(v - cur) < 0.02);
+  SV.ctlOpacity = steps[(i + 1) % steps.length];
+  sv();
+  renderSettingsUI();
+}
+
+function cycleCtlMode() {
+  SV.ctlMode = ctlPref().floating ? 'fixed' : 'floating';
+  sv();
+  renderSettingsUI();
+}
+
+function cycleFireMode() {
+  SV.fireMode = ctlPref().fireMode === 'button' ? 'aim' : 'button';
+  sv();
+  renderSettingsUI();
+}
+
+function cycleFx() {
+  SV.fx = SV.fx === 'reduced' ? 'full' : 'reduced';
+  sv();
+  renderSettingsUI();
+}
+
+// AUTO follows the OS preference, ON and OFF are explicit overrides.
+function cycleReducedMotion() {
+  SV.rm = (SV.rm == null) ? true : (SV.rm ? false : null);
+  sv();
   renderSettingsUI();
 }
 

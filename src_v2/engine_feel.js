@@ -128,7 +128,7 @@ function combatImpactFX(x, y, ang, dmg, isCrit, wi) {
   }
   if (typeof QUALITY_SETTINGS !== 'undefined' && QUALITY_SETTINGS.screenShake) {
     const punch = tier === 3 ? (isCrit ? 9 : 6.5) : tier === 2 ? (isCrit ? 5 : 3.4) : (isCrit ? 2.6 : 1.2);
-    SH = Math.max(SH, punch);
+    addShake(punch);
   }
 }
 

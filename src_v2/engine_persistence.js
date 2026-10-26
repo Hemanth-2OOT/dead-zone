@@ -17,6 +17,16 @@ let SV = {
   cb: 0,
   day: '',
   mute: 0,
+  // Mobile control + visual comfort preferences (persisted, see ctlPref()).
+  ctlSize: 1,
+  ctlOpacity: 1,
+  ctlMode: 'fixed',
+  fireMode: 'aim',
+  shakeLvl: 2,
+  fx: 'full',
+  rm: null,
+  quality: 'high',
+  goreLvl: 'full',
   cls: 0,
   ucl: [1],
   sp: 3,
@@ -76,6 +86,18 @@ function sanitizeSV(s) {
   // never be able to inject NaN/Infinity into P.mx, S.dm or the crit roll.
   const RANKS = ['mx', 'spd', 'dm', 'rof', 'crit', 'vamp', 'regen', 'cb', 'xpb', 'hu', 'du', 'gu', 'sc', 'shadows', 'luck', 'mute'];
   for (const k of RANKS) out[k] = Math.max(0, Math.min(999, Math.floor(Number(out[k]) || 0)));
+  // Control and comfort preferences. Clamped rather than trusted: a corrupt save
+  // must not be able to hand ctlScale() a NaN (which would place every control at
+  // NaN) or push the control size off the screen.
+  out.ctlSize = Math.max(0.8, Math.min(1.3, Number(out.ctlSize) || 1));
+  out.ctlOpacity = Math.max(0.35, Math.min(1, Number(out.ctlOpacity) || 1));
+  out.ctlMode = out.ctlMode === 'floating' ? 'floating' : 'fixed';
+  out.fireMode = out.fireMode === 'button' ? 'button' : 'aim';
+  out.shakeLvl = Math.max(0, Math.min(2, Number(out.shakeLvl != null ? out.shakeLvl : 2) || 0));
+  out.fx = out.fx === 'reduced' ? 'reduced' : 'full';
+  out.rm = (out.rm == null) ? null : Boolean(out.rm);
+  out.quality = ['high', 'med', 'low'].indexOf(out.quality) >= 0 ? out.quality : 'high';
+  out.goreLvl = ['full', 'reduced', 'minimal'].indexOf(out.goreLvl) >= 0 ? out.goreLvl : 'full';
   if (typeof CL !== 'undefined' && CL.length) out.cls = Math.max(0, Math.min(CL.length - 1, Math.floor(Number(out.cls) || 0)));
   if (typeof WEAP !== 'undefined' && WEAP.length) out.start = Math.max(0, Math.min(WEAP.length - 1, Math.floor(Number(out.start) || 0)));
   if (!Array.isArray(out.own)) out.own = [1];

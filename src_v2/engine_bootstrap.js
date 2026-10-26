@@ -72,6 +72,9 @@ const GAME_VERSION = '2.11.0';
 
 ld();
 init();
+// Persisted graphics/gore/audio/comfort choices are applied before the first
+// frame, so a player who turned shake off does not see it once more on launch.
+applyVisualSettings();
 lobby();
 { const t = document.querySelector('#p0 .tagline'); if (t) t.textContent = 'OUTBREAK PROTOCOL \u2022 v' + GAME_VERSION; }
 initGameAssets();
@@ -122,7 +125,7 @@ if (dailyBtn) {
     if (typeof SV === 'undefined' || !SV) return;
     const today = new Date().toDateString();
     if (SV.day === today) {
-      if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow');
+      if (typeof announce === 'function') announce('ALREADY CLAIMED', '#8892a0', 'come back tomorrow', 3);
       return;
     }
     SV.cr = (SV.cr || 0) + 200;
@@ -130,7 +133,7 @@ if (dailyBtn) {
     SV.rev = (SV.rev || 0) + 1;
     SV.ts = Date.now();
     sv();
-    if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits');
+    if (typeof announce === 'function') announce('DAILY BONUS', '#ffd36b', '+200 credits', 3);
     lobby();
     refreshDailyBtn();
   };
@@ -147,7 +150,10 @@ addEventListener('click', e => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { pause(); autoSave(); }
 });
-window.addEventListener('pagehide', autoSave);
+// Losing focus (alt-tab, notification shade, app switcher) must not leave a stick
+// or the trigger latched: no touchend arrives while the window is unfocused.
+window.addEventListener('blur', () => { if (typeof releaseAllInputs === 'function') releaseAllInputs(); });
+window.addEventListener('pagehide', () => { if (typeof releaseAllInputs === 'function') releaseAllInputs(); autoSave(); });
 window.addEventListener('beforeunload', autoSave);
 
 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {

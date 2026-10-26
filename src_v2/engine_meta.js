@@ -115,13 +115,18 @@ function takeBoon(id) {
   const b = BOONS.find(x => x.id === id);
   if (!b) return;
   if (boonOwned(id) >= b.max) return;
+  // One pick per draft. The lock closes the window between applying the effect
+  // and the bar being hidden, so a double tap (or a stale handler on the bar
+  // that rebuild() re-rendered) cannot apply the same boon twice.
+  if (S.bdLock) return;
+  S.bdLock = 1;
   S.boons = S.boons || {};
   S.boons[id] = boonOwned(id) + 1;
   try { b.ap(); } catch (e) { console.warn('[DeadZone] boon apply failed', id, e); }
   S.boonOffer = [];
   closeBoonDraft();
   if (typeof snd === 'function') { snd(620, 0.16, 'triangle', 0.08, 1.5); setTimeout(() => snd(930, 0.18, 'triangle', 0.07, 1.4), 70); }
-  if (typeof announce === 'function') announce(b.n, b.col, b.d + '  •  LV ' + S.boons[id]);
+  if (typeof announce === 'function') announce(b.n, b.col, b.d + '  •  LV ' + S.boons[id], 2, 'boon');
   if (typeof rebuild === 'function') rebuild();
   // Hand the screen over to whatever draft is queued behind this one (usually
   // the perk draft), or release the run if nothing else is pending.
@@ -130,6 +135,7 @@ function takeBoon(id) {
 
 function openBoonDraft() {
   if (typeof S === 'undefined' || !S || !S.boonOffer || !S.boonOffer.length) return false;
+  S.bdLock = 0;
   renderBoonBar();
   const ov = document.getElementById('boondraft');
   if (ov) ov.classList.add('on');
@@ -438,6 +444,6 @@ function settleRun() {
   }
 
   if (ascGain > 0 && typeof announce === 'function') {
-    announce('ASCENSION ' + ascGain, '#c084fc', 'SECTOR THREAT RISES - BOUNTY UP');
+    announce('ASCENSION ' + ascGain, '#c084fc', 'SECTOR THREAT RISES - BOUNTY UP', 2, 'asc');
   }
 }

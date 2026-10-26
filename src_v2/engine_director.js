@@ -60,7 +60,7 @@ function applyPowerup(id) {
   if (id === 'fz') {
     for (const z of Z) if (!z.dead) z.fz = Math.max(z.fz || 0, 2.5);
   }
-  announce(def.name, def.col, def.tag + (def.dur ? ' • ' + def.dur + 's' : ''));
+  announce(def.name, def.col, def.tag + (def.dur ? ' • ' + def.dur + 's' : ''), 3, 'pu');
   // Each power-up detonates in its own shape: a reticle for OVERCHARGE, shard
   // spokes for CRYO, a hex burst for AEGIS, an inward then outward pulse for
   // MAGNET, upward forks for ADRENALINE and stacked blast rings for SHOCKWAVE.
@@ -83,8 +83,8 @@ function hexToRgbStr(hex) {
 }
 
 function nukeBlast() {
-  S.nukeFlash = 0.35;
-  SH = Math.max(SH, 20);
+  S.nukeFlash = 0.22;
+  addShake(15);
   RG.push({ x: P.x, y: P.y, r: 10, l: 0.85, v: 900, c: '251,146,60' });
   RG.push({ x: P.x, y: P.y, r: 6, l: 0.65, v: 650, c: '255,255,255' });
   if (typeof noise === 'function') noise(0.5, 0.16);
@@ -135,7 +135,7 @@ function directorOnKill(z) {
 
   for (const t of COMBO_TIERS) {
     if (S.cmb === t.at) {
-      announce(t.name, t.col, 'COMBO x' + t.at + '  +$' + t.bonus);
+      announce(t.name, t.col, 'COMBO x' + t.at + '  +$' + t.bonus, 3, 'combo');
       S.cash += t.bonus;
       RG.push({ x: P.x, y: P.y, r: 6, l: 0.5, v: 420, c: hexToRgbStr(t.col) });
       if (typeof snd === 'function') { snd(440 + t.at * 3, 0.16, 'square', 0.07, 1.5); }
@@ -174,7 +174,7 @@ function triggerLastStand() {
   S.sh2 = Math.max(S.sh2 || 0, 3.5);
   S.bt = 2.0; // bullet-time (real seconds)
   S.nukeFlash = 0.18;
-  SH = Math.max(SH, 18);
+  addShake(14);
   for (const z of Z) {
     if (z.dead) continue;
     const d = Math.hypot(z.x - P.x, z.y - P.y);
@@ -188,7 +188,7 @@ function triggerLastStand() {
   RG.push({ x: P.x, y: P.y, r: 10, l: 0.8, v: 900, c: '255,90,58' });
   RG.push({ x: P.x, y: P.y, r: 4, l: 0.6, v: 500, c: '255,255,255' });
   burst(P.x, P.y, '#ff5a3a', 36, 4, 170, 1);
-  announce('LAST STAND', '#ff5a3a', 'YOU REFUSE TO DIE');
+  announce('LAST STAND', '#ff5a3a', 'YOU REFUSE TO DIE', 1, 'laststand');
   if (typeof snd === 'function') {
     snd(90, 0.5, 'sine', 0.14, 0.6);
     setTimeout(() => snd(70, 0.4, 'sine', 0.12, 0.6), 220);
@@ -279,11 +279,11 @@ function applyWaveModifier() {
 
   if (S.wmList.length) {
     announce('WAVE ' + w + ' - ' + S.wmList.map(m => m.name).join(' + '), S.wmList[0].col,
-      S.wmList.map(m => m.desc).join('  |  ') + '  (+' + Math.round((S.wmCash - 1) * 100) + '% CASH)');
+      S.wmList.map(m => m.desc).join('  |  ') + '  (+' + Math.round((S.wmCash - 1) * 100) + '% CASH)', 2, 'wave');
   } else if (isBoss) {
-    announce('WAVE ' + w, '#ff5a3a', 'BOSS INBOUND');
+    announce('WAVE ' + w, '#ff5a3a', 'BOSS INBOUND', 1, 'wave');
   } else {
-    announce('WAVE ' + w, '#e8e4cf', w === 1 ? 'SURVIVE THE OUTBREAK' : 'HOLD THE LINE');
+    announce('WAVE ' + w, '#e8e4cf', w === 1 ? 'SURVIVE THE OUTBREAK' : 'HOLD THE LINE', 2, 'wave');
   }
 
   // Supply drop beacon on even waves: a guaranteed power-up worth running for
@@ -299,7 +299,7 @@ function applyWaveModifier() {
       // a reward. The nuke stays in the normal kill-drop pool.
       const dr = spawnPowerup(x, y, null, 26, ['nk']);
       if (dr) { dr.sup = 1; dr.vx = dr.vy = 0; }
-      setTimeout(() => { if (S && run) announce('SUPPLY DROP', '#38bdf8', 'FOLLOW THE BEACON'); }, 1600);
+      setTimeout(() => { if (S && run) announce('SUPPLY DROP', '#38bdf8', 'FOLLOW THE BEACON', 3, 'supply'); }, 1600);
       break;
     }
   }
@@ -312,7 +312,7 @@ function directorOnWaveClear() {
     S.flawlessBest = Math.max(S.flawlessBest || 0, S.flawless);
     const bonus = S.wave * 20 + S.flawless * 10;
     S.cash += bonus;
-    announce('FLAWLESS WAVE', '#8fae4a', '+$' + bonus + (S.flawless > 1 ? '  •  STREAK x' + S.flawless : ''));
+    announce('FLAWLESS WAVE', '#8fae4a', '+$' + bonus + (S.flawless > 1 ? '  •  STREAK x' + S.flawless : ''), 3, 'flawless');
   } else {
     S.flawless = 0;
   }

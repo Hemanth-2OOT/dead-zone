@@ -32,6 +32,14 @@ canvas {
   height: 100%;
 }
 
+/* Game canvas only: the HUD handles every gesture itself, so the browser must not
+   steal a drag for scrolling, text selection or double-tap zoom. The long list
+   panels keep their own pan-y, so settings and inventories still scroll. */
+#c {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
 /* Custom styled thin scrollbars */
 ::-webkit-scrollbar {
   width: 4px;
@@ -929,6 +937,28 @@ button:active:not(:disabled) { transform: scale(0.96); }
   overscroll-behavior: contain;
 }
 .pp.on { display: flex; }
+
+/* ---- Options tab: settings grid ----
+   A single column of twelve settings overflowed a 360px-tall landscape screen,
+   so the groups sit side by side. */
+.setcard {
+  width: 100%;
+  max-width: 660px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  padding: 12px 14px;
+}
+.settitle {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: #ffd36b;
+  margin: 0;
+}
+.setgrp { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.setlbl { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #a3ab90; }
+.setbtn { width: 100%; min-height: 34px; font-size: 11px; padding: 5px 8px; }
 
 /* ---- lobby design tokens (scoped to the lobby; arena tokens untouched) */
 #start {

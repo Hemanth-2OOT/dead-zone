@@ -111,6 +111,19 @@ function setQualityProfile(profile) {
   }
 }
 
+// Pushes the persisted quality/gore/audio choices into the live settings objects.
+// Called once at boot and again whenever a setting changes; before this the OPTS
+// toggles only mutated QUALITY_SETTINGS, so every choice reverted on reload.
+function applyVisualSettings() {
+  if (typeof SV === 'undefined' || !SV) return;
+  setQualityProfile(['high', 'med', 'low'].indexOf(SV.quality) >= 0 ? SV.quality : 'high');
+  QUALITY_SETTINGS.goreLevel = ['full', 'reduced', 'minimal'].indexOf(SV.goreLvl) >= 0 ? SV.goreLvl : 'full';
+  // Legacy mirrors, kept in sync so an older save and the original toggles agree.
+  if (SV.shake != null) QUALITY_SETTINGS.screenShake = Boolean(SV.shake);
+  if (SV.shakeLvl != null) QUALITY_SETTINGS.screenShake = SV.shakeLvl > 0;
+  MUTE = SV.mute ? 1 : 0;
+}
+
 const QUALITY_PROFILES = {
   high: { maxDecals: 300, maxBlood: 20, maxMist: 16, dynamicLights: true, ambientCount: 36, shadowBlur: true },
   med:  { maxDecals: 160, maxBlood: 12, maxMist: 8,  dynamicLights: true, ambientCount: 20, shadowBlur: false },
@@ -123,14 +136,58 @@ function getQuality() {
 function getQualityProfile() {
   return QUALITY_PROFILES[getQuality()] || QUALITY_PROFILES.high;
 }
+// Reduced motion: the player's explicit in-game choice wins, otherwise fall
+// back to the OS-level preference. Either source turning it on is enough.
 function isReducedMotion() {
+  if (typeof SV !== 'undefined' && SV && SV.rm != null) return Boolean(SV.rm);
   return Boolean(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
-function isShakeEnabled() {
-  if (isReducedMotion()) return false;
-  if (!QUALITY_SETTINGS.screenShake) return false;
-  return (typeof SV !== 'undefined' && SV && SV.shake != null) ? Boolean(SV.shake) : true;
+// Camera shake: 0 off, 1 reduced, 2 normal. SV.shakeLvl is the persisted
+// choice; the older SV.shake boolean and the in-session
+// QUALITY_SETTINGS.screenShake flag are still honoured so existing saves and
+// the original OPTS button keep working.
+function shakeLevel() {
+  if (isReducedMotion()) return 0;
+  if (typeof SV !== 'undefined' && SV && SV.shakeLvl != null) return Math.max(0, Math.min(2, Number(SV.shakeLvl) || 0));
+  if (typeof SV !== 'undefined' && SV && SV.shake != null && !SV.shake) return 0;
+  return QUALITY_SETTINGS.screenShake ? 2 : 0;
+}
+
+function isShakeEnabled() { return shakeLevel() > 0; }
+
+// Amplitude multiplier for the current shake setting.
+function shakeMul() {
+  const lv = shakeLevel();
+  return lv === 0 ? 0 : lv === 1 ? 0.4 : 1;
+}
+
+// Single funnel for every shake trigger. Shake sources used to assign SH
+// directly from six different files, so a new trigger could silently bypass the
+// player's setting.
+function addShake(amp) {
+  const m = shakeMul();
+  if (m > 0 && typeof SH !== 'undefined') SH = Math.max(SH, amp * m);
+}
+
+// Visual effects: 'full' | 'reduced'. Reduced drops the full-screen flashes and
+// the heaviest overlays; it never removes gameplay information.
+function fxLevel() {
+  if (isReducedMotion()) return 'reduced';
+  return (typeof SV !== 'undefined' && SV && SV.fx === 'reduced') ? 'reduced' : 'full';
+}
+function isFxReduced() { return fxLevel() === 'reduced'; }
+
+// Persisted mobile-control preferences.
+function ctlPref() {
+  const sv = (typeof SV !== 'undefined' && SV) ? SV : {};
+  const n = (v, d) => (v == null ? d : Number(v));
+  return {
+    size: Math.max(0.8, Math.min(1.3, n(sv.ctlSize, 1))),
+    opacity: Math.max(0.35, Math.min(1, n(sv.ctlOpacity, 1))),
+    floating: sv.ctlMode === 'floating',
+    fireMode: sv.fireMode === 'button' ? 'button' : 'aim'
+  };
 }
 
 function isGoreEnabled() {

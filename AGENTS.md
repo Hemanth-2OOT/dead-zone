@@ -327,3 +327,43 @@ The vision tool is not reliable for these screenshots; decode the PNG with Pillo
   deploy anyway, but the lobby must not sit on a half-live world.
 - `openPerk()` carries the same "the lobby is not a gameplay state" guard as
   `openNextDraft()`: a leftover level-up must never raise a draft over `#start`.
+
+## Post-v2.11.0 notes — mobile controls, combat feel & visual comfort
+### Input (one owner per finger)
+- Every touch is claimed by a role in the `TOUCH_ROLE` map keyed by pointer
+  identifier and released only for that identifier. Releasing one finger can no longer
+  cancel another role. `pointerup`, `pointercancel`, `lostpointercapture`, `blur` and
+  `pagehide` all funnel into `releaseAllInputs()`; `pause()` and `returnToLobby()` call
+  it too, so a control can never stick.
+- Buttons are claimed before the sticks in `touchStart()`, so a thumb on an ability or
+  FIRE cannot also start an aim drag; a second finger in a half whose stick is held
+  takes the free stick instead of stealing the held one.
+- Gestures are blocked on the canvas only (`#c { touch-action: none; overscroll-behavior: none }`).
+  Long list panels keep `pan-y` so settings and inventories still scroll.
+### Control layout
+- `btRad()` is one uniform 22 * `ctlScale()` radius for every button, with a per-button
+  tap radius `btHit(b) = (b.hr || 25) * ctlScale()` — the drawn size and the hit size use
+  the same scale factor, so they can never drift apart. Mixed radii made the cluster look
+  ragged and generous radii made neighbouring abilities overlap under first-match-wins.
+- Abilities live in a 2x2 `CLU_CELL` cluster at 52 * s pitch, 104 * s above the right
+  stick (`clusterPos()`); slot 0 is the signature skill, slot 3 the far corner. A four-button
+  arc plus a dedicated FIRE trigger cannot both fit a 360px-tall screen.
+- FIRE sits at `[j[0] - 104*s, j[1] + 4*s]` — the empty band between the weapon card and
+  the aim stick, at stick height, where an aiming thumb is least likely to catch it.
+- Stick base rings are drawn at the live origin (`J.l.ox/oy`, `J.r.ox/oy`) so a floating
+  stick appears under the summoning thumb.
+### Freeze / shake on draft selection
+- `addShake()` is the single shake funnel; all 12 former `SH = Math.max(...)` call sites
+  go through it, and shake decays even while `run === 0`. A frozen `DT` used to leave
+  `SH` pinned, which is what made a boon pick read as a shake that never ended.
+- `takeBoon()` is guarded by `S.bdLock` (cleared in `openBoonDraft()`), so a double tap
+  applies exactly one boon; the second card no longer re-enters the draft open path.
+- Drafts chain, never overlap: the tactical boon first, then the level-up perk via
+  `openNextDraft()`. `WAVE_CLEAR_T` does not run while `S.po || S.bd || S.gp`, so the
+  between-wave beat resumes the moment the last card is taken.
+### Announcements
+- `announce(title, col, sub, pri, key)` keeps at most one major (pri <= 2) and three
+  minors, with per-key lifetimes in `ANN_PRI_LIFE`. A repeated key refreshes its entry
+  instead of stacking a second banner. `drawAnnouncements()` renders the major at
+  `H * 0.2` and the minors 52px below in a steady column with no scale punch — the old
+  per-entry punch on every alive banner was the wave-clear flicker.
