@@ -1,25 +1,34 @@
 # DEAD ZONE — Codebase Analysis
 
 Prepared by Lemon Code (AI agent) on behalf of the user. Repository: `dead-zone` @ `main`.
-Scope: full source review of `src_v2/` (21 modules, 15,404 lines), the bundler, the Android
-shell, and a live behavioural pass against the built artifact (`www/index.html`).
+Scope: full source review of `src_v2/` (21 modules, 14,778 lines), the bundler, the test
+tooling, the Android shell, and a live behavioural pass against the built artifact
+(`www/index.html`, 688 KB).
+
+Line counts and test numbers in this document were re-measured after the shop-restoration
+pass in section 7; the findings themselves are unchanged.
 
 ---
 
 ## 1. How the code is put together
 
 ```
-src_v2/*.js  ──build.js──►  www/index.html   (single self-contained file, 679 KB)
+src_v2/*.js  ──build.js──►  www/index.html   (single self-contained file, 688 KB)
                                  │
                               Capacitor  ──►  android/  ──►  release APK
 ```
 
-`src_v2/build.js` (164 lines) concatenates the modules in a fixed order, then runs two static
+`src_v2/build.js` (169 lines) concatenates the modules in a fixed order, then runs three static
 audits before writing the bundle:
 
-1. **Element-id audit** — every `$('id')` / `getElementById` reference in the JS is matched
-   against the ids present in `body.html` + generated markup.
-2. **Syntax audit** — the concatenated bundle is compiled with Node's V8 (`new vm.Script`), so a
+1. **Duplicate-declaration audit** — the modules share one script scope, so a repeated top-level
+   `function`/`const` name silently wins by load order instead of erroring. The build fails on a
+   collision and names both modules.
+2. **Element-id audit** — every `$('id')` / `getElementById` reference in the JS is matched
+   against the ids present in `body.html` + generated markup, including ids only reached through
+   a literal array or a `||` fallback. This is the check that would have caught the deleted shop
+   overlay whose id was still being dereferenced at run start.
+3. **Syntax audit** — the concatenated bundle is compiled with Node's V8 (`new vm.Script`), so a
    syntax error can never ship.
 
 Both audits pass on the current tree (`✓ Element-id audit passed`, `✓ Syntax Check Passed:
@@ -28,27 +37,28 @@ it converts two whole classes of "the game is a white screen" bug into a build f
 
 | Module | Lines | Responsibility |
 |---|---|---|
-| `engine_world.js` | 3,998 | sim step, collision, weapons/firing, `renderHUD`, `drawControls`, camera, run lifecycle |
-| `engine_feel.js` | 1,268 | projectiles/trails, impacts, recoil, screen punch, hit feedback |
-| `engine_lobby.js` | 1,175 | menu shell, tab router, skins/shop/skills UI, save-state editing |
-| `engine_render_zombies.js` | 966 | enemy sprites and animation |
+| `engine_world.js` | 3,102 | sim step, sticks/buttons, collision, weapons/firing, camera, run lifecycle |
+| `engine_lobby.js` | 1,279 | menu shell, tab router, shop/skins/skills/options UI, save-state editing |
+| `engine_feel.js` | 1,272 | projectile archetypes/trails, impacts, recoil, screen punch, hit feedback |
+| `engine_render_zombies.js` | 966 | enemy sprites and attack telegraphs |
 | `engine_data.js` | 913 | `WEAP`, `WEAP_RANK`, `TIER_POLICY`, boons, perks, relics, `SKINS`, tier validators |
-| `engine_events_missions.js` | 745 | operations/missions, skin preview + turntable, equip logic |
+| `engine_hud.js` | 888 | HUD chrome, the pad (sticks/buttons), weapon card, gun picker |
+| `engine_events_missions.js` | 728 | operations/missions, skin preview + turntable, equip logic |
 | `engine_render_player.js` | 604 | player sprite, muzzle flashes, reload timing |
-| `engine_depth.js` | 549 | pseudo-3D depth pass |
-| `engine_gore.js` | 474 | corpses, blood, gibs |
-| `engine_maps.js` | 462 | arena layout, obstacle placement |
-| `engine_meta.js` | 449 | achievements, ascension, lifetime stats |
-| `engine_fx.js` | 440 | particles, shake, hit flashes |
-| `engine_core.js` | 435 | canvas/DPR setup, safe-area probe, error overlay, sanitizers |
-| `engine_passives.js` | 383 | passive modifiers |
-| `body.html` | 380 | markup for the shell, lobby, overlays |
-| `engine_render_turret.js` | 375 | deployable turret rendering |
-| `engine_props.js` | 326 | 16 destructible/solid prop types |
-| `engine_director.js` | 442 | wave scheduling, bosses, announcements, power-ups |
-| `engine_pickups.js` | 281 | drops and pickups |
-| `engine_persistence.js` | 238 | save/load, rolling backup, Capacitor Preferences sync |
-| `engine_bootstrap.js` | 173 | boot order, `GAME_VERSION`, loading screens |
+| `engine_depth.js` | 536 | y-sorted depth band, cached soft sprites, lighting |
+| `engine_gore.js` | 466 | corpses, blood, decals, gibs |
+| `engine_core.js` | 453 | canvas/DPR setup, safe-area probe, error overlay, colour helpers |
+| `engine_fx.js` | 450 | announcer queue, combo meter, impacts, footsteps |
+| `engine_meta.js` | 445 | boon draft, weapon mastery, achievements, lifetime stats |
+| `engine_director.js` | 442 | wave scheduling, power-ups, last stand, zombie steering |
+| `engine_maps.js` | 412 | arena layout, obstacle placement, zone metadata |
+| `body.html` | 404 | markup for the shell, lobby, overlays |
+| `engine_passives.js` | 383 | passive auras, summons, status effects |
+| `engine_render_turret.js` | 375 | deployable sentry turret |
+| `engine_props.js` | 326 | destructible/solid prop renderers |
+| `engine_persistence.js` | 284 | save/load, sanitiser, rolling backup, Capacitor Preferences sync |
+| `engine_pickups.js` | 281 | cash drops, magnet curve, HUD flight |
+| `engine_bootstrap.js` | 173 | boot order, `GAME_VERSION`, input bindings, daily bonus |
 
 ### Data flow
 
@@ -191,9 +201,10 @@ and a fully-loaded HUD state (14 perks, 10 boons, 3 wave modifiers, 9 power-ups,
 
 ## 4. Working tree at the time of writing
 
-Uncommitted work in progress (the polish sprint): `engine_world.js`, `engine_data.js`,
-`engine_feel.js`, `engine_render_player.js`, `engine_events_missions.js`, `engine_core.js` and
-the rebuilt `www/index.html`. Nothing in this review has been committed, tagged or released.
+`main` @ `436ec3f` (v1.0.0 at `3190a20` is the first release of the restarted line). The
+polish sprint, the v1.0.0 audit pass and the shop-restoration pass are all committed; the
+working tree is clean. `www/index.html` is rebuilt from `src_v2/` on every `npm test`, so the
+committed bundle always matches the committed source.
 
 ## 5. Recommended next steps, in order
 
@@ -294,3 +305,38 @@ repository is ever shared, at the cost of in-place updates for existing installs
 `F8` (global canvas context swapping is fragile by construction), `F9` (three event-binding styles),
 `F12` (single-file bundle and cold start) are design notes rather than defects; none of them is a
 correctness or release-integrity risk, and none of them was touched by this release.
+
+---
+
+## 7. Shop-restoration pass
+
+A third pass, this time on the lobby economy. The finding was a regression rather than a
+long-standing defect: `engine_lobby.js` had retired the armory when guns became rank rewards
+(`GUNS/armory was retired; panels shift up by one after EVENTS`), and `engine_events_missions.js`
+records that the shop overlay was deleted from the markup while its id stayed behind. With no
+shop, credits had nothing to buy, and the tab router was quietly one entry short of the nav.
+
+* **O1 — No shop.** The `<!-- TAB 2: GUNS ARMORY -->` placeholder is a real panel again
+  (`#psh`), the nav gains a SHOP button, and `tab()` routes it at index 2. Because the router
+  indexes panels positionally (`['p0','pe','psh','psk','pc','ps','p2','pa','p3']`), every
+  later panel and both in-lobby shortcuts (`CHANGE SKIN`, `SKILL TREE`) had to shift with it;
+  a stale index shows the wrong panel rather than throwing, so the harness now opens SKINS and
+  asserts what it rendered.
+* **O2 — Ordering.** `shopEntries()` sorts by tier, then price, then table order, and the
+  panel adds a tier filter for the same five tiers `TIER_POLICY` validates. The rendered order
+  is asserted from the DOM in the harness, not from the comparator.
+* **O3 — Dual Pistols was free.** `syncWeaponUnlocks()` re-derives ownership from rank on every
+  load (`rank >= WEAP_RANK[i]`), and index 15 sat at rank 1, so a fresh profile owned a second
+  gun before playing. It is rank 3 now, and a logic assertion pins "exactly one weapon is free
+  at the default rank".
+* **O4 — The FIRE button.** Removed as a control, not just hidden: the `BT` entry, its 38px hit
+  radius, the `FIRE_HOLD` pointer claim, `fireHeld()`, the `fireMode` preference and its Options
+  row are all gone. Aiming with the right stick is the trigger on touch and the mouse is the
+  trigger on desktop, so no input path was lost. RELOAD moves into the primary cell the button
+  vacated.
+
+**Verification.** `npm test` = build (3 audits) + `tools/audit.js` (21 checks) +
+`tools/test-logic.js` (20 assertions). The browser harness (`tools/regression-harness.js`) runs
+the built bundle headlessly: **150 assertions, 0 console errors**, including buying and equipping
+through the real DOM handlers, the aim-stick trigger consuming rounds with no FIRE button in the
+path, and the tab-index shift. No open findings from this pass.
