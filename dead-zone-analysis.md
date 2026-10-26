@@ -78,6 +78,8 @@ it converts two whole classes of "the game is a white screen" bug into a build f
 
 ## 2. Findings
 
+Status markers here reflect section 6 and section 7: findings resolved by the later passes are marked `fixed in N*` / `addressed in N*` and explained in those sections.
+
 Severity is impact × likelihood for a shipped mobile build. "Fixed" items were fixed during
 this review and are verified by the automated pass in §3; everything else is an observation
 from reading the code, not a claim about runtime behaviour.
@@ -114,21 +116,21 @@ no boss is alive) and surplus chips collapse into a `+n` counter.
 The counter was left-aligned at the next slot, which put it inside the previously drawn chip.
 It is now right-aligned into the gap (measured 83 px² overlap at 1024×576 before the fix).
 
-### F5 — No automated regression entry point · **Medium · open**
+### F5 — No automated regression entry point · **Medium · fixed in N5**
 `package.json` has no scripts; the only repeatable checks are the bundler's two static audits.
 Nothing exercises the runtime, which is exactly why F1/F2 shipped: both are invisible to a
 syntax check and both throw only when a particular card or gun is selected. The harness in §3
 is a working starting point, but it currently lives outside the repo tree and is not wired to
 `npm test`, a CI job, or the release script.
 
-### F6 — Per-frame gradient and shadow work · **Medium · open, unmeasured**
+### F6 — Per-frame gradient and shadow work · **Medium · measured and fixed in N6**
 43 gradient creations and 8 `shadowBlur` assignments across the render modules. `shadowBlur`
 in particular is one of the most expensive 2D-context states on low-end Android GPUs. I did not
 profile frame time on a device, so this is a hypothesis with a known cost model, not a measured
 problem; the fix path is to hoist static gradients into cached objects and replace blurred
 glows with pre-rendered sprites.
 
-### F7 — `engine_world.js` is a 4,000-line convergence point · **Medium · open**
+### F7 — `engine_world.js` is a 4,000-line convergence point · **Medium · partly addressed in N7**
 The sim step, collision, weapon logic, HUD, on-screen controls, camera, pause/resume and run
 lifecycle all live in one file. For a single-file bundle this is workable, but it makes
 reviewing a HUD change require loading the collision code as well. A pure-Geometry split
@@ -146,7 +148,7 @@ invariant impossible to break.
 handlers are re-parsed on every `innerHTML` render and cannot be detached; the lobby rebuilds
 its list markup on every state change, so this is a small but recurring allocation cost.
 
-### F10 — Release signing key is public history · **High for release integrity · open (documented)**
+### F10 — Release signing key is public history · **High for release integrity · open (documented, see N9)**
 Commits `e975ad5` and `c849a6c` carried keystore material; `README.md` documents the exposure
 and the build now reads credentials from `keystore.properties` (gitignored) or `RELEASE_*` env
 vars, warning loudly and falling back to the debug keystore when absent. The residual risk is
