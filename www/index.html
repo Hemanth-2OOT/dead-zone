@@ -9746,10 +9746,18 @@ function padUnit() { return Math.max(0.88, ctlScale()); }
 // action a thumb should find without looking. PAUSE is smaller because it shares
 // the top-right corner with the cash/horde plate, which reserves a 50px gutter
 // for it - a bigger ring would eat into that readout.
+// PAUSE is sized in absolute pixels rather than pad units: it lives inside the
+// top HUD's fixed 50px right-hand gutter, so a ring that scaled with the viewport
+// would clip the cash/horde plate on a large screen and overhang the screen edge
+// on a small one. 18px drawn + 24px hit fits that band at every size.
+function pauseRad() { return 18; }
+function pauseHit() { return 24; }
+function pausePos() { const [saT, saR] = saInsets(); return [W - 24 - saR, 26 + saT]; }
+
 function btnRad(b) {
   const u = padUnit();
   if (b && b.fire) return 34 * u;
-  if (b && b.pause) return 20 * u;
+  if (b && b.pause) return pauseRad();
   return 27 * u;
 }
 
@@ -9759,7 +9767,7 @@ function btnRad(b) {
 function btHit(b) {
   const u = padUnit();
   if (b && b.fire) return 38 * u;
-  if (b && b.pause) return 26 * u;
+  if (b && b.pause) return pauseHit();
   return 31 * u;
 }
 
@@ -9865,16 +9873,89 @@ function drawReloadGlyph(cx, cy, size, col) {
   X.restore();
 }
 
-// Activation feedback rings: pushed by btPress(), drawn for a beat and gone.
+function perfNow() {
+  return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+}
+
+// --- control chrome --------------------------------------------------------
+// One disc vocabulary for the whole pad, the way a polished twin-stick shooter
+// draws its controls: a dark translucent well, one thin bright accent ring, a
+// hairline inner highlight and an optional soft outer glow. Only the ring
+// colour, the glyph inside and the badge differ between actions, so the hand
+// reads "this is a control" first and "which control" second.
+function ctlDisc(cx, cy, r, ring, o) {
+  const opt = o || {};
+  const u = padUnit();
+  X.beginPath(); X.arc(cx, cy, r, 0, 6.28);
+  X.fillStyle = opt.fill || 'rgba(12,16,11,0.82)'; X.fill();
+  if (opt.glow) {
+    X.save();
+    X.globalAlpha *= (opt.glowA == null ? 0.45 : opt.glowA);
+    X.strokeStyle = opt.glow; X.lineWidth = Math.max(3.5, r * 0.2);
+    X.beginPath(); X.arc(cx, cy, r + 1.2, 0, 6.28); X.stroke();
+    X.restore();
+  }
+  X.strokeStyle = ring; X.lineWidth = opt.ringW || Math.max(2, 2.2 * u);
+  X.beginPath(); X.arc(cx, cy, r, 0, 6.28); X.stroke();
+  X.strokeStyle = opt.hi || 'rgba(255,255,255,0.13)'; X.lineWidth = 1;
+  X.beginPath(); X.arc(cx, cy, r * 0.78, 0, 6.28); X.stroke();
+}
+
+// Four arrowheads pointing outward: the movement knob's glyph.
+function drawArrowCrossGlyph(cx, cy, size, col) {
+  const t = size * 0.5, h = size * 0.22, w = size * 0.19;
+  X.save(); X.fillStyle = col;
+  for (let i = 0; i < 4; i++) {
+    X.save(); X.translate(cx, cy); X.rotate(i * Math.PI / 2);
+    X.beginPath();
+    X.moveTo(0, -t);
+    X.lineTo(w, -t + h);
+    X.lineTo(w * 0.4, -t + h);
+    X.lineTo(w * 0.4, t * 0.16);
+    X.lineTo(-w * 0.4, t * 0.16);
+    X.lineTo(-w * 0.4, -t + h);
+    X.lineTo(-w, -t + h);
+    X.closePath(); X.fill();
+    X.restore();
+  }
+  X.restore();
+}
+
+// Ring with four ticks and a centre pip: the aiming knob's reticle.
+function drawCrosshairGlyph(cx, cy, size, col) {
+  const r = size * 0.33;
+  X.save();
+  X.strokeStyle = col; X.lineWidth = Math.max(1.5, size * 0.1); X.lineCap = 'round';
+  X.beginPath(); X.arc(cx, cy, r, 0, 6.28); X.stroke();
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    X.beginPath();
+    X.moveTo(cx + Math.cos(a) * (r + size * 0.05), cy + Math.sin(a) * (r + size * 0.05));
+    X.lineTo(cx + Math.cos(a) * (r + size * 0.26), cy + Math.sin(a) * (r + size * 0.26));
+    X.stroke();
+  }
+  X.fillStyle = col;
+  X.beginPath(); X.arc(cx, cy, Math.max(1.2, size * 0.06), 0, 6.28); X.fill();
+  X.restore();
+}
+
+// Activation feedback: a short flash on the button itself plus one expanding
+// ring, so a tap that lands while the screen is busy still confirms itself.
 const BT_FX = [];
 function btPress(b, x, y) {
+  b._t0 = perfNow();
   BT_FX.push({
     x, y,
     r: btnRad(b) + 4,
-    t0: (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(),
+    t0: perfNow(),
     col: b.fire ? '#ff7a4a' : '#8fae4a'
   });
   if (BT_FX.length > 10) BT_FX.shift();
+}
+function btFlash(b) {
+  if (!b || !b._t0) return 0;
+  const a = (perfNow() - b._t0) / 220;
+  return a >= 1 ? 0 : 1 - a;
 }
 
 // Combat buttons. Sizes, hit radii and positions all come from the pad helpers
@@ -9915,7 +9996,7 @@ const BT = [
   },
   // Pause lives in the top HUD's own right-hand gutter, vertically centred on the
   // cash/horde plate, so it neither covers the readout nor the pad below.
-  { id: 'pause', n: 'II', ar: 1, pause: 1, p: () => { const [saT, saR] = saInsets(); const u = padUnit(); return [W - 25 * u - saR, 26 * u + saT]; }, f: () => pause() },
+  { id: 'pause', n: 'II', ar: 1, pause: 1, p: () => pausePos(), f: () => pause() },
   // Reload is the primary row's other half, one thumb-width from FIRE.
   { id: 'reload', n: 'RELOAD', ar: 1, p: () => reloadBtnPos(), f: () => { if (run) startReload(); } }
 ];
@@ -12798,22 +12879,46 @@ function drawControls() {
     const held = J[side];
     const base = held ? [held.ox, held.oy] : (side === 'l' ? [lx, ly] : [rx, ry]);
     const cur = held ? [held.x, held.y] : base;
-    const acc = side === 'l' ? '255,255,255' : '255,110,80';
+    const R = jRad(), kn = jKnob();
+    // White movement stick, warm-red aiming stick: the same disc either way, so
+    // the pair reads as one system and the colour tells the hands apart.
+    const acc = side === 'l' ? '232,236,224' : '255,118,84';
     X.save();
     X.globalAlpha = ctlAlpha;
-    X.lineWidth = 2.5;
-    X.strokeStyle = 'rgba(' + acc + ',0.28)';
-    X.fillStyle = 'rgba(0,0,0,0.22)';
-    X.beginPath(); X.arc(base[0], base[1], jRad(), 0, 6.28); X.fill(); X.stroke();
+
+    // well: soft dark halo, translucent bowl, one bright ring, hairline inside
+    X.beginPath(); X.arc(base[0], base[1], R + 3.5, 0, 6.28);
+    X.fillStyle = 'rgba(0,0,0,0.18)'; X.fill();
+    X.beginPath(); X.arc(base[0], base[1], R, 0, 6.28);
+    X.fillStyle = held ? 'rgba(10,13,10,0.42)' : 'rgba(10,13,10,0.32)'; X.fill();
+    X.strokeStyle = 'rgba(' + acc + ',' + (held ? '0.75' : '0.5') + ')';
+    X.lineWidth = Math.max(2, 2.2 * ctlScale());
+    X.stroke();
+    X.strokeStyle = 'rgba(' + acc + ',0.14)'; X.lineWidth = 1;
+    X.beginPath(); X.arc(base[0], base[1], R - 5, 0, 6.28); X.stroke();
+
     if (!held) {
-      X.fillStyle = 'rgba(' + acc + ',0.22)';
-      X.font = '900 ' + Math.round(11 * ctlScale()) + 'px Arial';
+      // rest marks: four ticks on the cardinals, so the ring reads as a dial
+      X.strokeStyle = 'rgba(' + acc + ',0.34)'; X.lineWidth = 1.6;
+      for (let i = 0; i < 4; i++) {
+        const a = i * Math.PI / 2 - Math.PI / 2;
+        X.beginPath();
+        X.moveTo(base[0] + Math.cos(a) * (R - 13 * ctlScale()), base[1] + Math.sin(a) * (R - 13 * ctlScale()));
+        X.lineTo(base[0] + Math.cos(a) * (R - 4.5), base[1] + Math.sin(a) * (R - 4.5));
+        X.stroke();
+      }
+      X.fillStyle = 'rgba(' + acc + ',0.32)';
+      X.font = '900 ' + Math.round(10 * ctlScale()) + 'px Arial';
       X.textAlign = 'center'; X.textBaseline = 'middle';
-      X.fillText(side === 'l' ? 'MOVE' : 'AIM', base[0], base[1]);
+      X.fillText(side === 'l' ? 'MOVE' : 'AIM', base[0], base[1] + R * 0.55);
     }
-    X.beginPath(); X.arc(cur[0], cur[1], jKnob(), 0, 6.28);
-    X.fillStyle = 'rgba(' + acc + ',0.4)'; X.fill();
-    X.strokeStyle = 'rgba(' + acc + ',0.75)'; X.lineWidth = 2; X.stroke();
+
+    // knob: dark disc, bright rim, and the role's own glyph inside
+    X.beginPath(); X.arc(cur[0], cur[1], kn, 0, 6.28);
+    X.fillStyle = held ? 'rgba(22,26,20,0.86)' : 'rgba(16,20,15,0.74)'; X.fill();
+    X.strokeStyle = 'rgba(' + acc + ',0.92)'; X.lineWidth = 2; X.stroke();
+    if (side === 'l') drawArrowCrossGlyph(cur[0], cur[1], kn * 1.15, 'rgba(' + acc + ',0.9)');
+    else drawCrosshairGlyph(cur[0], cur[1], kn * 1.5, 'rgba(' + acc + ',0.92)');
     X.restore();
   };
   drawStick('l');
@@ -12834,17 +12939,20 @@ function drawControls() {
     if (b.fire) {
       const held = fireHeld();
       const dry = reloading || noAmmo;
+      // Held breathes gently instead of strobing, so continuous fire stays calm
+      // to look at while still being obviously "down".
+      const pulse = held ? 0.55 + 0.45 * Math.sin(perfNow() / 130) : 0;
       X.save();
       X.globalAlpha = ctlAlpha;
-      X.beginPath(); X.arc(bx, by, r, 0, 6.28);
-      X.fillStyle = held ? 'rgba(255,104,62,0.90)' : dry ? 'rgba(40,28,22,0.82)' : 'rgba(150,44,26,0.86)';
-      X.fill();
-      X.strokeStyle = dry ? 'rgba(140,90,70,0.5)' : held ? '#ffd7c2' : '#ff7a4a';
-      X.lineWidth = held ? 3.4 : 2.4; X.stroke();
-      X.strokeStyle = dry ? 'rgba(150,110,90,0.2)' : 'rgba(255,190,160,0.26)';
-      X.lineWidth = 1.2;
-      X.beginPath(); X.arc(bx, by, r * 0.76, 0, 6.28); X.stroke();
-      X.fillStyle = dry ? 'rgba(214,186,170,0.65)' : '#fff3ea';
+      ctlDisc(bx, by, r,
+        dry ? 'rgba(150,104,80,0.62)' : held ? '#ffd7c2' : '#ff7a4a',
+        {
+          fill: held ? 'rgba(168,52,30,0.90)' : dry ? 'rgba(34,24,19,0.84)' : 'rgba(96,30,18,0.86)',
+          glow: dry ? null : held ? 'rgba(255,140,96,0.85)' : 'rgba(255,122,74,0.5)',
+          glowA: held ? 0.35 + 0.3 * pulse : 0.35,
+          ringW: held ? 3.2 : 2.4
+        });
+      X.fillStyle = dry ? 'rgba(214,186,170,0.6)' : '#fff3ea';
       X.font = '900 ' + Math.round(15 * padUnit()) + 'px Impact, Arial Black, sans-serif';
       X.textAlign = 'center'; X.textBaseline = 'middle';
       X.fillText('FIRE', bx, by);
@@ -12854,9 +12962,7 @@ function drawControls() {
 
     if (b.id === 'pause') {
       X.save(); X.globalAlpha = ctlAlpha;
-      X.beginPath(); X.arc(bx, by, r, 0, 6.28);
-      X.fillStyle = 'rgba(20,26,18,0.82)'; X.fill();
-      X.strokeStyle = '#3d4f34'; X.lineWidth = 1.6; X.stroke();
+      ctlDisc(bx, by, r, btFlash(b) > 0 ? '#c9e08a' : '#54663f', { ringW: 1.8, hi: 'rgba(255,255,255,0.07)' });
       X.fillStyle = '#d5d0c2';
       const bw = Math.max(3, r * 0.2), bh = r * 0.8;
       X.fillRect(bx - r * 0.36 - bw / 2, by - bh / 2, bw, bh);
@@ -12871,17 +12977,20 @@ function drawControls() {
       // it happens). startReload() itself rejects overlapping requests.
       const full = P && P.ammo != null && P.ammo >= magMax;
       const prog = (reloading && P.reloadDuration) ? Math.max(0, Math.min(1, 1 - (P.reloadTimer || 0) / P.reloadDuration)) : 0;
+      const fl = btFlash(b);
       X.save();
       X.globalAlpha = ctlAlpha * (full && !reloading ? 0.55 : 1);
-      X.beginPath(); X.arc(bx, by, r, 0, 6.28);
-      X.fillStyle = reloading ? 'rgba(48,40,20,0.9)' : 'rgba(20,26,18,0.88)'; X.fill();
-      X.strokeStyle = reloading ? '#ffd36b' : full ? 'rgba(90,100,80,0.4)' : '#8fae4a';
-      X.lineWidth = 2; X.stroke();
+      ctlDisc(bx, by, r,
+        fl > 0 ? '#fff3d0' : reloading ? '#ffd36b' : full ? 'rgba(96,106,84,0.55)' : '#8fae4a',
+        {
+          fill: reloading ? 'rgba(44,36,18,0.9)' : 'rgba(12,16,11,0.86)',
+          glow: reloading ? 'rgba(255,211,107,0.55)' : null
+        });
       if (prog > 0) {
         X.strokeStyle = '#ffd36b'; X.lineWidth = 3.2; X.lineCap = 'round';
         X.beginPath(); X.arc(bx, by, r + 3.5, -1.5708, -1.5708 + 6.28 * prog); X.stroke();
       }
-      drawReloadGlyph(bx, by, r * 1.0, reloading ? '#ffd36b' : full ? '#8a917e' : '#e6e2d2');
+      drawReloadGlyph(bx, by, r * (1.02 + 0.06 * fl), reloading ? '#ffd36b' : full ? '#8a917e' : '#e6e2d2');
       X.restore();
       continue;
     }
@@ -12892,28 +13001,37 @@ function drawControls() {
     const cdRatio = (sk && sk.cd > 0) ? Math.max(0, Math.min(1, sk.cd / (sk.max || 1))) : 0;
     const charges = (key === 'gren') ? ((typeof S !== 'undefined' && S) ? (S.gr || 0) : 0) : null;
     const unavail = (charges === 0);
+    const flc = btFlash(b);
     X.save();
-    X.globalAlpha = ctlAlpha * (unavail ? 0.55 : 1);
-    X.beginPath(); X.arc(bx, by, r, 0, 6.28);
-    X.fillStyle = cdRatio > 0 ? 'rgba(25,30,22,0.78)' : 'rgba(20,26,18,0.88)'; X.fill();
-    X.strokeStyle = unavail ? 'rgba(120,110,90,0.45)' : cdRatio > 0 ? 'rgba(110,120,95,0.5)' : '#8fae4a';
-    X.lineWidth = 2; X.stroke();
+    X.globalAlpha = ctlAlpha * (unavail ? 0.6 : 1);
+    ctlDisc(bx, by, r,
+      flc > 0 ? '#fff3d0' : unavail ? 'rgba(126,118,98,0.5)' : cdRatio > 0 ? 'rgba(122,134,104,0.62)' : '#8fae4a',
+      {
+        fill: cdRatio > 0 ? 'rgba(12,17,10,0.84)' : 'rgba(12,16,11,0.8)',
+        // A ready skill keeps a faint olive halo, so the eye finds what is
+        // available without any of it competing with the world behind it.
+        glow: (unavail || cdRatio > 0) ? null : 'rgba(143,174,74,0.42)',
+        glowA: 0.3
+      });
     if (cdRatio > 0) {
       // Cooldown reads as a ring refilling instead of a pie hiding the icon.
-      X.strokeStyle = 'rgba(190,205,150,0.6)'; X.lineWidth = 3; X.lineCap = 'round';
-      X.beginPath(); X.arc(bx, by, r - 2.5, -1.5708, -1.5708 + 6.28 * cdRatio); X.stroke();
+      X.strokeStyle = 'rgba(196,212,158,0.75)'; X.lineWidth = 3; X.lineCap = 'round';
+      X.beginPath(); X.arc(bx, by, r - 3.5, -1.5708, -1.5708 + 6.28 * cdRatio); X.stroke();
     }
-    drawSkillGlyph(X, key, bx, by, r * 1.2, unavail ? '#8a917e' : cdRatio > 0 ? '#9fb086' : '#e4eec8');
+    drawSkillGlyph(X, key, bx, by, r * (1.26 + 0.08 * flc),
+      unavail ? '#8a917e' : cdRatio > 0 ? '#a6b78c' : '#e8f0d4');
     if (charges != null) {
-      const lab = '\u00d7' + charges;
-      X.font = '900 ' + Math.round(9 * padUnit()) + 'px Arial';
+      // Charge badge on the rim, in the reference's numeric-pip style.
+      const br = Math.max(8.5, r * 0.36);
+      const gx = bx + r * 0.68, gy = by + r * 0.68;
+      X.beginPath(); X.arc(gx, gy, br, 0, 6.28);
+      X.fillStyle = charges > 0 ? 'rgba(26,20,10,0.95)' : 'rgba(34,34,30,0.9)'; X.fill();
+      X.strokeStyle = charges > 0 ? '#ffb75a' : 'rgba(150,144,128,0.65)';
+      X.lineWidth = 1.6; X.stroke();
+      X.fillStyle = charges > 0 ? '#ffd9a0' : '#a8a396';
+      X.font = '900 ' + Math.round(br * 1.2) + 'px Arial';
       X.textAlign = 'center'; X.textBaseline = 'middle';
-      const bw2 = Math.max(15, X.measureText(lab).width + 8);
-      const gx = bx + r * 0.6, gy = by + r * 0.7;
-      X.beginPath(); X.roundRect(gx - bw2 / 2, gy - 7, bw2, 14, 7);
-      X.fillStyle = charges > 0 ? 'rgba(255,183,90,0.94)' : 'rgba(120,110,90,0.72)'; X.fill();
-      X.fillStyle = '#241a10';
-      X.fillText(lab, gx, gy);
+      X.fillText(String(charges), gx, gy + 0.5);
     }
     X.restore();
   }

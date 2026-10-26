@@ -439,3 +439,57 @@ and drove the real `touchStart`/`touchEnd` path. 69 assertions, all passing:
   the gap between two controls fires nothing (it is the aim zone); left stick + aim stick + FIRE run
   together and releasing one leaves the others held; no stuck input after all fingers lift
 - desktop `r` still reloads; no console errors
+
+## Post-v2.12.0 — control chrome rebuilt against a reference (unreleased)
+
+The pad geometry from v2.12.0 was kept (positions, pitch, hit radii all passed the same
+assertions); what changed is the *drawing layer* of every control, plus one geometry fix.
+
+### One disc vocabulary (`engine_world.js`)
+- `ctlDisc(cx, cy, r, ring, {fill, glow, glowA, ringW, hi})` draws every control: dark
+  translucent well, one thin accent ring, a hairline inner highlight at `0.78r`, and an optional
+  soft outer glow. New controls should use it rather than drawing their own arcs, or the pad
+  stops looking like one system.
+- `perfNow()` replaces the inline `performance.now()` fallbacks, and `btFlash(b)` (fed by
+  `b._t0` set in `btPress`) returns a 0..1 decay over 220ms used to brighten a ring and swell its
+  glyph right after a press.
+- Stick knobs carry role glyphs: `drawArrowCrossGlyph` (MOVE) and `drawCrosshairGlyph` (AIM).
+  The MOVE/AIM word labels moved below centre (`base[1] + R*0.55`) so they never sit under the knob.
+- The grenade charge badge is a dark pip with an amber ring (`r*0.68` offset, `max(8.5, r*0.36)`
+  radius) instead of a filled amber pill — the reference's numeric-pip idiom.
+- Ready abilities keep a faint olive glow (`rgba(143,174,74,0.42)` at `glowA 0.3`); cooling and
+  unavailable states drop the glow entirely, so *available* is the only thing that halos.
+
+### Pause button is now sized in absolute pixels
+`pauseRad()` 18 / `pauseHit()` 24 / `pausePos()` at `W - 24 - saR`, `26 + saT`. It sits inside the
+top HUD's fixed 50px right-hand gutter, which is a fixed band: the old `20*u` ring overhung the
+screen edge once `padUnit()` passed ~1.09 and clipped toward the cash/horde plate above that.
+Do not put pause back on `padUnit()` scaling.
+
+### Verification recipe (reference-styling pass)
+Temporary `www/_v.html` harness (deleted before packaging), deleted after use. It frames
+`index.html` at 800x360 / 854x393 / 915x412 / 960x440, reads geometry from the game's own
+`BT`/`jPos()`/`weaponHudRect()`, installs the `fillText` spy **inside the game realm** (patching
+the prototype from the parent window does not reach the game's context), and posts both its report
+and canvas `toDataURL` captures to a local sink so results can be read from disk.
+
+81 assertions, 0 failures on the new build. Assertions worth keeping: every touch target >= 44px,
+drawn vs hit radii within 12px, every touch target and every *drawn* ring inside the viewport,
+PAUSE ring inside the 50px gutter, no two touch targets overlap, no control overlaps a stick or the
+weapon card, FIRE largest, pad clear of the 48px top band and of the left half, RELOAD beside FIRE,
+the card's four labels inside the card and never intersecting (including "Glacier Breaker"), the
+full touch path (hold/release, reload without firing, gap = aim zone, three fingers at once,
+no stuck input), desktop keys.
+
+The same harness run against the shipped v2.12.0 build fails exactly one real assertion — PAUSE's
+hit target extends past the right edge at all four sizes — plus 11 cascade failures caused by the
+harness probing functions that build does not have.
+
+### Flat-plate captures
+Rendering `drawControls()` over `#0f130e` with no world gives a deterministic image that can be
+diffed between revisions and between states (idle / FIRE held / reloading / cooling / pressed).
+Measured deltas against v2.12.0, same geometry: AIM knob reticle 0 -> 163 warm px, MOVE knob
+arrows 0 -> 129 light px, stick well ring mean luminance +8 (move) / +7 (aim), pad region
+1704 -> 2494 distinct colours; state feedback: FIRE ring luminance 96 -> 170 held plus glow
+93 -> 769 px, reload ring 72 -> 146 with 596 amber progress px, press flash 79 -> 115 with 272
+near-white px, cooling dash icon 53 -> 42 (dimmed) with the refill arc 60 -> 164 px.
