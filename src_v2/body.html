@@ -1,3 +1,8 @@
+<!-- The canvas-drawn controls live outside the DOM and so cannot inherit CSS
+     env() insets. This zero-size probe exposes the resolved insets as computed
+     padding, which saInsets() in engine_world.js reads back on resize. -->
+<div id="sa-probe" aria-hidden="true"></div>
+
 <!-- BOOT LOADER. Driven by initGameAssets() in engine_lobby.js, which advances
      the bar as each piece of real first-run work lands. pointer-events stays off
      so that failing to remove this can never trap the player on a dead screen. -->

@@ -26,10 +26,46 @@ const stick = s => {
   return [Math.cos(a), Math.sin(a), 1];
 };
 
+// Control geometry. Canvas-drawn controls cannot inherit CSS env() insets, so
+// the safe-area probe element is measured here instead. Sizes scale with the
+// shorter viewport edge, so a 360px-tall phone gets proportionally smaller
+// sticks than a 440px one instead of the same 92px circles.
+let _saKey = '', _sa = [0, 0, 0, 0];
+function saInsets() {
+  const key = W + 'x' + H;
+  if (key === _saKey) return _sa;
+  _saKey = key;
+  const el = (typeof document !== 'undefined') ? document.getElementById('sa-probe') : null;
+  if (el) {
+    const cs = getComputedStyle(el);
+    const n = v => parseFloat(v) || 0;
+    _sa = [n(cs.paddingTop), n(cs.paddingRight), n(cs.paddingBottom), n(cs.paddingLeft)];
+  } else _sa = [0, 0, 0, 0];
+  return _sa;
+}
+function ctlScale() { return Math.max(0.78, Math.min(1.2, Math.min(W, H) / 420)); }
+function insetR() { return saInsets()[1]; }
+function jRad() { return 46 * ctlScale(); }
+function jKnob() { return 20 * ctlScale(); }
+function btRad(ar) { return (ar ? 16 : 22) * ctlScale(); }
+
 function jPos(k) {
-  const jX = k === 'l' ? Math.max(70, Math.min(105, W * 0.13)) : W - Math.max(70, Math.min(105, W * 0.13));
-  const jY = H - Math.max(65, Math.min(88, H * 0.22));
-  return [jX, jY];
+  const s = ctlScale();
+  const [, saR, saB, saL] = saInsets();
+  const edge = Math.max(72 * s, Math.min(112 * s, W * 0.13)) + (k === 'l' ? saL : saR);
+  const drop = Math.max(64 * s, Math.min(90 * s, H * 0.23)) + saB;
+  return [k === 'l' ? edge : W - edge, H - drop];
+}
+
+// Action buttons sit on one arc around the aim stick with even angular
+// spacing, so the thumb finds a skill by angle instead of by memorising four
+// unrelated offsets. Angles are degrees, counter-clockwise from screen-right.
+const ARC_D = 94, ARC_A = [150, 112, 74, 205];
+function arcPos(i) {
+  const j = jPos('r');
+  const a = ARC_A[i] * Math.PI / 180;
+  const d = ARC_D * ctlScale();
+  return [j[0] + Math.cos(a) * d, j[1] - Math.sin(a) * d];
 }
 
 // On-screen action buttons
@@ -37,26 +73,26 @@ const BT = [
   {
     get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[0] : 'dash'; },
     get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'DASH'; },
-    p: () => { const j = jPos('r'); return [j[0] - 76, j[1] - 56]; },
+    p: () => arcPos(0),
     f() { skill(this.k); }
   },
   {
     get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[1] : 'nova'; },
     get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'NOVA'; },
-    p: () => { const j = jPos('r'); return [j[0] - 10, j[1] - 86]; },
+    p: () => arcPos(1),
     f() { skill(this.k); }
   },
   {
     get k() { return (typeof CL !== 'undefined' && typeof SV !== 'undefined' && CL[SV.cls || 0]) ? CL[SV.cls || 0].sk[2] : 'rage'; },
     get n() { return (typeof SKN !== 'undefined' && SKN[this.k]) ? SKN[this.k] : 'RAGE'; },
-    p: () => { const j = jPos('r'); return [j[0] - 136, j[1] - 30]; },
+    p: () => arcPos(2),
     f() { skill(this.k); }
   },
-  { n: 'GREN', k: 'gren', p: () => { const j = jPos('r'); return [j[0] - 74, j[1] + 16]; }, f: () => skill('gren') },
-  { n: 'II', ar: 1, p: () => [W - 36, 32], f: () => pause() },
+  { n: 'GREN', k: 'gren', p: () => arcPos(3), f: () => skill('gren') },
+  { n: 'II', ar: 1, p: () => { const [saT, saR] = saInsets(); const s = ctlScale(); return [W - 34 * s - saR, 30 * s + saT]; }, f: () => pause() },
   // Reload sits beside the weapon card. Swapping is done in the weapon picker
   // now: two tiny arrows flanking the card were easy to hit while dragging.
-  { n: '\u21bb', ar: 1, p: () => [weaponHudRect().x + weaponHudRect().w + 34, H - 29], f: () => { if (run) startReload(); } }
+  { n: '\u21bb', ar: 1, p: () => { const [, , saB] = saInsets(); const r = weaponHudRect(); return [r.x + r.w + 34 * ctlScale(), H - 29 - saB]; }, f: () => { if (run) startReload(); } }
 ];
 
 function txt(x, y, s, c, b) {
@@ -1076,7 +1112,10 @@ function returnToLobby() {
   // Drop the world so loop() stops drawing a frozen arena under the lobby
   // (and so nothing can tick against a half-dead run state). Done before
   // renderBoonBar so the hidden bar is emptied rather than re-populated.
+  // The entity arrays go too: init() clears them on the next deploy, but the
+  // lobby should not be sitting on live zombies from a run that has ended.
   S = null;
+  B = []; Z = []; D = []; F = []; T = []; RG = []; GH = []; AB = [];
   if (typeof renderBoonBar === 'function') renderBoonBar();
   if (typeof clearFeelFX === 'function') clearFeelFX();
   const s = document.getElementById('start');
@@ -1131,6 +1170,10 @@ function openNextDraft() {
 
 function openPerk() {
   if (!S || S.po || S.pend <= 0) return;
+  // Same invariant as openNextDraft(): the lobby is not a gameplay state, so a
+  // leftover level-up must never raise a draft over #start.
+  const lob = document.getElementById('start');
+  if (lob && lob.classList.contains('on')) return;
   S.po = 1;
   run = 0;
 
@@ -2676,16 +2719,16 @@ function renderHUD() {
   // Cash, horde count and the live wave modifiers on one readable plate
   {
     const ty0 = 6;
-    const tw = 136, tx0 = W - 50 - tw;
+    const tw = 136, tx0 = W - 50 - insetR() - tw;
     X.fillStyle = 'rgba(8,11,8,0.72)';
     X.beginPath(); X.roundRect(tx0, ty0, tw, 40, 6); X.fill();
     X.strokeStyle = 'rgba(255,255,255,0.10)'; X.lineWidth = 1;
     X.beginPath(); X.roundRect(tx0, ty0, tw, 40, 6); X.stroke();
     X.textAlign = 'right';
     X.font = 'bold 15px Arial'; X.fillStyle = '#ffd36b';
-    X.fillText('$' + (S ? S.cash : 0), W - 56, 23);
+    X.fillText('$' + (S ? S.cash : 0), W - 56 - insetR(), 23);
     X.font = 'bold 10.5px Arial'; X.fillStyle = '#e8e4cf';
-    X.fillText('HORDE ' + (Z.length + (S ? S.q.length : 0)), W - 56, 38);
+    X.fillText('HORDE ' + (Z.length + (S ? S.q.length : 0)), W - 56 - insetR(), 38);
     if (S && S.wmList && S.wmList.length) {
       X.textAlign = 'left'; X.font = '900 8.5px Arial';
       let mx = tx0 + 8;
@@ -2739,7 +2782,7 @@ function renderHUD() {
     const names = Object.keys(S.pk).filter(k => S.pk[k] > 0);
     if (names.length) {
       const bw2 = 16, gap = 2, shown = names.slice(0, 16);
-      let sx0 = W - 50 - shown.length * (bw2 + gap);
+      let sx0 = W - 50 - insetR() - shown.length * (bw2 + gap);
       const ty = 58;
       X.textAlign = 'left'; X.textBaseline = 'middle';
       shown.forEach((name, i) => {
@@ -2769,7 +2812,7 @@ function renderHUD() {
       const bw = 18, gap = 2, cap = 12;
       const shown = list.slice(0, cap);
       const extra = list.length - shown.length;
-      let sx0 = W - 50 - (shown.length + (extra > 0 ? 1 : 0)) * (bw + gap);
+      let sx0 = W - 50 - insetR() - (shown.length + (extra > 0 ? 1 : 0)) * (bw + gap);
       const ty = 84;
       X.textAlign = 'center'; X.textBaseline = 'middle';
       shown.forEach((b, i) => {
@@ -2839,13 +2882,13 @@ function drawControls() {
   X.lineWidth = 2.5;
   X.strokeStyle = 'rgba(255, 255, 255, 0.25)';
   X.fillStyle = 'rgba(0, 0, 0, 0.22)';
-  X.beginPath(); X.arc(lx, ly, 46, 0, 6.28); X.fill(); X.stroke();
+  X.beginPath(); X.arc(lx, ly, jRad(), 0, 6.28); X.fill(); X.stroke();
   X.fillStyle = 'rgba(255, 255, 255, 0.2)';
-  X.font = '900 11px Arial'; X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.font = `900 ${Math.round(11 * ctlScale())}px Arial`; X.textAlign = 'center'; X.textBaseline = 'middle';
   X.fillText('MOVE', lx, ly);
   const curL = J.l ? [J.l.x, J.l.y] : [lx, ly];
   X.fillStyle = 'rgba(255, 255, 255, 0.35)';
-  X.beginPath(); X.arc(curL[0], curL[1], 20, 0, 6.28); X.fill();
+  X.beginPath(); X.arc(curL[0], curL[1], jKnob(), 0, 6.28); X.fill();
   X.strokeStyle = 'rgba(255, 255, 255, 0.65)'; X.lineWidth = 2; X.stroke();
   X.restore();
 
@@ -2854,13 +2897,13 @@ function drawControls() {
   X.lineWidth = 2.5;
   X.strokeStyle = 'rgba(255, 110, 80, 0.28)';
   X.fillStyle = 'rgba(0, 0, 0, 0.22)';
-  X.beginPath(); X.arc(rx, ry, 46, 0, 6.28); X.fill(); X.stroke();
+  X.beginPath(); X.arc(rx, ry, jRad(), 0, 6.28); X.fill(); X.stroke();
   X.fillStyle = 'rgba(255, 110, 80, 0.22)';
-  X.font = '900 11px Arial'; X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.font = `900 ${Math.round(11 * ctlScale())}px Arial`; X.textAlign = 'center'; X.textBaseline = 'middle';
   X.fillText('AIM', rx, ry);
   const curR = J.r ? [J.r.x, J.r.y] : [rx, ry];
   X.fillStyle = 'rgba(255, 110, 80, 0.42)';
-  X.beginPath(); X.arc(curR[0], curR[1], 20, 0, 6.28); X.fill();
+  X.beginPath(); X.arc(curR[0], curR[1], jKnob(), 0, 6.28); X.fill();
   X.strokeStyle = 'rgba(255, 130, 100, 0.75)'; X.lineWidth = 2; X.stroke();
   X.restore();
 
@@ -2868,7 +2911,7 @@ function drawControls() {
   for (const b of BT) {
     const p = b.p();
     const bx = p[0], by = p[1];
-    const r = b.ar ? 16 : 22;
+    const r = btRad(b.ar);
     const cdRatio = (b.k && SK[b.k] && SK[b.k].cd > 0) ? Math.max(0, Math.min(1, SK[b.k].cd / (SK[b.k].max || 1))) : 0;
 
     X.save();
@@ -2887,7 +2930,7 @@ function drawControls() {
     }
 
     X.fillStyle = cdRatio > 0 ? '#7a8570' : (b.ar ? '#d5d0c2' : '#f0ece1');
-    X.font = b.ar ? 'bold 12px Arial' : '900 10px Impact, Arial Black, sans-serif';
+    X.font = b.ar ? `bold ${Math.round(12 * ctlScale())}px Arial` : `900 ${Math.round(10 * ctlScale())}px Impact, Arial Black, sans-serif`;
     X.textAlign = 'center'; X.textBaseline = 'middle';
     X.fillText(b.n, bx, by);
     X.restore();
@@ -3038,7 +3081,7 @@ function tch(e) {
     if (e.type === 'touchstart') {
       const bi = BT.findIndex(b => {
         const p = b.p();
-        return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38);
+        return Math.hypot(t.clientX - p[0], t.clientY - p[1]) < (b.ar ? 32 : 38) * ctlScale();
       });
       if (bi >= 0) { if (run) BT[bi].f(); continue; }
       // The weapon card opens the picker. Nothing else down here switches guns

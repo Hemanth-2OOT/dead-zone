@@ -555,9 +555,17 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .modal-x:hover { background: rgba(255,90,58,.2); border-color: #ff5a3a; color: #ff5a3a; }
 .modal-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 
-/* Map tiles inside the window can be a little bigger than the hub strip. */
-#map-modal #maps { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
-#map-modal #maps button { min-height: 52px !important; font-size: 11px !important; padding: 7px 6px !important; }
+/* Map tiles inside the window can be a little bigger than the hub strip.
+   display must be restated here: the carousel rule above sets
+   display:flex !important and would otherwise turn this into a horizontal
+   strip that overflows the window with most sectors off-screen. */
+#map-modal #maps {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-rows: auto;
+  gap: 8px !important;
+}
+#map-modal #maps button { min-width: 0 !important; flex: none !important; min-height: 52px !important; font-size: 11px !important; padding: 7px 6px !important; }
 #map-modal #maps button .m-title { font-size: 13px; }
 #map-modal-preview { transition: opacity .2s ease-out; }
 
@@ -735,13 +743,19 @@ button:active:not(:disabled) { transform: scale(0.96); }
   #map-modal-stats { font-size: 8.5px !important; gap: 8px !important; }
   #map-modal-enemies, #map-select-lbl { display: none !important; }
   #map-modal #maps {
+    display: grid !important;
     grid-column: 2;
     grid-row: 1 / span 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(44px, auto) !important;
     min-height: 0 !important;
+    gap: 6px !important;
+    align-content: stretch;
     overflow-y: auto !important;
-    align-content: start;
   }
-  #map-modal #maps button { min-height: 42px !important; padding: 5px 6px !important; }
+  #map-modal #maps button .m-num { font-size: 7px !important; }
+  #map-modal #maps button .m-title { font-size: 11px !important; line-height: 1.1 !important; }
+  #map-modal #maps button { min-width: 0 !important; flex: none !important; min-height: 0 !important; height: 100% !important; padding: 4px 5px !important; }
   #map-modal #maps button .m-num { font-size: 7.5px !important; }
   #map-modal #maps button .m-title { font-size: 12px !important; }
   #map-modal #maps button .m-req { font-size: 8px !important; }
@@ -877,6 +891,18 @@ button:active:not(:disabled) { transform: scale(0.96); }
 }
 
 /* ===================================================================== */
+/* Zero-size probe read by engine_world.js: canvas-drawn controls cannot use
+   env() themselves, so the resolved insets are exposed here as padding. */
+#sa-probe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
 /* v2.11.0 - MOBILE LANDSCAPE LOBBY                                       */
 /* The game is landscape-only, so this is the single source of truth for  */
 /* the status bar, the PLAY hub and the bottom nav. The eight overlapping */
